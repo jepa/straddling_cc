@@ -1,0 +1,147 @@
+---
+title: "Untitled"
+author: "Juliano Palacios-Abrantes"
+date: '2022-04-20'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(MyFunctions)
+
+packages <- c(
+  "readxl", # Read dataframe
+  "data.table", # Read dataframe (Fast!)
+  "wesanderson",
+  "tidyverse", # for all data wrangling and ggplot
+  "janitor", # for data cleaning
+  "tidytext", # to order the facet wrap https://juliasilge.com/blog/reorder-within/
+  "cowplot", # for figures 1 and 3
+  # "ggimage", #for reading images to the circular plot
+  "ggrepel", # for nice plot labels
+  # "ggsflabel", # for nice sf_plots labels
+  # "spdep", # for poly2nb old
+  "sf", #Spatial analysis 
+  "sp", #Spatial analysis 
+  # "purrr",#Spatial analysis
+  # "rgdal", #Spatial analysis
+  "tools", #Spatial analysis 
+  "parallel", # for parallelization
+  "taxize", # For getting species names
+  "rfishbase", # for species ecosystem affinity
+  "zoo", #for runing mean
+  "pgirmess", # for dune test after kurtis wallas
+  "rnaturalearth"
+)
+
+my_lib(packages)
+
+# Fix new updates of sf package
+sf::sf_use_s2(use_s2 = FALSE)
+```
+
+
+# Methods
+
+1.- Get transboundary species list
+
+1.1- Remove highly migratory species based on literature
+
+2- High seas shapefile
+
+2.1- FAO Areas ID
+
+3.- Identiy what transboundary species are actually straddling 
+
+4.- Be happy, happy like a hippo
+
+# Data
+
+## Shapefiles 
+
+```{r}
+
+# World land maps
+world_land <- ne_countries(scale = 'medium', returnclass = c("sf")) %>% 
+  st_transform(crs = 4326)# 4326
+
+# ggplot(world_land) +
+#   geom_sf()
+
+# FAO regions
+fao_regions <- my_sf("FAO") %>% 
+  filter(F_LEVEL == "MAJOR")
+st_crs(fao_regions) = 4326
+  
+# head(fao_regions)
+
+# fao_regions %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = F_AREA))
+
+# EEZs
+world_eez <- my_sf("SAU",simple = 1000)
+
+# Lon-lat DBEM
+
+# First get Vicky's data to get high seas
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("EEZID","INDEX")
+
+# Now our gridcell
+abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
+  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F)) %>% 
+  filter(!index %in% EEZ_CellID$INDEX,
+         v1 >0)
+
+  ggplot(abny) +
+  geom_tile(
+    aes(
+      x = lon,
+      y = lat
+    )
+  )
+
+# All maps test
+# ggplot() +
+#   geom_sf(data = fao_regions, aes()) +
+#   geom_sf(data = world_land, aes()) +
+#   geom_sf(data = world_eez, aes())
+```
+
+# Match FAO regions to grid
+
+```{r}
+
+abny_sf <- st_as_sf(abny,
+                 coords = c("lon", "lat")
+) %>% 
+  st_set_crs(4326)
+
+# Combine both SFs
+joint_sf <- st_join(fao_regions,abny_sf,
+        join = st_contains) %>% 
+  filter(!is.na(index))
+
+# head(joint)
+
+fao_grid <- as.data.frame(joint) %>% 
+ select(index,NAME_EN,F_CODE) %>% 
+  left_join(coords)
+
+
+ggplot(fao_grid) +
+  geom_tile(aes(
+    x = lon,
+    y = lat,
+    fill = F_CODE
+  ))
+
+
+
+```
+
+```{r}
+
+```
+
