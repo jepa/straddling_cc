@@ -428,8 +428,12 @@ fao_areas <- complete_lat_lon %>%
 Index_Code <- EEZIDs_List %>% 
   left_join(EEZ_CellID)
 
+suppressMessages(
+StraddIndex(Spp,Model = "All", Coord = coords, Index_Code = Index_Code, Neighbours = Neighbours_List)
+)
+
   
-StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code,Save="Y",Jurisdiction_Type){
+StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   
   # Get model data from spps
   SppDist <- GetSppDist(Spp,Model,Coord)
@@ -468,6 +472,22 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code,Save="Y",J
     ) %>% 
     select(1:3,territory,category) %>% 
     clean_names()
+  
+  # Step 2.1. Determines discrete spp
+  if("fao" %in% Trans_Spp$category == FALSE){
+    
+    # output <- Spp_Grid %>% 
+    #   select(
+    #     taxon_key,
+    #     territory,
+    #     neighbour
+    #   ) %>% 
+    #   mutate(straddling = "no")
+    return(print("not a straddling stock"))
+    stop()
+  
+    
+  }else{
   
   
   # MODEL INDEX (TRESHOLDS 1 & 2) #
@@ -524,39 +544,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code,Save="Y",J
               by = "territory") %>% 
     filter(territory %in% Trans_Spp$territory, #Filter out unwanted Neighbours (those who don't have grids within but get included because they are Neighbours)
            neighbour %in% Trans_Spp$territory)
-  
-  
-  
-  # IF SPECIES DISCRETE AND APEARS IN ONLY 1 REGION OR > 1 REGION BUT NOT NEIGHBOURS #
-  
-  # Step 2.1. Determines discrete spp
-  if(nrow(Spp_Grid) == 0 & Save == "Y"){
-    
-    #  Get the Territory where species happen
-    Discrete_Territory <- unique(Model_Index_D$Territory)
-    n_Territory <- length(Discrete_Territory)
-    
-    # Reads dataset of Non transboundary species
-    Non_Transboundary_Data <- fread(paste(Results_Path,"Trans_Results/Non_Transboundary_Data.csv",sep=""))
-    
-    # Set new data
-    Current_Spp <- tibble(TaxonKey = as.integer(Spp),
-                          Territory = Discrete_Territory)
-    
-    # Combine new spp with others
-    New_Non <- Non_Transboundary_Data %>% 
-      bind_rows(Current_Spp)
-    
-    # Set a name for file and saves data
-    New_Non_Name <- paste(Results_Path,"Trans_Results/Non_Transboundary_Data.csv",sep="")
-    write.csv(New_Non, New_Non_Name, row.names = F)
-    
-    EstTransIndex=Current_Spp
-    
-  }
-  
-  # Step 3. Sum total grids per Neighbours
-  if(nrow(Spp_Grid) > 0 & Save == "Y"){
+
     
     # Split dataframes to merge latter
     Territory_T <- Spp_Grid %>% 
@@ -605,41 +593,29 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code,Save="Y",J
              n_spp_fao_area = n_spp_eez.z) %>%
       # Estimate if it is straddling
       mutate(stradling_index = (n_spp_fao_area/spp_total)*100) %>% 
-      filter(stradling_index >= 15)
+      filter(stradling_index >= 25)
     
+  ### Save spp dataframe
     
-    #____________ FINAL INDEX TABLE_________ #
-    Indexes <- Model_Index_D %>% 
-      full_join(Area_Index_D,
-                by = c("TaxonKey","Territory","Model_Index")
-      ) %>% 
-      filter(!is.na(Area_Index),
-             !is.na(Model_Index) # Uncomment after producing Models x datasets
-      ) %>%  # Remove cases where the country does not pass the area_index and viceversa
-      select(TaxonKey,Territory,Neighbour,everything())
-    
-    ### Save spp dataframe
-    
-    if(nrow(Indexes) > 0 & Save == "Y"){
+  output <- Area_Index_D %>% 
+    select(taxon_key,
+           territory,
+           neighbour,
+           fao_name)
       
-      File_Name <- paste(Spp,"_Transboundary.csv",sep = "")
-      Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
+      File_Name <- paste(Spp,"_straddling.csv",sep = "")
+      Save_Path <- my_path("R","Straddling", File_Name)
       
-      write_csv(Indexes,
+      # Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
+      
+      write_csv(output,
                 Save_Path)
-      
-    }
-    
-    if(nrow(Indexes) > 0 & Save == "N"){
-      EstTransIndex=Indexes # A dataframe with   
-    }
-    
-    ### Function return
-    EstTransIndex=Indexes # A dataframe with 
-    
-  } # Closes Treshold (Step 3)
+  }
 } # closes function
-
+# 
+suppressMessages(
+StraddIndex(600069,Model = "All", Coord = coords, Index_Code = Index_Code)
+)
 
 ```
 
