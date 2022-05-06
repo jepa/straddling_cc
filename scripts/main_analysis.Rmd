@@ -144,122 +144,10 @@ complete_sau <- EEZ_SAU %>%
 write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 ```
 
-# Match FAO regions to grid
-
-```{r}
-
-abny_sf <- st_as_sf(abny,
-                 coords = c("lon", "lat")
-) %>% 
-  st_set_crs(4326)
-
-# Combine both SFs
-joint_sf <- st_join(fao_regions,abny_sf,
-        join = st_contains) %>% 
-  filter(!is.na(index))
-
-coords <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
-
-# head(joint)
-
-fao_grid <- as.data.frame(joint_sf) %>% 
- select(index,NAME_EN,F_CODE) %>% 
-  left_join(coords)
-
-# SAVE ME 
-
-# complete_lon_lat_dbem_fao <- complete_lon_lat_dbem %>% 
-  left_join(fao_grid)
-
-# Save for fouture
-# write_csv(complete_lon_lat_dbem_fao, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
-
-
-ggplot(fao_grid) +
-  geom_tile(aes(
-    x = lon,
-    y = lat,
-    fill = F_CODE
-  ))
-
-
-
-```
-
-```{r}
-
-# DBEM coordinate system
-complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
-
-# Gabriel's coordinate system
-CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
-  mutate(INDEX = seq(1,259200,1))
-
-# Load FishForVisa Results
-transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
-  # Set same filters as in FishForVisa
-  filter(
-    area_index >= 0.25,
-    area_index <= 1-0.25,
-    model_index >= 100
-  )
-
-# Double check we have 633 species
-length(unique(transboundary_spp$taxon_key)) # 633
-
-
-
-```
-
-## Neighbours and the FAO regions
-
-```{r}
-
-neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
-  clean_names()
-
-# Load SAU shapefile (could take a while)
-sau_sf <- my_sf("SAU")
-
-sau_sf_b <- sau_sf %>% 
-  select(1:3,geometry)
-
-# Load FAO shapefile
-fao_sf <- my_sf("FAO")
-st_crs(fao_sf) = 4326
-
-fao_sf_b <- fao_sf %>% 
-  filter(F_LEVEL == "MAJOR") %>% 
-  select(NAME_EN,
-         F_AREA,
-         geometry = the_geom)
-  
-
-
-sau_fao_sf <- st_join(sau_sf_b,fao_sf_b)
-
-
-
-# coord_sau_fao <- Coord %>%
-#   left_join(complete_sau,
-#             by = "index") %>% 
-#   mutate(name = ifelse(cat == "eez",eez,name_en),
-#          spat_code = ifelse(cat == "eez",sau_code,f_code)) %>% 
-#   select(-name_en,-f_code,-sau_code,-eez)
-
-# sau_fao_sf <- st_as_sf(coord_sau_fao,
-#                  coords = c("lon", "lat")
-# ) %>% 
-  # st_set_crs(4326)
-
-
-```
-
-
 
 ## Determining straddling stocks
 
-```{r}
+```{r GetSppDistFun}
 GetSppDist=function(Spp,Model,Coord){
   
   Distpath <- paste(Data_Path,"Data/Distribution/",sep="")
@@ -378,61 +266,9 @@ GetSppDist=function(Spp,Model,Coord){
 ```
 
 
-
-```{r}
-
-Spp <- 600069
-Model = "All"
-Coord <- coords
-Data_Path <- "/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/"
-
-coord_sau_fao <- Coord %>% 
-  left_join(complete_sau,
-            by = "index") %>% 
-  mutate(name = ifelse(cat == "eez",eez,name_en),
-         spat_code = ifelse(cat == "eez",sau_code,f_code)) %>% 
-  select(-name_en,-f_code,-sau_code,-eez)
-
-Index_Code <- coord_sau_fao
+```{r StraddIndexFun}
 
 
-
-sau_combo <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/Spatial/SAU/EEZ-FAO-Country-Combo.xlsx") 
-
-fao_to_sau <- sau_combo %>% 
-  select(territory = eez_name,fao_area_name)
-
-fao_index <- Coord %>% 
-  filter(cat == "abnj")
-
-
-
-sau_fao_df <- as.data.frame(sau_fao_sf) %>% 
-  select(-geometry) %>% 
-  left_join()
-  
-  
-eez_fao <- sau_combo %>% 
-  select(eez_id,eez_name,fao_id,fao_area_name)
-
-# SAU relations between INDEX and Country's EEZs
-# First get Vicky's data to get high seas
-EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T)
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("eezid","index")
-
-
-fao_areas <- complete_lat_lon %>% 
-  filter(cat == "abnj")
-
-Index_Code <- EEZIDs_List %>% 
-  left_join(EEZ_CellID)
-
-suppressMessages(
-StraddIndex(Spp,Model = "All", Coord = coords, Index_Code = Index_Code, Neighbours = Neighbours_List)
-)
-
-  
 StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   
   # Get model data from spps
@@ -614,8 +450,71 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
 } # closes function
 # 
 suppressMessages(
-StraddIndex(600069,Model = "All", Coord = coords, Index_Code = Index_Code)
+StraddIndex(600004, Model = "All", Coord = coords, Index_Code = Index_Code)
 )
 
 ```
 
+# Control pannel
+
+```{r}
+
+# DBEM coordinate system
+# complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
+
+# Gabriel's coordinate system
+CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
+  mutate(INDEX = seq(1,259200,1))
+
+# Neighbouring dataset
+neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
+  clean_names()
+
+# Get fao areas on DBEM grid
+fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
+  filter(cat == "abnj")
+
+# Fao combo
+fao_to_sau <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/Spatial/SAU/EEZ-FAO-Country-Combo.xlsx") %>% 
+  select(territory = eez_name,fao_area_name)
+
+# Load FishForVisa Results
+transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
+  # Set same filters as in FishForVisa
+  filter(
+    area_index >= 0.25,
+    area_index <= 1-0.25,
+    model_index >= 100
+  )
+
+# Double check we have 633 species
+length(unique(transboundary_spp$taxon_key)) # 633
+
+
+Spp <- 600069 #x
+Model = "All" #x
+coords <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
+
+Data_Path <- "/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/" #x
+
+# SAU relations between INDEX and Country's EEZs
+# First get Vicky's data to get high seas
+EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) #x
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE) #x
+colnames(EEZ_CellID) <- c("eezid","index") #x
+
+Index_Code <- EEZIDs_List %>%  #x
+  left_join(EEZ_CellID)
+
+neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
+  clean_names()
+
+suppressMessages(
+StraddIndex(600004, Model = "All", Coord = coords, Index_Code = Index_Code)
+)
+
+
+lapply(unique(transboundary_spp$taxon_key), StraddIndex, Model = "All", Coord = coords, Index_Code = Index_Code )
+
+
+```
