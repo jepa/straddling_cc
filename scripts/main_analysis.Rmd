@@ -27,11 +27,12 @@ packages <- c(
   # "rgdal", #Spatial analysis
   "tools", #Spatial analysis 
   "parallel", # for parallelization
-  "taxize", # For getting species names
-  "rfishbase", # for species ecosystem affinity
+  # "taxize", # For getting species names
+  # "rfishbase", # for species ecosystem affinity
   "zoo", #for runing mean
-  "pgirmess", # for dune test after kurtis wallas
-  "rnaturalearth"
+  # "pgirmess", # for dune test after kurtis wallas
+  "rnaturalearth", # For maps
+  "R.matlab" # For Gabs distributions
 )
 
 my_lib(packages)
@@ -86,19 +87,30 @@ world_eez <- my_sf("SAU",simple = 1000)
 
 # First get Vicky's data to get high seas
 EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("EEZID","INDEX")
+colnames(EEZ_CellID) <- c("EEZID","index")
 
 # Now our gridcell
 abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
   bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F)) %>% 
-  filter(!index %in% EEZ_CellID$INDEX,
-         v1 >0)
+  filter(!index %in% EEZ_CellID$INDEX) %>% 
+  mutate(cat = ifelse(v1>0, "abnj","land")) %>% 
+  select(-v1)
 
-  ggplot(abny) +
+# SAVE FOR COMPLETE DBEM
+complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
+  left_join(abny) %>% 
+  mutate(cat = ifelse(is.na(cat), "eez",cat))
+
+
+# Save for fouture
+# write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+
+  ggplot(complete_lon_lat_dbem) +
   geom_tile(
     aes(
       x = lon,
-      y = lat
+      y = lat,
+      fill = cat
     )
   )
 
@@ -107,6 +119,29 @@ abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>%
 #   geom_sf(data = fao_regions, aes()) +
 #   geom_sf(data = world_land, aes()) +
 #   geom_sf(data = world_eez, aes())
+  
+  
+  # First get Vicky's data to get high seas
+EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE)
+colnames(EEZ_SAU) <- c("sau_code","eez")
+
+# First get Vicky's data to get high seas
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("sau_code","index")
+
+complete_sau <- EEZ_SAU %>% 
+  left_join(EEZ_CellID)
+
+#   
+# coords %>% 
+#   left_join(EEZ_CellID) %>% 
+#     rename(sau_eez_id = EEZID) %>% 
+#     gather("code_na","code",f_code:sau_eez_id) %>%
+  
+
+  
+
+write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 ```
 
 # Match FAO regions to grid
@@ -123,11 +158,21 @@ joint_sf <- st_join(fao_regions,abny_sf,
         join = st_contains) %>% 
   filter(!is.na(index))
 
+coords <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
+
 # head(joint)
 
-fao_grid <- as.data.frame(joint) %>% 
+fao_grid <- as.data.frame(joint_sf) %>% 
  select(index,NAME_EN,F_CODE) %>% 
   left_join(coords)
+
+# SAVE ME 
+
+# complete_lon_lat_dbem_fao <- complete_lon_lat_dbem %>% 
+  left_join(fao_grid)
+
+# Save for fouture
+# write_csv(complete_lon_lat_dbem_fao, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 
 
 ggplot(fao_grid) +
@@ -142,6 +187,459 @@ ggplot(fao_grid) +
 ```
 
 ```{r}
+
+# DBEM coordinate system
+complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
+
+# Gabriel's coordinate system
+CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
+  mutate(INDEX = seq(1,259200,1))
+
+# Load FishForVisa Results
+transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
+  # Set same filters as in FishForVisa
+  filter(
+    area_index >= 0.25,
+    area_index <= 1-0.25,
+    model_index >= 100
+  )
+
+# Double check we have 633 species
+length(unique(transboundary_spp$taxon_key)) # 633
+
+
+
+```
+
+## Neighbours and the FAO regions
+
+```{r}
+
+neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
+  clean_names()
+
+# Load SAU shapefile (could take a while)
+sau_sf <- my_sf("SAU")
+
+sau_sf_b <- sau_sf %>% 
+  select(1:3,geometry)
+
+# Load FAO shapefile
+fao_sf <- my_sf("FAO")
+st_crs(fao_sf) = 4326
+
+fao_sf_b <- fao_sf %>% 
+  filter(F_LEVEL == "MAJOR") %>% 
+  select(NAME_EN,
+         F_AREA,
+         geometry = the_geom)
+  
+
+
+sau_fao_sf <- st_join(sau_sf_b,fao_sf_b)
+
+
+
+# coord_sau_fao <- Coord %>%
+#   left_join(complete_sau,
+#             by = "index") %>% 
+#   mutate(name = ifelse(cat == "eez",eez,name_en),
+#          spat_code = ifelse(cat == "eez",sau_code,f_code)) %>% 
+#   select(-name_en,-f_code,-sau_code,-eez)
+
+# sau_fao_sf <- st_as_sf(coord_sau_fao,
+#                  coords = c("lon", "lat")
+# ) %>% 
+  # st_set_crs(4326)
+
+
+```
+
+
+
+## Determining straddling stocks
+
+```{r}
+GetSppDist=function(Spp,Model,Coord){
+  
+  Distpath <- paste(Data_Path,"Data/Distribution/",sep="")
+  INDEX = seq(1,259200,1)
+  # INDEX <- Coordinates$INDEX
+  
+  # SAU Distributions
+  if(Model == "SAU_D"){
+    File_Name <- paste("SAU_Distribution/DIST_GOOD_SP_")
+  }
+  
+  # SAU Catch
+  if(Model == "SAU_C"){
+    File_Name <- paste("SAU_data_per_species/CATCH_SP_")
+  }
+  
+  # Occurence
+  if(Model == "Occ"){
+    File_Name <- paste("Occurence/OCCURENCE_JULIANO_")
+  }
+  
+  # ENM Model
+  if(Model == "ENM"){
+    File_Name <- paste("ENM/ENM_JULIANO_")
+  }
+  
+  # DBEM Data
+  # if(Model == "DBEM"){
+  #   Distpath <- "/Volumes/DATA/JULIANO_NEYMAR/PristineSeasData
+  #   Final_Path <- "ENM"
+  #   File_Name <- paste("ENM_JULIANO",Spp,".mat",sep="")
+  # }
+  
+  if(Model == "All"){
+    
+    Models_List <- c(paste(Distpath,"SAU_Distribution/DIST_GOOD_SP_",Spp,".mat",sep =""),
+                     paste(Distpath,"Occurence/OCCURENCE_JULIANO_",Spp,".mat",sep=""),
+                     paste(Distpath,"ENM/ENM_JULIANO_",Spp,".mat",sep="")
+    )
+    
+    # Jumps species not modeled. NOTE: We only need one as ENM, Occ and SAU Dis have all the same 939 spp
+    if(file.exists(Models_List[1])){
+      
+      Load <- lapply(Models_List, FUN=R.matlab::readMat, na.strings=0)
+      
+      sppdist <- as.data.frame(bind_cols(Load)) %>% 
+        mutate(
+          INDEX = INDEX,
+          TaxonKey = Spp
+        )
+      colnames(sppdist) <- c("SAU_D","Occ","ENM","INDEX","TaxonKey")
+      
+      #### Step for SAU catch data that has to be averaged
+      File_Name <- paste("SAU_data_per_species/CATCH_SP_")
+      SppPath <- paste(Distpath,File_Name,Spp,".mat",sep="")
+      
+      # For now we're using only the last 10 years average, basicaaly if the species has been fished in any of these years, its considered present
+      SAU_C_data <- as.data.frame(R.matlab::readMat(SppPath)) %>% 
+        select(CATCH.1:CATCH.65) %>% 
+        mutate(INDEX = INDEX) %>% 
+        gather("Year","Catch",CATCH.56:CATCH.65) %>% # Last 10 years of data
+        group_by(INDEX) %>% 
+        summarise(SAU_C = mean(Catch,na.rm=T))
+      
+      # Join both tables
+      sppdist <- sppdist %>% 
+        left_join(SAU_C_data,
+                  by = "INDEX") %>% 
+        select(TaxonKey,INDEX,everything()) %>% 
+        left_join(CoorG,
+                  by = "INDEX")
+      
+      # Fix coordinate system incompatibility between Gab and DBEM
+      sppdist <- suppressWarnings(sppdist[order(sppdist$latitude, rev(sppdist$longitude),decreasing=TRUE), ] %>% 
+                                    mutate(INDEX = seq(1,259200,1)) %>% 
+                                    gather("Model","Value",3:6) %>%
+                                    mutate(Value = ifelse(is.na(Value), 0, Value)) # Converting NA's to ceros
+      )
+      
+      getSppDist = sppdist
+      
+    }
+    
+  }else{  
+    
+    # Merge paths
+    SppPath <- paste(Distpath,File_Name,Spp,".mat",sep="")
+    
+    if(file.exists(SppPath) == TRUE){
+      
+      #Install (if needed) R.matlab package
+      if(!require(R.matlab)){
+        install.packages("R.matlab")
+      }
+      
+      # Read Files
+      
+      sppdist <- as.data.frame(R.matlab::readMat(SppPath)) %>% 
+        mutate(INDEX = INDEX,
+               Species = Spp) %>% 
+        left_join(Coord) 
+      
+      # Fix coordinate system incompatibility between Gab and DBEM
+      sppdist <- sppdist[order(sppdist$latitude, rev(sppdist$longitude),decreasing=TRUE), ] %>% 
+        mutate(INDEX = seq(1,259200,1))
+      
+      # Return 
+      getSppDist=sppdist
+      
+    }else{
+      print(paste("No info for this species",Spp, "in",Model))
+    }
+    
+  }
+}
+```
+
+
+
+```{r}
+
+Spp <- 600069
+Model = "All"
+Coord <- coords
+Data_Path <- "/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/"
+
+coord_sau_fao <- Coord %>% 
+  left_join(complete_sau,
+            by = "index") %>% 
+  mutate(name = ifelse(cat == "eez",eez,name_en),
+         spat_code = ifelse(cat == "eez",sau_code,f_code)) %>% 
+  select(-name_en,-f_code,-sau_code,-eez)
+
+Index_Code <- coord_sau_fao
+
+
+
+sau_combo <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/Spatial/SAU/EEZ-FAO-Country-Combo.xlsx") 
+
+fao_to_sau <- sau_combo %>% 
+  select(territory = eez_name,fao_area_name)
+
+fao_index <- Coord %>% 
+  filter(cat == "abnj")
+
+
+
+sau_fao_df <- as.data.frame(sau_fao_sf) %>% 
+  select(-geometry) %>% 
+  left_join()
+  
+  
+eez_fao <- sau_combo %>% 
+  select(eez_id,eez_name,fao_id,fao_area_name)
+
+# SAU relations between INDEX and Country's EEZs
+# First get Vicky's data to get high seas
+EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T)
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("eezid","index")
+
+
+fao_areas <- complete_lat_lon %>% 
+  filter(cat == "abnj")
+
+Index_Code <- EEZIDs_List %>% 
+  left_join(EEZ_CellID)
+
+  
+StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code,Save="Y",Jurisdiction_Type){
+  
+  # Get model data from spps
+  SppDist <- GetSppDist(Spp,Model,Coord)
+  
+  # Result 1. Number of Countries that share the species
+  
+  #____________ ESTIMATING MODEL INDEX (TRESHOLD 1)_________ #
+  Trans_Spp <- SppDist %>%
+    filter(#INDEX %in% Neighbours$INDEX,# Filter data only located within EEZs
+           Model != "SAU_C") %>% # Only using observational and modelled data
+    mutate(Value = ifelse(Value > 0, 1,0)) %>%  
+    filter(Value > 0) %>%
+    group_by(TaxonKey,
+             INDEX
+    ) %>%
+    summarise(Model_Index = sum(Value,na.rm=T)/3
+    ) %>%
+    filter(Model_Index > 0.4) %>% # at least 2 sources agree
+    # ____________ ESTIMATING FUNDAMENTAL NICHE (TRESHOLD 2)_________ #
+    left_join(SppDist,
+              by = c("TaxonKey","INDEX")) %>%
+    filter(Model == "SAU_C", # Only keeping cells where SAU catch exists
+           Value > 0) %>%
+    mutate(Model_Index = Model_Index*100) %>%
+    select(-Model, -Value, -latitude,-longitude) %>%
+    rename(index = INDEX) %>% 
+    # joint eez names
+    left_join(Index_Code,
+              by = "index") %>% 
+    # joint fao area names
+    left_join(fao_areas,
+              by = "index") %>% 
+    mutate(
+      territory = ifelse(!is.na(name),name,name_en),
+      category = ifelse(!is.na(name),"eez","fao"),
+    ) %>% 
+    select(1:3,territory,category) %>% 
+    clean_names()
+  
+  
+  # MODEL INDEX (TRESHOLDS 1 & 2) #
+  Model_Index_D <- Trans_Spp %>% 
+    group_by(territory,
+             category,
+             taxon_key,
+             model_index
+    ) %>% 
+    summarise(n_cells_spp = n()) %>% 
+    select(-n_cells_spp)
+  
+  
+  #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
+  # The number of species' cells present within each country's EEZ
+  
+  # if(n_Territory > 1){
+  
+  #Step 1.  Get EEZ id and Neighbour
+  Neighbours_List <- neighbours %>%
+    group_by(territory,neighbour) %>%
+    summarise(n=n()) %>%
+    ungroup() %>%
+    select(-n) %>% 
+    left_join(fao_to_sau)
+  
+  # Set FAO neighbours... 
+  fao_neighbours <- Neighbours_List %>% 
+    select(territory,fao_area_name) %>% 
+    rename(territory = fao_area_name,
+           neighbour = territory) %>% 
+    group_by(territory, neighbour) %>% 
+    summarise(n())
+  
+  
+  fao_territory <- fao_neighbours %>% 
+    rename(territory = neighbour,
+           neighbour = territory)
+  
+  
+  neighbours_list_fao <- fao_neighbours %>% 
+    bind_rows(Neighbours_List,fao_territory)
+  
+  
+  
+  # Step 2. Determines the amount of grids present in each country
+  Spp_Grid <- Trans_Spp %>% 
+    group_by(taxon_key,
+             model_index, # Un-comment after producing models x datasets
+             territory,
+             category) %>% 
+    summarise(n_spp_eez = length(unique(index))) %>% 
+    left_join(neighbours_list_fao,
+              by = "territory") %>% 
+    filter(territory %in% Trans_Spp$territory, #Filter out unwanted Neighbours (those who don't have grids within but get included because they are Neighbours)
+           neighbour %in% Trans_Spp$territory)
+  
+  
+  
+  # IF SPECIES DISCRETE AND APEARS IN ONLY 1 REGION OR > 1 REGION BUT NOT NEIGHBOURS #
+  
+  # Step 2.1. Determines discrete spp
+  if(nrow(Spp_Grid) == 0 & Save == "Y"){
+    
+    #  Get the Territory where species happen
+    Discrete_Territory <- unique(Model_Index_D$Territory)
+    n_Territory <- length(Discrete_Territory)
+    
+    # Reads dataset of Non transboundary species
+    Non_Transboundary_Data <- fread(paste(Results_Path,"Trans_Results/Non_Transboundary_Data.csv",sep=""))
+    
+    # Set new data
+    Current_Spp <- tibble(TaxonKey = as.integer(Spp),
+                          Territory = Discrete_Territory)
+    
+    # Combine new spp with others
+    New_Non <- Non_Transboundary_Data %>% 
+      bind_rows(Current_Spp)
+    
+    # Set a name for file and saves data
+    New_Non_Name <- paste(Results_Path,"Trans_Results/Non_Transboundary_Data.csv",sep="")
+    write.csv(New_Non, New_Non_Name, row.names = F)
+    
+    EstTransIndex=Current_Spp
+    
+  }
+  
+  # Step 3. Sum total grids per Neighbours
+  if(nrow(Spp_Grid) > 0 & Save == "Y"){
+    
+    # Split dataframes to merge latter
+    Territory_T <- Spp_Grid %>% 
+      filter(category == "eez") %>% 
+      ungroup() %>% 
+      select(
+        model_index, # Un-comment after producing models x datasets
+        taxon_key,
+        Name=territory,
+        n_spp_eez
+      )
+    
+    Neighbour_T <- Spp_Grid %>%
+      filter(category == "eez") %>% 
+      ungroup() %>% 
+      select(
+        model_index,
+        taxon_key,
+        n_spp_eez,
+         territory,
+        Name=neighbour,
+        territory
+      ) 
+    
+    
+    fao_grid <- Spp_Grid %>% 
+      filter(category == "fao") %>% 
+      left_join(neighbours_list_fao) %>% 
+      select(Name =neighbour,
+             fao_name = territory,
+             n_spp_eez.z = n_spp_eez)
+    
+    # Merge dataframes to get totals per Neighbourds
+    Area_Index_D <- full_join(Territory_T,
+                              Neighbour_T, 
+                              by = c("model_index","Name","taxon_key")
+    ) %>%
+      left_join(fao_grid) %>% 
+      rowwise() %>%
+      mutate(spp_total = sum(n_spp_eez.x,n_spp_eez.y,n_spp_eez.z,na.rm=T)) %>% # Total gridcelles per Neighbours
+      distinct() %>% # Removes false duplicates from `full_join()`
+      rename(territory = Name,
+             neighbour = territory,
+             n_spp_country = n_spp_eez.x,
+             n_spp_neighbour = n_spp_eez.y,
+             n_spp_fao_area = n_spp_eez.z) %>%
+      # Estimate if it is straddling
+      mutate(stradling_index = (n_spp_fao_area/spp_total)*100) %>% 
+      filter(stradling_index >= 15)
+    
+    
+    #____________ FINAL INDEX TABLE_________ #
+    Indexes <- Model_Index_D %>% 
+      full_join(Area_Index_D,
+                by = c("TaxonKey","Territory","Model_Index")
+      ) %>% 
+      filter(!is.na(Area_Index),
+             !is.na(Model_Index) # Uncomment after producing Models x datasets
+      ) %>%  # Remove cases where the country does not pass the area_index and viceversa
+      select(TaxonKey,Territory,Neighbour,everything())
+    
+    ### Save spp dataframe
+    
+    if(nrow(Indexes) > 0 & Save == "Y"){
+      
+      File_Name <- paste(Spp,"_Transboundary.csv",sep = "")
+      Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
+      
+      write_csv(Indexes,
+                Save_Path)
+      
+    }
+    
+    if(nrow(Indexes) > 0 & Save == "N"){
+      EstTransIndex=Indexes # A dataframe with   
+    }
+    
+    ### Function return
+    EstTransIndex=Indexes # A dataframe with 
+    
+  } # Closes Treshold (Step 3)
+} # closes function
+
 
 ```
 
