@@ -139,15 +139,14 @@ complete_sau <- EEZ_SAU %>%
 #     gather("code_na","code",f_code:sau_eez_id) %>%
   
 
-  
-
-write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+  # write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 ```
 
 
 ## Determining straddling stocks
 
 ```{r GetSppDistFun}
+
 GetSppDist=function(Spp,Model,Coord){
   
   Distpath <- paste(Data_Path,"Data/Distribution/",sep="")
@@ -273,12 +272,12 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   # Get model data from spps
   SppDist <- GetSppDist(Spp,Model,Coord)
   
-  # Result 1. Number of Countries that share the species
+    # Result 1. Number of Countries that share the species
   
   #____________ ESTIMATING MODEL INDEX (TRESHOLD 1)_________ #
   Trans_Spp <- SppDist %>%
     filter(#INDEX %in% Neighbours$INDEX,# Filter data only located within EEZs
-           Model != "SAU_C") %>% # Only using observational and modelled data
+      Model != "SAU_C") %>% # Only using observational and modelled data
     mutate(Value = ifelse(Value > 0, 1,0)) %>%  
     filter(Value > 0) %>%
     group_by(TaxonKey,
@@ -306,9 +305,26 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
       category = ifelse(!is.na(name),"eez","fao"),
     ) %>% 
     select(1:3,territory,category) %>% 
-    clean_names()
+    clean_names() %>% 
+    filter(model_index == 100)
   
-  # Step 2.1. Determines discrete spp
+  
+  # Distributional test
+  # test <- Trans_Spp %>% 
+    # left_join(coords)
+  
+  # ggplot(test) +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       fill = category
+  #     )
+  #   )
+
+  
+  
+  # Step 2.1. Determines not a straddling stock
   if("fao" %in% Trans_Spp$category == FALSE){
     
     # output <- Spp_Grid %>% 
@@ -320,66 +336,68 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
     #   mutate(straddling = "no")
     return(print("not a straddling stock"))
     stop()
-  
+    
     
   }else{
-  
-  
-  # MODEL INDEX (TRESHOLDS 1 & 2) #
-  Model_Index_D <- Trans_Spp %>% 
-    group_by(territory,
-             category,
-             taxon_key,
-             model_index
-    ) %>% 
-    summarise(n_cells_spp = n()) %>% 
-    select(-n_cells_spp)
-  
-  
-  #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
-  # The number of species' cells present within each country's EEZ
-  
-  # if(n_Territory > 1){
-  
-  #Step 1.  Get EEZ id and Neighbour
-  Neighbours_List <- neighbours %>%
-    group_by(territory,neighbour) %>%
-    summarise(n=n()) %>%
-    ungroup() %>%
-    select(-n) %>% 
-    left_join(fao_to_sau)
-  
-  # Set FAO neighbours... 
-  fao_neighbours <- Neighbours_List %>% 
-    select(territory,fao_area_name) %>% 
-    rename(territory = fao_area_name,
-           neighbour = territory) %>% 
-    group_by(territory, neighbour) %>% 
-    summarise(n())
-  
-  
-  fao_territory <- fao_neighbours %>% 
-    rename(territory = neighbour,
-           neighbour = territory)
-  
-  
-  neighbours_list_fao <- fao_neighbours %>% 
-    bind_rows(Neighbours_List,fao_territory)
-  
-  
-  
-  # Step 2. Determines the amount of grids present in each country
-  Spp_Grid <- Trans_Spp %>% 
-    group_by(taxon_key,
-             model_index, # Un-comment after producing models x datasets
-             territory,
-             category) %>% 
-    summarise(n_spp_eez = length(unique(index))) %>% 
-    left_join(neighbours_list_fao,
-              by = "territory") %>% 
-    filter(territory %in% Trans_Spp$territory, #Filter out unwanted Neighbours (those who don't have grids within but get included because they are Neighbours)
-           neighbour %in% Trans_Spp$territory)
-
+    
+    
+    # MODEL INDEX (TRESHOLDS 1 & 2) #
+    Model_Index_D <- Trans_Spp %>% 
+      group_by(territory,
+               category,
+               taxon_key,
+               model_index
+      ) %>% 
+      summarise(n_cells_spp = n()) %>% 
+      select(-n_cells_spp)
+    
+    
+    #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
+    # The number of species' cells present within each country's EEZ
+    
+    # if(n_Territory > 1){
+    
+    #Step 1.  Get EEZ id and Neighbour
+    Neighbours_List <- neighbours %>%
+      group_by(territory,neighbour) %>%
+      summarise(n=n()) %>%
+      ungroup() %>%
+      select(-n) %>% 
+      left_join(fao_to_sau) %>% 
+      filter(!is.na(territory))
+    
+    # Set FAO neighbours... 
+    fao_neighbours <- Neighbours_List %>% 
+      select(territory,fao_area_name) %>% 
+      rename(territory = fao_area_name,
+             neighbour = territory) %>% 
+      group_by(territory, neighbour) %>% 
+      summarise(n())
+    
+    
+    fao_territory <- fao_neighbours %>% 
+      rename(territory = neighbour,
+             neighbour = territory)
+    
+    
+    neighbours_list_fao <- fao_neighbours %>% 
+      bind_rows(Neighbours_List,fao_territory) %>% 
+      select(-fao_area_name)
+    
+    
+    
+    # Step 2. Determines the amount of grids present in each country
+    Spp_Grid <- Trans_Spp %>% 
+      group_by(taxon_key,
+               model_index, # Un-comment after producing models x datasets
+               territory,
+               category) %>% 
+      summarise(n_spp_eez = length(unique(index))) %>% 
+      left_join(neighbours_list_fao,
+                by = "territory") %>% 
+      filter(territory %in% Trans_Spp$territory, #Filter out unwanted Neighbours (those who don't have grids within but get included because they are Neighbours)
+             neighbour %in% Trans_Spp$territory)
+    
     
     # Split dataframes to merge latter
     Territory_T <- Spp_Grid %>% 
@@ -399,7 +417,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
         model_index,
         taxon_key,
         n_spp_eez,
-         territory,
+        territory,
         Name=neighbour,
         territory
       ) 
@@ -418,6 +436,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
                               by = c("model_index","Name","taxon_key")
     ) %>%
       left_join(fao_grid) %>% 
+      filter(!is.na(fao_name)) %>% # remove non-straddling stocks
       rowwise() %>%
       mutate(spp_total = sum(n_spp_eez.x,n_spp_eez.y,n_spp_eez.z,na.rm=T)) %>% # Total gridcelles per Neighbours
       distinct() %>% # Removes false duplicates from `full_join()`
@@ -427,30 +446,31 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
              n_spp_neighbour = n_spp_eez.y,
              n_spp_fao_area = n_spp_eez.z) %>%
       # Estimate if it is straddling
-      mutate(stradling_index = (n_spp_fao_area/spp_total)*100) %>% 
-      filter(stradling_index >= 25)
+      mutate(stradling_index = (n_spp_fao_area/spp_total)*100)
     
-  ### Save spp dataframe
+    ### Save spp dataframe
     
-  output <- Area_Index_D %>% 
-    select(taxon_key,
-           territory,
-           neighbour,
-           fao_name)
-      
-      File_Name <- paste(Spp,"_straddling.csv",sep = "")
-      Save_Path <- my_path("R","Straddling", File_Name)
-      
-      # Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
-      
-      write_csv(output,
-                Save_Path)
+    output <- Area_Index_D %>% 
+      select(taxon_key,
+             territory,
+             neighbour,
+             fao_name,
+             stradling_index)
+    
+    File_Name <- paste(Spp,"_straddling.csv",sep = "")
+    Save_Path <- my_path("R","Straddling", File_Name)
+    
+    # Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
+    
+    write_csv(output,
+              Save_Path)
   }
 } # closes function
-# 
-suppressMessages(
-StraddIndex(600004, Model = "All", Coord = coords, Index_Code = Index_Code)
-)
+
+ #Test me  
+# suppressMessages(
+#   StraddIndex(600069, Model = "All", Coord = coords, Index_Code = Index_Code)
+# )
 
 ```
 
@@ -532,7 +552,6 @@ Mclapply_Hack <- function(...){
 # Control pannel
 
 ```{r}
-
 # DBEM coordinate system
 # complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
 
@@ -542,7 +561,11 @@ CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) 
 
 # Neighbouring dataset
 neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
-  clean_names()
+  clean_names() %>% 
+  rename(eez_id = eezid) %>% 
+  left_join(fao_to_sau,
+            by = "eez_id") %>% 
+  select(territory = eez_name,neighbour)
 
 # Get fao areas on DBEM grid
 fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
@@ -551,6 +574,10 @@ fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>%
 # Fao combo
 fao_to_sau <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/Spatial/SAU/EEZ-FAO-Country-Combo.xlsx") %>% 
   select(territory = eez_name,fao_area_name)
+
+# Dataset to match all SAU names
+matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T)
+
 
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
@@ -582,13 +609,67 @@ Index_Code <- EEZIDs_List %>%  #x
 
 neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
   clean_names()
-
-suppressMessages(
-  StraddIndex(600004, Model = "All", Coord = coords, Index_Code = Index_Code)
-)
+```
 
 
+```{r run_me, eval = T}
 lapply(unique(transboundary_spp$taxon_key), StraddIndex, Model = "All", Coord = coords, Index_Code = Index_Code )
+
+```
+
+
+# Results
+
+## Functions needed
+
+```{r Fun_GetTransResults, eval = F}
+
+GetTransResults=function(Spp){
+  
+  # Set the path for each file
+  Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
+  
+  # Loads all files in a df
+  Load_Data <- bind_rows(lapply(Distpath, FUN=fread))
+  
+  if(nrow(Load_Data)>0){
+  
+  return(Load_Data)
+  }
+}
+
+```
+
+
+```{r}
+
+# Get fao areas on DBEM grid
+fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
+  filter(cat == "abnj")
+
+# Load stradling species
+
+# Spp list
+
+spp_complete <- list.files(my_path("R","Straddling/"))
+
+stradling_spp <- str_replace(spp_complete,"\\_.*","")
+
+stradd_data <- bind_rows(
+  lapply(stradling_spp,GetTransResults)
+  )
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
