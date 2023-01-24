@@ -81,23 +81,23 @@ st_crs(fao_regions) = 4326
 #   geom_sf(aes(fill = F_AREA))
 
 # EEZs
-world_eez <- my_sf("SAU",simple = 1000)
+world_eez <- my_sf("SAU",simple = 1000,system = "jepa")
 
 # Lon-lat DBEM
 
 # First get Vicky's data to get high seas
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE,system = "jepa")
 colnames(EEZ_CellID) <- c("EEZID","index")
 
 # Now our gridcell
-abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
-  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F)) %>% 
-  filter(!index %in% EEZ_CellID$INDEX) %>% 
+abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F, system = "jepa") %>% 
+  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F, system = "jepa") %>% slice(-259201)) %>% 
+  filter(!index %in% EEZ_CellID$index) %>% 
   mutate(cat = ifelse(v1>0, "abnj","land")) %>% 
   select(-v1)
 
 # SAVE FOR COMPLETE DBEM
-complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
+complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F, system = "jepa") %>% 
   left_join(abny) %>% 
   mutate(cat = ifelse(is.na(cat), "eez",cat))
 
@@ -105,14 +105,14 @@ complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, heade
 # Save for fouture
 # write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 
-  ggplot(complete_lon_lat_dbem) +
-  geom_tile(
-    aes(
-      x = lon,
-      y = lat,
-      fill = cat
-    )
-  )
+  # ggplot(complete_lon_lat_dbem) +
+  # geom_tile(
+  #   aes(
+  #     x = lon,
+  #     y = lat,
+  #     fill = cat
+  #   )
+  # )
 
 # All maps test
 # ggplot() +
