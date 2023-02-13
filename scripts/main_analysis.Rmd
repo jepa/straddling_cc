@@ -3,6 +3,8 @@ title: "Untitled"
 author: "Juliano Palacios-Abrantes"
 date: '2022-04-20'
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -74,11 +76,69 @@ fao_regions <- my_sf("FAO") %>%
   filter(F_LEVEL == "MAJOR")
 st_crs(fao_regions) = 4326
   
+# fao_regions <- fao_regions %>%
+  # st_set_crs(4326) #%>% 
+  # st_transform(crs = "+proj=eck4")
+
+
+
 # head(fao_regions)
 
 # fao_regions %>% 
 #   ggplot() +
 #   geom_sf(aes(fill = F_AREA))
+
+
+# First get Vicky's data to get high seas
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("eez_id","index")
+
+EEZ_CellID <- EEZ_CellID %>% 
+  mutate(area_code = as.character(eez_id))
+
+dbem_sf <-st_as_sf(complete_lon_lat_dbem,
+                           coords = c("lon", "lat")
+) %>% 
+  st_set_crs(4326) #%>%
+  # st_transform(crs = "+proj=eck4")
+  
+  st_crs(dbem_sf) = 4326
+
+# Combine both sf
+dbem_fao_sf <- st_join(dbem_sf,
+             fao_regions, join = st_intersects)
+
+# DBEM FAO Regions
+fao_grid <- dbem_fao_sf %>% 
+  filter(!is.na(F_CODE)) %>% 
+  as.data.frame() %>% 
+  select(index,cat,fao_area_code=F_CODE,area_code=F_CODE,ocean=OCEAN,name = NAME_EN) %>% 
+  filter(cat == "abnj") %>% 
+  mutate_all(as.character)
+
+
+eez_grid <- left_join(EEZ_CellID,EEZIDs_List) %>% 
+  select(index,eez_id,area_code = eez_id,name) %>% 
+  mutate(cat = "eez",
+         eez_name = name)
+  
+
+sau_fao_grid <- eez_grid %>% 
+  mutate_all(as.character) %>% 
+    bind_rows(fao_grid)
+
+sau_fao_grid %>%
+  left_join(complete_lon_lat_dbem) %>%
+  ggplot() +
+  geom_tile(
+    aes(
+      x = lon,
+      y = lat,
+      fill = area_code
+    )
+  ) +
+  theme(legend.position = "")
+
 
 # EEZs
 world_eez <- my_sf("SAU",simple = 1000,system = "jepa")
@@ -86,20 +146,21 @@ world_eez <- my_sf("SAU",simple = 1000,system = "jepa")
 # Lon-lat DBEM
 
 # First get Vicky's data to get high seas
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE,system = "jepa")
-colnames(EEZ_CellID) <- c("EEZID","index")
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("id","index")
 
 # Now our gridcell
-abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F, system = "jepa") %>% 
-  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F, system = "jepa") %>% slice(-259201)) %>% 
+abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
+  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F) %>% slice(-259201)) %>% 
   filter(!index %in% EEZ_CellID$index) %>% 
   mutate(cat = ifelse(v1>0, "abnj","land")) %>% 
   select(-v1)
 
 # SAVE FOR COMPLETE DBEM
-complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F, system = "jepa") %>% 
+complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
   left_join(abny) %>% 
-  mutate(cat = ifelse(is.na(cat), "eez",cat))
+  mutate(cat = ifelse(is.na(cat), "eez",cat),
+         index = as.character(index))
 
 
 # Save for fouture
@@ -122,12 +183,8 @@ complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, heade
   
   
   # First get Vicky's data to get high seas
-EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE)
+EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE, system = "jepa")
 colnames(EEZ_SAU) <- c("sau_code","eez")
-
-# First get Vicky's data to get high seas
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("sau_code","index")
 
 complete_sau <- EEZ_SAU %>% 
   left_join(EEZ_CellID)
@@ -140,6 +197,12 @@ complete_sau <- EEZ_SAU %>%
   
 
   # write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+
+
+
+
+
+
 ```
 
 
@@ -559,25 +622,20 @@ Mclapply_Hack <- function(...){
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
   mutate(INDEX = seq(1,259200,1))
 
+# Fao combo
+fao_to_sau <- my_path("Spa", extra_path = "SAU", name = "EEZ-FAO-Country-Combo.xlsx", read = T)
+
 # Neighbouring dataset
-neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
+neighbours <- my_path("Spa", extra_path = "SAU", name = "EEZ_Neighbour_List.xlsx", read = T, system = "jepa") %>%
   clean_names() %>% 
   rename(eez_id = eezid) %>% 
   left_join(fao_to_sau,
-            by = "eez_id") %>% 
-  select(territory = eez_name,neighbour)
-
-# Get fao areas on DBEM grid
-fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
-  filter(cat == "abnj")
-
-# Fao combo
-fao_to_sau <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/Spatial/SAU/EEZ-FAO-Country-Combo.xlsx") %>% 
-  select(territory = eez_name,fao_area_name)
+            by = "eez_id") %>%
+  mutate(fao_area_name = ifelse(territory == "Korea (North)", "Pacific, Northwest",fao_area_name)) # Fix North Korea
+  
 
 # Dataset to match all SAU names
-matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T)
-
+# matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T)
 
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
@@ -592,23 +650,18 @@ transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/Fi
 length(unique(transboundary_spp$taxon_key)) # 633
 
 
-Spp <- 600069 #x
-Model = "All" #x
+# Spp <- 600069 #x
+# Model = "All" #x
 coords <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
-
-Data_Path <- "/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/" #x
 
 # SAU relations between INDEX and Country's EEZs
 # First get Vicky's data to get high seas
-EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) #x
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE) #x
-colnames(EEZ_CellID) <- c("eezid","index") #x
+EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
+  rename(eez_id = eezid)
 
-Index_Code <- EEZIDs_List %>%  #x
+sau_index_code <- EEZIDs_List %>%  #x
   left_join(EEZ_CellID)
 
-neighbours <- read_excel("/Volumes/DATA/JULIANO_NEYMAR/FishForVisa/Data/Spatial/EEZ_Neighbour_List.xlsx") %>% 
-  clean_names()
 ```
 
 
@@ -618,13 +671,14 @@ lapply(unique(transboundary_spp$taxon_key), StraddIndex, Model = "All", Coord = 
 ```
 
 
-# Results
+## Estimating Proportion change
+
 
 ## Functions needed
 
 ```{r Fun_GetTransResults, eval = F}
 
-GetTransResults=function(Spp){
+GetResults=function(Spp){
   
   # Set the path for each file
   Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
@@ -638,6 +692,7 @@ GetTransResults=function(Spp){
   }
 }
 
+
 ```
 
 
@@ -645,31 +700,233 @@ GetTransResults=function(Spp){
 
 # Get fao areas on DBEM grid
 fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
-  filter(cat == "abnj")
+  filter(cat == "abnj") %>% 
+  mutate_all(as.character)
 
 # Load stradling species
 
+# One species for test
+stradd_data <- GetResults("600107") %>% 
+  rename("fao_area_name"= "fao_name")
+
+
 # Spp list
 
-spp_complete <- list.files(my_path("R","Straddling/"))
+# spp_complete <- list.files(my_path("R","Straddling/"))
 
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
+# stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
-stradd_data <- bind_rows(
-  lapply(stradling_spp,GetTransResults)
-  )
+# stradd_data <- bind_rows(
+#   lapply(stradling_spp,GetTransResults)
+  # )
 
+
+  ggplot(sau_index_code) 
 
 ```
 
 
 
 
+```{r EstPropChange, eval = F, echo = F}
+
+EstPropChange <- function(taxon_key,
+                          year,
+                          hist_y = 2005,
+                          data_type = "Catch",
+                          ensemble_list, # expects a list of ensembles to averrage by
+                          path,
+                          neighbours){
+  
+  
+  # Loads species data for runs
+  to_read = paste0(taxon_key,"Abd.RData")
+  load(paste0("/Volumes/Enterprise/Data/MigrantFish/Data/",to_read))
+  
+  spp_data <- as.data.frame(sppabdfnl) %>% 
+  rowid_to_column("index")
+  
+  colnames(spp_data) <- c("index",(seq(1951,2100,1)))
+  rm(sppabdfnl)
+  
+  
+  spatial_subset <- stradd_data %>% 
+    rename(name = territory) %>% 
+    left_join(sau_index_code)
+  
+  
+  areas_present <- stradd_data %>% 
+    gather(territory,fao_area_name, 2,4) %>% 
+    pull(fao_area_name) %>% 
+      unique()
+  
+  spp_stradd_range <- sau_fao_grid %>% 
+    filter(name %in% areas_present)
+  
+  
+  spp_stradd_range %>% 
+    left_join(complete_lon_lat_dbem) %>% 
+    ggplot() +
+    geom_tile(
+      aes(
+        x = lon,
+        y = lat,
+        fill = cat
+      )
+    ) + 
+    theme(legend.position = "")
+  
+  
+  
+  
+  filtered_spp <- spp_data %>% 
+    filter(index %in% )
+  
+  
+  
+  
+  
+  # Get neighbouring id
+  Neighbours_List <- neighbours %>% 
+    semi_join(stradd_data,
+              by = c("territory","neighbour","fao_area_name"))
+    
+  
+  # Test
+  ggplot(data = Neighbours_List) +
+    geom_tile(
+      aes(
+        x = longitude,
+        y = latitude,
+        color = fao_area_name,
+        fill = fao_area_name
+      )
+    )
+  
+  
+  
+  
+  # Selecting only the transboundary nature of the species
+  Trans_Spp <- spp_data %>%
+    filter(index %in% Trans_EEZ$index) %>% 
+    left_join(index_code,
+              by = "index") %>% 
+    filter(eez_name %in% Neighbours_List$eez_name)
+  
+  # -------------------- #
+  # Estimate area index
+  # The number of species' cells present within each country's EEZ
+  # -------------------- #
+  
+  #Determines the amount of catch present in each country
+  Spp_Grid <- Trans_Spp %>% 
+    group_by(taxon_key,
+             eez_name,
+             year,
+             ensemble) %>% 
+    summarise(n_spp_eez = length(unique(index)),
+              total_mcp = sum(value)
+    ) %>% 
+    left_join(Neighbours_List,
+              by = "eez_name")
+  
+  # Split dataframes to merge latter
+  Territory_T <- Spp_Grid %>% 
+    ungroup() %>% 
+    select(
+      taxon_key,
+      Name=eez_name,
+      n_spp_eez,
+      total_mcp,
+      year,
+      ensemble
+    )
+  
+  Neighbour_T <- Spp_Grid %>% 
+    ungroup() %>% 
+    select(
+      taxon_key,
+      n_spp_eez,
+      total_mcp,
+      Name=eez_neighbour,
+      eez_name,
+      year,
+      ensemble
+    )
+  
+  # Estimate Area index and % change
+  Per_Ghange_D <- full_join(Territory_T,
+                            Neighbour_T, 
+                            by = c("Name","taxon_key","year","ensemble")
+  ) %>%
+    rowwise() %>%
+    mutate(Spp_Total = sum(n_spp_eez.x,n_spp_eez.y,na.rm=T),
+           MCP_Total = sum(total_mcp.x,total_mcp.y,na.rm=T)) %>% # Total gridcelles per Neighbours
+    distinct() %>% # Removes false duplicates from `full_join()`
+    rename(eez_name = Name,
+           eez_neighbour =eez_name,
+           n_spp_Country = n_spp_eez.x,
+           n_spp_Neighbour = n_spp_eez.y,
+           mcp_Country = total_mcp.x,
+           mcp_Neighbour = total_mcp.y) %>% 
+    mutate(area_index = n_spp_Country/Spp_Total,
+           catch_proportion = mcp_Country/MCP_Total) %>% 
+    # Determine the three time frames for comparrison
+    mutate(
+      time_step = ifelse(year < hist_y,"historical",
+                         ifelse(year >= 2021 & year <= 2040, "early",
+                                ifelse(year >= 2041 & year <= 2060, "mid","NA")
+                         )
+      )
+    ) %>%
+    filter(time_step != "NA") %>% 
+    # Time mean and sd
+    ungroup() %>% 
+    group_by(taxon_key,ensemble,eez_name,eez_neighbour,time_step) %>% 
+    summarise_at(vars("area_index","catch_proportion"),
+                 c(temp_mean=mean,
+                   tempo_sd=sd)
+    ) %>% 
+    # ensemble mean and sd
+    group_by(taxon_key,eez_name,eez_neighbour,time_step) %>%
+    summarise_at(vars("area_index_temp_mean","catch_proportion_temp_mean"),
+                 c(ensemble_mean = mean,
+                   ensemble_sd = sd
+                 )
+    )
+  
+  # --------------- #
+  # End function
+  # --------------- #
+  
+  if(nrow(Per_Ghange_D) > 0){
+    
+    # Save Result
+    name <- paste("proportion_",taxon_key,".csv",sep="")
+    path_name <- paste(my_path("R",extra_path = "Proportion_2005"),name,sep= "")
+    
+    write_csv(Per_Ghange_D,
+              path_name)
+    
+    return(print(paste("analysis done",taxon_key)))
+    # return(Per_Ghange_D)
+    
+  }else{
+    print(paste("no result for",taxon_key))
+  }
+  
+  # Or return a df
+  # return(Per_Ghange_D)
+}
+EstPropChange(taxon_key = 600004,
+              year = year_df$year,
+              hist_y = 2000,
+              data_type = "Catch",
+              ensemble_list = c(102,103,104),
+              # path = path,
+              neighbours = neighbours)
+```
+```
 
 
-
-
-
-
-
-
+# Results
