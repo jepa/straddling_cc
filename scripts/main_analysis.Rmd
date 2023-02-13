@@ -749,11 +749,10 @@ EstPropChange <- function(taxon_key,
   colnames(spp_data) <- c("index",(seq(1951,2100,1)))
   rm(sppabdfnl)
   
-  
+
   spatial_subset <- stradd_data %>% 
     rename(name = territory) %>% 
     left_join(sau_index_code)
-  
   
   areas_present <- stradd_data %>% 
     gather(territory,fao_area_name, 2,4) %>% 
@@ -763,92 +762,126 @@ EstPropChange <- function(taxon_key,
   spp_stradd_range <- sau_fao_grid %>% 
     filter(name %in% areas_present)
   
-  
-  spp_stradd_range %>% 
-    left_join(complete_lon_lat_dbem) %>% 
-    ggplot() +
-    geom_tile(
-      aes(
-        x = lon,
-        y = lat,
-        fill = cat
-      )
-    ) + 
-    theme(legend.position = "")
-  
+  # spp_stradd_range %>% 
+  #   left_join(complete_lon_lat_dbem) %>% 
+  #   ggplot() +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       fill = name
+  #     )
+  #   ) + 
+  #   theme(legend.position = "")
   
   
-  
-  filtered_spp <- spp_data %>% 
-    filter(index %in% )
-  
-  
-  
-  
+  complete_data <- spp_data %>%
+    mutate(index = as.character(index)) %>% 
+    # gather("year","value",`1951`:`2100`) %>% 
+      left_join(spp_stradd_range,
+                by ="index") %>% 
+    filter(!is.na(value),
+           !is.na(name))
   
   # Get neighbouring id
   Neighbours_List <- neighbours %>% 
     semi_join(stradd_data,
-              by = c("territory","neighbour","fao_area_name"))
+              by = c("territory","neighbour","fao_area_name")) %>% 
+    group_by(territory,neighbour,fao_area_name) %>% 
+    tally()
     
   
-  # Test
-  ggplot(data = Neighbours_List) +
-    geom_tile(
-      aes(
-        x = longitude,
-        y = latitude,
-        color = fao_area_name,
-        fill = fao_area_name
-      )
-    )
-  
-  
-  
-  
-  # Selecting only the transboundary nature of the species
-  Trans_Spp <- spp_data %>%
-    filter(index %in% Trans_EEZ$index) %>% 
-    left_join(index_code,
-              by = "index") %>% 
-    filter(eez_name %in% Neighbours_List$eez_name)
-  
+
+
   # -------------------- #
   # Estimate area index
   # The number of species' cells present within each country's EEZ
   # -------------------- #
   
   #Determines the amount of catch present in each country
-  Spp_Grid <- Trans_Spp %>% 
-    group_by(taxon_key,
-             eez_name,
-             year,
-             ensemble) %>% 
-    summarise(n_spp_eez = length(unique(index)),
-              total_mcp = sum(value)
-    ) %>% 
-    left_join(Neighbours_List,
-              by = "eez_name")
   
-  # Split dataframes to merge latter
-  Territory_T <- Spp_Grid %>% 
+  
+  total_by_unit <- complete_data %>% 
+    group_by(territory = name,
+             area_code,
+             cat,
+             year) %>% 
+    summarise(total_value = sum(value)) %>% 
+    left_join(Neighbours_List) %>% 
+    mutate(fao_area_name = ifelse(is.na(fao_area_name),territory,fao_area_name))
+  
+  
+  
+  # Test
+  total_test <- total_by_unit %>% 
+    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>% 
+    filter(fao_area_name %in% "Pacific, Western Central") %>%
+    group_by(year) %>% 
+    summarise(total = sum(total_value))
+  
+  test_t <- total_by_unit %>% 
+    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>%
+    filter(fao_area_name == "Pacific, Western Central") %>%
+    group_by(territory,year) %>% 
+    summarise(total_ter = sum(total_value)) %>% 
+    left_join(total_test) %>% 
+    mutate(per = total_ter/total) %>% 
+    group_by(territory) %>% 
+    summarise(mean = mean(per),
+              sd = sd(per))
+  
+  historic <- test_t %>% 
+    mutate(h_high = mean+sd,
+           h_low = mean-sd) %>% 
+    select(territory,h_high,h_low)
+  
+  
+  # Example Plot
+  
+   total_by_unit %>% 
+     filter(fao_area_name %in% "Pacific, Western Central") %>%
+    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>% 
+    group_by(territory,year) %>% 
+    summarise(total_ter = sum(total_value)) %>% 
+    left_join(total_test) %>% 
+    mutate(per = total_ter/total,
+           period = ifelse(year < 2014,"hist",
+                           ifelse(year >2020 & year <2040,"ear",
+                                  ifelse(year > 2040 & year <2060,"mid",NA)
+                           )
+           )
+    ) %>% 
+     # View()
+     ggplot() +
+     geom_area(
+       aes(
+         x = as.numeric(year),
+         y = per,
+         fill = territory
+       )
+     )
+  
+  
+  
+  
+  
+  
+  
+  
+  Territory_T <- total_by_unit %>% 
     ungroup() %>% 
     select(
-      taxon_key,
-      Name=eez_name,
-      n_spp_eez,
-      total_mcp,
-      year,
-      ensemble
+      Name=name,
+      total_value,
+      year
     )
   
-  Neighbour_T <- Spp_Grid %>% 
+  Neighbour_T <- total_by_unit %>% 
     ungroup() %>% 
     select(
-      taxon_key,
-      n_spp_eez,
-      total_mcp,
       Name=eez_neighbour,
+      total_mcp,
+      
       eez_name,
       year,
       ensemble
