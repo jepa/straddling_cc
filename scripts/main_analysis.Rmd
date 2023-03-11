@@ -80,10 +80,6 @@ st_crs(fao_regions) = 4326
   # st_set_crs(4326) #%>% 
   # st_transform(crs = "+proj=eck4")
 
-
-
-# head(fao_regions)
-
 # fao_regions %>% 
 #   ggplot() +
 #   geom_sf(aes(fill = F_AREA))
@@ -96,7 +92,11 @@ colnames(EEZ_CellID) <- c("eez_id","index")
 EEZ_CellID <- EEZ_CellID %>% 
   mutate(area_code = as.character(eez_id))
 
-dbem_sf <-st_as_sf(complete_lon_lat_dbem,
+# Coordinatres DBEM
+coords_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
+
+
+dbem_sf <-st_as_sf(coords_dbem,
                            coords = c("lon", "lat")
 ) %>% 
   st_set_crs(4326) #%>%
@@ -112,9 +112,12 @@ dbem_fao_sf <- st_join(dbem_sf,
 fao_grid <- dbem_fao_sf %>% 
   filter(!is.na(F_CODE)) %>% 
   as.data.frame() %>% 
-  select(index,cat,fao_area_code=F_CODE,area_code=F_CODE,ocean=OCEAN,name = NAME_EN) %>% 
-  filter(cat == "abnj") %>% 
-  mutate_all(as.character)
+  select(index,fao_area_code=F_CODE,area_code=F_CODE,ocean=OCEAN,name = NAME_EN) %>% 
+  # filter(cat == "abnj") %>% 
+  mutate_all(as.character) %>% 
+  rename(fao_area_name = name)
+
+write_csv(fao_grid, my_path("Spa", "DBEM","fao_to_dbem_grid.csv"))
 
 
 eez_grid <- left_join(EEZ_CellID,EEZIDs_List) %>% 
@@ -164,7 +167,7 @@ complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, heade
 
 
 # Save for fouture
-# write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 
   # ggplot(complete_lon_lat_dbem) +
   # geom_tile(
@@ -181,6 +184,23 @@ complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, heade
 #   geom_sf(data = world_land, aes()) +
 #   geom_sf(data = world_eez, aes())
   
+
+### Get MEO to DBEM
+
+meow_regions <- my_sf("MEOW")
+st_crs(meow_regions) = 4326
+
+meow_dbem <- st_join(dbem_sf,
+             meow_regions, join = st_intersects)
+
+dbem_meow_df <- meow_dbem %>% 
+  filter(!is.na(ECO_CODE)) %>% 
+  as.data.frame() %>% 
+  select(-geometry) %>% 
+  clean_names()
+  
+write_csv(dbem_meow_df, my_path("Spa", "MEOW","meow_dbem_grid.csv"))
+
   
   # First get Vicky's data to get high seas
 EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE, system = "jepa")
@@ -695,13 +715,13 @@ GetResults=function(Spp){
 
 ```
 
+# Analysis
 
 ```{r}
 
 # Get fao areas on DBEM grid
-fao_areas <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T) %>% 
-  filter(cat == "abnj") %>% 
-  mutate_all(as.character)
+fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
+
 
 # Load stradling species
 
@@ -725,241 +745,106 @@ stradd_data <- GetResults("600107") %>%
 
 ```
 
+# New version
+
+```{r estimate_proportion}
 
 
 
-```{r EstPropChange, eval = F, echo = F}
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T)
 
-EstPropChange <- function(taxon_key,
-                          year,
-                          hist_y = 2005,
-                          data_type = "Catch",
-                          ensemble_list, # expects a list of ensembles to averrage by
-                          path,
-                          neighbours){
+main_fx(taxon_key = 600107,
+        data = stradd_data,
+        fao_area = "Pacific, Eastern Central")
+
+main_fx <- function(taxon_key,data,fao_area){
+  
+  # Get area of analysis 
+  taxon_fao_dbem_area <- stradd_data %>% 
+    filter(fao_area_name %in% fao_area) %>% 
+    left_join(fao_area_grid,
+              by = "fao_area_name") %>% 
+    select(index,fao_area_name,fao_area_code)
   
   
   # Loads species data for runs
   to_read = paste0(taxon_key,"Abd.RData")
   load(paste0("/Volumes/Enterprise/Data/MigrantFish/Data/",to_read))
   
+  # Transform it to df
   spp_data <- as.data.frame(sppabdfnl) %>% 
-  rowid_to_column("index")
-  
+    rowid_to_column("index")
   colnames(spp_data) <- c("index",(seq(1951,2100,1)))
-  rm(sppabdfnl)
+  rm(sppabdfnl) # remove original load
   
-
-  spatial_subset <- stradd_data %>% 
-    rename(name = territory) %>% 
-    left_join(sau_index_code)
+  spp_data_area <- spp_data %>% 
+    filter(index %in% taxon_fao_dbem_area$index) %>% 
+    gather("year","value",`1951`:`2100`) %>% 
+    left_join(sau_index_code,
+              by = "index") %>% 
+    left_join(meow_dbem_grid,
+              by = "index") %>% 
+    mutate(name = ifelse(is.na(name),fao_area,"eezs"),
+           realm = ifelse(is.na(realm),"high seas",realm)
+    ) %>% 
+    group_by(year,realm) %>% 
+    summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
+    mutate(taxon_key = taxon_key) %>% 
+    filter(total_zone_abd > 0) # fix bug for now
   
-  areas_present <- stradd_data %>% 
-    gather(territory,fao_area_name, 2,4) %>% 
-    pull(fao_area_name) %>% 
-      unique()
+  # Estimate proportions
   
-  spp_stradd_range <- sau_fao_grid %>% 
-    filter(name %in% areas_present)
+  total_yr_abd <- spp_data_area %>% 
+    group_by(taxon_key,year) %>% 
+    summarise(total_abd = sum(total_zone_abd))
   
-  # spp_stradd_range %>% 
-  #   left_join(complete_lon_lat_dbem) %>% 
-  #   ggplot() +
-  #   geom_tile(
+  spp_proportion <- spp_data_area %>% 
+    left_join(total_yr_abd,
+              by = c("year","taxon_key")) %>% 
+    mutate(per = total_zone_abd/total_abd)
+  
+  # How it looks
+  # ggplot(spp_proportion) +
+  #   geom_area(
   #     aes(
-  #       x = lon,
-  #       y = lat,
-  #       fill = name
+  #       x = as.numeric(year),
+  #       y = per,
+  #       fill = realm
   #     )
-  #   ) + 
-  #   theme(legend.position = "")
-  
-  
-  complete_data <- spp_data %>%
-    mutate(index = as.character(index)) %>% 
-    # gather("year","value",`1951`:`2100`) %>% 
-      left_join(spp_stradd_range,
-                by ="index") %>% 
-    filter(!is.na(value),
-           !is.na(name))
-  
-  # Get neighbouring id
-  Neighbours_List <- neighbours %>% 
-    semi_join(stradd_data,
-              by = c("territory","neighbour","fao_area_name")) %>% 
-    group_by(territory,neighbour,fao_area_name) %>% 
-    tally()
-    
-  
-
-
-  # -------------------- #
-  # Estimate area index
-  # The number of species' cells present within each country's EEZ
-  # -------------------- #
-  
-  #Determines the amount of catch present in each country
-  
-  
-  total_by_unit <- complete_data %>% 
-    group_by(territory = name,
-             area_code,
-             cat,
-             year) %>% 
-    summarise(total_value = sum(value)) %>% 
-    left_join(Neighbours_List) %>% 
-    mutate(fao_area_name = ifelse(is.na(fao_area_name),territory,fao_area_name))
+  #   )
   
   
   
-  # Test
-  total_test <- total_by_unit %>% 
-    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>% 
-    filter(fao_area_name %in% "Pacific, Western Central") %>%
-    group_by(year) %>% 
-    summarise(total = sum(total_value))
+  # Estimate changes in abd proportion
   
-  test_t <- total_by_unit %>% 
-    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>%
-    filter(fao_area_name == "Pacific, Western Central") %>%
-    group_by(territory,year) %>% 
-    summarise(total_ter = sum(total_value)) %>% 
-    left_join(total_test) %>% 
-    mutate(per = total_ter/total) %>% 
-    group_by(territory) %>% 
-    summarise(mean = mean(per),
-              sd = sd(per))
+  # Early proportions
+  hs_historical_means <- spp_proportion %>% 
+    filter(year <= 2014) %>%
+    group_by(taxon_key,realm) %>% 
+    summarise(hs_mean = mean(per, na.rm = T),
+              hs_sd = sd(per, na.rm = T)) %>%
+    mutate(top_tresh = hs_mean+2*hs_sd,
+           low_tresh = hs_mean-2*hs_sd) %>% 
+    select(taxon_key,realm,top_tresh,low_tresh)
   
-  historic <- test_t %>% 
-    mutate(h_high = mean+sd,
-           h_low = mean-sd) %>% 
-    select(territory,h_high,h_low)
-  
-  
-  # Example Plot
-  
-   total_by_unit %>% 
-     filter(fao_area_name %in% "Pacific, Western Central") %>%
-    # filter(territory %in% c("Mexico (Pacific)","USA (West Coast)","Pacific, Northeast")) %>% 
-    group_by(territory,year) %>% 
-    summarise(total_ter = sum(total_value)) %>% 
-    left_join(total_test) %>% 
-    mutate(per = total_ter/total,
-           period = ifelse(year < 2014,"hist",
-                           ifelse(year >2020 & year <2040,"ear",
-                                  ifelse(year > 2040 & year <2060,"mid",NA)
-                           )
-           )
+  # Estimate future proportions that overshoot the mean =- 2 sd
+  prop_chng <- spp_proportion %>% 
+    mutate(period = ifelse(year >2020 & year <2040,"ear",
+                           ifelse(year > 2040 & year <2060,"mid",NA)
+    )
     ) %>% 
-     # View()
-     ggplot() +
-     geom_area(
-       aes(
-         x = as.numeric(year),
-         y = per,
-         fill = territory
-       )
-     )
-  
-  
-  
-  
-  
-  
-  
-  
-  Territory_T <- total_by_unit %>% 
-    ungroup() %>% 
-    select(
-      Name=name,
-      total_value,
-      year
+    filter(!is.na(period)) %>% 
+    group_by(taxon_key,realm,period) %>% 
+    summarise(mean = mean(per, na.rm = T)) %>% 
+    left_join(hs_historical_means,
+              by = c("realm","taxon_key")) %>% 
+    mutate(change = ifelse(mean > top_tresh,"gain",
+                           ifelse(mean < low_tresh,"lost","same")
+    )
     )
   
-  Neighbour_T <- total_by_unit %>% 
-    ungroup() %>% 
-    select(
-      Name=eez_neighbour,
-      total_mcp,
-      
-      eez_name,
-      year,
-      ensemble
-    )
+  return(prop_chng)
   
-  # Estimate Area index and % change
-  Per_Ghange_D <- full_join(Territory_T,
-                            Neighbour_T, 
-                            by = c("Name","taxon_key","year","ensemble")
-  ) %>%
-    rowwise() %>%
-    mutate(Spp_Total = sum(n_spp_eez.x,n_spp_eez.y,na.rm=T),
-           MCP_Total = sum(total_mcp.x,total_mcp.y,na.rm=T)) %>% # Total gridcelles per Neighbours
-    distinct() %>% # Removes false duplicates from `full_join()`
-    rename(eez_name = Name,
-           eez_neighbour =eez_name,
-           n_spp_Country = n_spp_eez.x,
-           n_spp_Neighbour = n_spp_eez.y,
-           mcp_Country = total_mcp.x,
-           mcp_Neighbour = total_mcp.y) %>% 
-    mutate(area_index = n_spp_Country/Spp_Total,
-           catch_proportion = mcp_Country/MCP_Total) %>% 
-    # Determine the three time frames for comparrison
-    mutate(
-      time_step = ifelse(year < hist_y,"historical",
-                         ifelse(year >= 2021 & year <= 2040, "early",
-                                ifelse(year >= 2041 & year <= 2060, "mid","NA")
-                         )
-      )
-    ) %>%
-    filter(time_step != "NA") %>% 
-    # Time mean and sd
-    ungroup() %>% 
-    group_by(taxon_key,ensemble,eez_name,eez_neighbour,time_step) %>% 
-    summarise_at(vars("area_index","catch_proportion"),
-                 c(temp_mean=mean,
-                   tempo_sd=sd)
-    ) %>% 
-    # ensemble mean and sd
-    group_by(taxon_key,eez_name,eez_neighbour,time_step) %>%
-    summarise_at(vars("area_index_temp_mean","catch_proportion_temp_mean"),
-                 c(ensemble_mean = mean,
-                   ensemble_sd = sd
-                 )
-    )
-  
-  # --------------- #
-  # End function
-  # --------------- #
-  
-  if(nrow(Per_Ghange_D) > 0){
-    
-    # Save Result
-    name <- paste("proportion_",taxon_key,".csv",sep="")
-    path_name <- paste(my_path("R",extra_path = "Proportion_2005"),name,sep= "")
-    
-    write_csv(Per_Ghange_D,
-              path_name)
-    
-    return(print(paste("analysis done",taxon_key)))
-    # return(Per_Ghange_D)
-    
-  }else{
-    print(paste("no result for",taxon_key))
-  }
-  
-  # Or return a df
-  # return(Per_Ghange_D)
 }
-EstPropChange(taxon_key = 600004,
-              year = year_df$year,
-              hist_y = 2000,
-              data_type = "Catch",
-              ensemble_list = c(102,103,104),
-              # path = path,
-              neighbours = neighbours)
-```
-```
 
-
-# Results
+```
