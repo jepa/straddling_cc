@@ -762,109 +762,135 @@ taxon_proportion <- function(taxon_key,high_migratory){
     pull(fao_area_name) %>% 
     unique()
   
-  for(i in 1:length(fao_areas)){
-  # for(i in 1:3){
+  files_path <- list.files("/Volumes/Enterprise/Data/dbem/dbem_cmip6/r_data",full.names = T)
+  to_read <- paste0(taxon_key,"Abd.RData")
+  
+  for(m in 1:6){
+    for(i in 1:length(fao_areas)){
+      # for(i in 1:3){
+      
+      fao_area <- fao_areas[i]
+      
+      # Get area of analysis 
+      taxon_fao_dbem_area <- stradd_data %>% 
+        filter(fao_area_name %in% fao_area) %>% 
+        left_join(fao_area_grid,
+                  by = "fao_area_name") %>% 
+        select(index,fao_area_name,fao_area_code)
+      
+      
+      #################################
+      # List esm folders
+      load(paste0(files_path[m],"/",to_read))
+      
+      #################################
+      
+      
+      # Loads species data for runs
+      # to_read = paste0(taxon_key,"Abd.RData")
+      # load(paste0("/Volumes/Enterprise/Data/dbem/dbem_cmip6/C6GFDL26F1_t2/",to_read))
+      
+      # Transform it to df
+      spp_data <- as.data.frame(sppabdfnl) %>% 
+        rowid_to_column("index")
+      colnames(spp_data) <- c("index",(seq(1951,2100,1)))
+      rm(sppabdfnl) # remove original load
+      
+      spp_data_area <- spp_data %>% 
+        filter(index %in% taxon_fao_dbem_area$index) %>% 
+        gather("year","value",`1951`:`2100`) %>% 
+        left_join(sau_index_code,
+                  by = "index") %>% 
+        left_join(meow_dbem_grid,
+                  by = "index") %>% 
+        mutate(name = ifelse(is.na(name),fao_area,"eezs"),
+               realm = ifelse(is.na(realm),"high seas",realm)
+        ) %>% 
+        # When straddling use realm when highly migratory just fao region
+        {if(high_migratory == F) group_by(.,year,realm) else group_by(., year,name)} %>%
+        summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
+        mutate(taxon_key = taxon_key) %>% 
+        filter(total_zone_abd > 0) # fix bug for now
+      
+      # Estimate proportions
+      
+      total_yr_abd <- spp_data_area %>% 
+        group_by(taxon_key,year) %>% 
+        summarise(total_abd = sum(total_zone_abd))
+      
+      spp_proportion <- spp_data_area %>% 
+        left_join(total_yr_abd,
+                  by = c("year","taxon_key")) %>% 
+        mutate(per = total_zone_abd/total_abd)
+      
+      # How it looks
+      # ggplot(spp_proportion) +
+      #   geom_area(
+      #     aes(
+      #       x = as.numeric(year),
+      #       y = per,
+      #       fill = realm
+      #     )
+      #   )
+      
+      
+      
+      # Estimate changes in abd proportion
+      
+      # Early proportions
+      hs_historical_means <- spp_proportion %>% 
+        filter(year <= 2014) %>%
+        {if(high_migratory == F) group_by(.,taxon_key,realm) else group_by(., taxon_key,name)} %>%
+        summarise(hs_mean = mean(per, na.rm = T),
+                  hs_sd = sd(per, na.rm = T)) %>%
+        mutate(top_tresh = hs_mean+2*hs_sd,
+               low_tresh = hs_mean-2*hs_sd) %>% 
+        select(-hs_mean,-hs_sd)
+      
+      # Estimate future proportions that overshoot the mean =- 2 sd
+      prop_chng <- spp_proportion %>% 
+        mutate(period = ifelse(year >2020 & year <2040,"ear",
+                               ifelse(year > 2040 & year <2060,"mid",NA)
+        )
+        ) %>% 
+        filter(!is.na(period)) %>% 
+        {if(high_migratory == F) group_by(.,taxon_key,realm,period) else group_by(., taxon_key,name,period)} %>%
+        summarise(mean = mean(per, na.rm = T)) %>% 
+        left_join(hs_historical_means) %>% 
+        mutate(change = ifelse(mean > top_tresh,"gain",
+                               ifelse(mean < low_tresh,"lost","same")
+        )
+        )
+      
+      
+      if(i == 1){
+        final_data <-prop_chng
+      }else{
+        final_data <- bind_rows(final_data,prop_chng)
+      }
+      
+    } # Closefao areas   
     
-    fao_area <- fao_areas[i]
+    # Incorporate rcp and esm info to data
+    final_data <- final_data %>% 
+      mutate(esm = str_to_lower(str_sub(files_path[m],49,54)),
+             rcp = paste0("rcp",str_sub(files_path[m],55,56))
+             )
     
-    # Get area of analysis 
-    taxon_fao_dbem_area <- stradd_data %>% 
-      filter(fao_area_name %in% fao_area) %>% 
-      left_join(fao_area_grid,
-                by = "fao_area_name") %>% 
-      select(index,fao_area_name,fao_area_code)
-    
-    
-    # Loads species data for runs
-    to_read = paste0(taxon_key,"Abd.RData")
-    load(paste0("/Volumes/Enterprise/Data/dbem/dbem_cmip6/C6GFDL26F1_t2/",to_read))
-    
-    # Transform it to df
-    spp_data <- as.data.frame(sppabdfnl) %>% 
-      rowid_to_column("index")
-    colnames(spp_data) <- c("index",(seq(1951,2100,1)))
-    rm(sppabdfnl) # remove original load
-    
-    spp_data_area <- spp_data %>% 
-      filter(index %in% taxon_fao_dbem_area$index) %>% 
-      gather("year","value",`1951`:`2100`) %>% 
-      left_join(sau_index_code,
-                by = "index") %>% 
-      left_join(meow_dbem_grid,
-                by = "index") %>% 
-      mutate(name = ifelse(is.na(name),fao_area,"eezs"),
-             realm = ifelse(is.na(realm),"high seas",realm)
-      ) %>% 
-      # When straddling use realm when highly migratory just fao region
-      {if(high_migratory == F) group_by(.,year,realm) else group_by(., year,name)} %>%
-      summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
-      mutate(taxon_key = taxon_key) %>% 
-      filter(total_zone_abd > 0) # fix bug for now
-    
-    # Estimate proportions
-    
-    total_yr_abd <- spp_data_area %>% 
-      group_by(taxon_key,year) %>% 
-      summarise(total_abd = sum(total_zone_abd))
-    
-    spp_proportion <- spp_data_area %>% 
-      left_join(total_yr_abd,
-                by = c("year","taxon_key")) %>% 
-      mutate(per = total_zone_abd/total_abd)
-    
-    # How it looks
-    # ggplot(spp_proportion) +
-    #   geom_area(
-    #     aes(
-    #       x = as.numeric(year),
-    #       y = per,
-    #       fill = realm
-    #     )
-    #   )
-    
-    
-    
-    # Estimate changes in abd proportion
-    
-    # Early proportions
-    hs_historical_means <- spp_proportion %>% 
-      filter(year <= 2014) %>%
-      {if(high_migratory == F) group_by(.,taxon_key,realm) else group_by(., taxon_key,name)} %>%
-      summarise(hs_mean = mean(per, na.rm = T),
-                hs_sd = sd(per, na.rm = T)) %>%
-      mutate(top_tresh = hs_mean+2*hs_sd,
-             low_tresh = hs_mean-2*hs_sd) %>% 
-      select(-hs_mean,-hs_sd)
-    
-    # Estimate future proportions that overshoot the mean =- 2 sd
-    prop_chng <- spp_proportion %>% 
-      mutate(period = ifelse(year >2020 & year <2040,"ear",
-                             ifelse(year > 2040 & year <2060,"mid",NA)
-      )
-      ) %>% 
-      filter(!is.na(period)) %>% 
-      {if(high_migratory == F) group_by(.,taxon_key,realm,period) else group_by(., taxon_key,name,period)} %>%
-      summarise(mean = mean(per, na.rm = T)) %>% 
-      left_join(hs_historical_means) %>% 
-      mutate(change = ifelse(mean > top_tresh,"gain",
-                             ifelse(mean < low_tresh,"lost","same")
-      )
-      )
-    
-    
-    if(i == 1){
-      final_data <-prop_chng
+    if(m == 1){
+      final_output <- final_data
     }else{
-      final_data <- bind_rows(final_data,prop_chng)
+      final_output <- bind_rows(final_output,final_data)
     }
     
-  }
+    
+  } # Close models for loop
   
+  
+  # Save file
   name_file <- my_path("R","Per_change", paste0(taxon_key,"_perchg.csv"))
-  
-  write_csv(final_data, name_file)
-  
-  return(paste("Data for",taxon_key, "saved"))
+  write_csv(final_output, name_file)
+  return(paste("Data for",taxon_key,esm,rcp, "saved"))
   
 }
 
