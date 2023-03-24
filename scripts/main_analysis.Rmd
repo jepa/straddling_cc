@@ -700,10 +700,14 @@ This function simply reads all results of straddling stocks (see previous step)
 
 ```{r Fun_GetTransResults, eval = T}
 
-GetResults=function(Spp){
+GetResults=function(Spp,type = "strad"){
   
+  if(type == "strad"){
   # Set the path for each file
   Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
+  }else{
+  Distpath <- paste(my_path("R","Per_change/"),Spp,"_perchg.csv",sep="")
+  }
   
   # Loads all files in a df
   Load_Data <- bind_rows(lapply(Distpath, FUN=fread))
@@ -934,7 +938,7 @@ suppressMessages(
 
 ## Data needed
 
-```{r}
+```{r results_data, eva; = T}
 
 #-----------------# 
 ## Georeferenced ##
@@ -971,28 +975,56 @@ st_crs(sf_fao) = 4326
 fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
 
 #-----------------# 
-## Straddling    ##
+## Spp related   ##
 #-----------------# 
 
+# List of SAU species
+exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
+
+# List of species identified as highly migratory based on UN 1995 agreement
+high_mig_spp <- my_path("D","Species", "high_migratory_species.csv", read = T) %>% 
+  left_join(exploited_spp)
+
+## Straddling species ##
 # Spp list
 spp_complete <- list.files(my_path("R","Straddling/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Get straddling stocks
-stradd_data <- bind_rows(
-  lapply(stradling_spp,GetResults)
-)
+shared_data <- bind_rows(
+  lapply(stradling_spp,GetResults, type = "strad")
+) %>% 
+  left_join(high_mig_spp) %>% 
+  mutate(category = ifelse(is.na(cat),"strad","high_mig"))
 
 
+# Get proportion analysis
+
+# Get straddling stocks
+prop_data <- bind_rows(
+  lapply(stradling_spp,GetResults, type = "prop")
+) %>% 
+  left_join(high_mig_spp) %>% 
+  mutate(category = ifelse(is.na(cat),"strad","high_mig"),
+         rcp = ifelse(rcp == "rcp6F","rcp26",
+                      ifelse(rcp == "rcp5F","rcp85",rcp
+                      )
+         )
+  )
 
 
 
 ```
 
 
-## Straddling map
+## Straddling identification
 
-```{r}
+### Straddling species map
+
+```{r straddling_map, eval = T, echo = F}
+
+# Scaling function for plot
+scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
 # Get MEOW and EEZs
 meow_dbem_eez <- meow_dbem_grid %>% 
@@ -1001,27 +1033,43 @@ meow_dbem_eez <- meow_dbem_grid %>%
   select(-n)
 
 # Number of straddling stocks by MEOW
-strad_meow <- stradd_data %>% 
+strad_meow <- shared_data %>% 
   left_join(meow_dbem_eez) %>% 
   # View()
   group_by(ecoregion) %>% 
-  summarise(n = length(unique(taxon_key)))
+  summarise(n = length(unique(taxon_key))) %>% 
+  mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by FAO region
-strad_fao <- stradd_data %>% 
-  group_by(fao_name) %>% 
-  summarise(n = length(unique(taxon_key)))
+
+fao_meow <- meow_dbem_grid %>% 
+  left_join(fao_area_grid) %>% 
+  group_by(ecoregion,fao_name = fao_area_name) %>% 
+  filter(!is.na(fao_name)) %>% 
+  tally() %>% 
+  select(-n)
+
+strad_fao <- shared_data %>%
+    # filter(fao_name == "Indian Ocean, Eastern") %>% 
+  left_join(meow_dbem_eez) %>% 
+  group_by(fao_name,ecoregion) %>%
+    # Estimate number of species per fao name and ecoregion (stock)
+  summarise(n = length(unique(taxon_key))) %>% 
+    # Add number of stocks per FAO region
+  group_by(fao_name)  %>% 
+    summarise(n = sum(n)) %>% 
+  mutate(scale_n = scaling(n))
 
 # Map it
 ggplot() + 
-  geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = n)) + 
-  geom_sf(data = sf_meow %>% left_join(strad_meow), aes(fill = n)) +
+  geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = scale_n)) +
+  geom_sf(data = sf_meow %>% left_join(strad_meow), aes(fill = scale_n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
-  scale_fill_viridis_c(" Straddling species (n)") +
-  my_ggtheme_m(leg_pos = "right")
+  scale_fill_viridis_c("", na.value = "white") +
+  my_ggtheme_m(leg_pos = "right") 
 
   # Save plot 
-ggsave("./results/figures/straddling_species.png",
+ggsave("./results/figures/straddling_species_scale.png",
        last_plot(),
        height = 7,
        width = 14
@@ -1032,11 +1080,63 @@ ggsave("./results/figures/straddling_species.png",
 
 
 
+## Proportion change
+
+### Proportion change map
+
+
+```{r}
+
+
+plot_data <- prop_data %>% 
+  group_by(realm,esm,rcp,change) %>% 
+  tally() %>% 
+  group_by(realm,rcp,change) %>% 
+  summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
+  filter(!is.na(change))
 
 
 
+# Get the name and the y position of each label
+label_data <- plot_data %>% group_by(realm) %>% summarize(tot=sum(mean_n_shifts))%>% 
+  rowid_to_column("id")
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+ 
 
-
+  ggplot(plot_data) +
+  geom_bar(
+    aes(
+      x = reorder(realm,mean_n_shifts),
+      y = mean_n_shifts,
+      fill = change,
+      color = change
+    ),
+    stat = "identity"
+  )  +
+  facet_wrap(~rcp) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+  # Custom the theme: no axis title and no cartesian grid
+  # theme_minimal() +
+  # theme(
+    # axis.text = element_blank(),
+    # axis.title = element_blank(),
+    # panel.grid = element_blank(),
+    # plot.margin = unit(rep(-1,4), "cm")      # Adjust the margin to make in sort labels are not truncated!
+  )
+  # This makes the coordinate polar instead of cartesian.
+  # coord_polar(start = 0) +
+  # Add the labels, using the label_data dataframe that we have created before
+  # geom_text(data = label_data, aes(x = id,
+  #                                y = tot+1,
+  #                                label = ecoregion, 
+  #                                hjust = hjust), 
+  #           color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) 
+ 
+```
 
 
 
