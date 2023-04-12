@@ -34,7 +34,8 @@ packages <- c(
   "zoo", #for runing mean
   # "pgirmess", # for dune test after kurtis wallas
   "rnaturalearth", # For maps
-  "R.matlab" # For Gabs distributions
+  "R.matlab", # For Gabs distributions
+  "parallel"
 )
 
 my_lib(packages)
@@ -632,7 +633,7 @@ Mclapply_Hack <- function(...){
 
 ```
 
-# Control pannel
+### Control pannel
 
 ```{r control_pannel, eva = F}
 # DBEM coordinate system
@@ -694,7 +695,7 @@ lapply(unique(transboundary_spp$taxon_key), StraddIndex, Model = "All", Coord = 
 
 ## Estimating Proportion change
 
-### Read straddling stocks results
+### Functions
 
 This function simply reads all results of straddling stocks (see previous step)
 
@@ -721,81 +722,9 @@ GetResults=function(Spp,type = "strad"){
 
 ```
 
-Run the function to load results
-
-```{r get_straddling, eval = F}
-
-# Get fao areas on DBEM grid
-fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
-meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T)
-# SAU relations between INDEX and Country's EEZs
-# First get Vicky's data to get high seas
-EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
-  rename(eez_id = eezid)
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("eez_id","index")
-sau_index_code <- EEZIDs_List %>%  #x
-  left_join(EEZ_CellID)
-
-# Load stradling species
-# One species for test
-# stradd_data <- GetResults("600107") %>% 
-  # rename("fao_area_name"= "fao_name")
-
-
-# Spp list
-
-spp_complete <- list.files(my_path("R","Straddling/"))
-
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
-
-stradd_data <- bind_rows(
-  lapply(stradling_spp,GetResults)
-)
-
-
-# List of SAU species
-exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
-
-
-# List of species identified as highly migratory based on UN 1995 agreement
-high_mig_spp <- my_path("D","Species", "high_migratory_species.csv", read = T) %>% 
-  left_join(exploited_spp)
-
-```
-
-
-```{r}
-
-my_sf("MEOW") %>% 
-  ggplot() +
-  geom_sf(aes(fill = REALM, color = REALM))
-
-spp_data_area %>% 
-  filter(year == 2000,
-         !is.na(value)
-         ) %>% 
-  left_join(coords_dbem) %>%
-  # ggplot() +
-  # geom_tile(
-  #   aes(
-  #     x = lon,
-  #     y = lat,
-  #     fill = value
-  #   )
-  # ) +
-  # facet_wrap(~realm)
-  head()
-
-```
-
-
-### Proportion estimate
-
-Estimates proportion of abundance in three time periods per taxon
+This function is the main analysis estimating the proportion change above historic levels
 
 ```{r estimate_proportion, eval = F}
-
 
 taxon_proportion <- function(taxon_key){
   
@@ -946,7 +875,7 @@ taxon_proportion <- function(taxon_key){
   
   
   # Save file
-  name_file <- my_path("R","Per_change", paste0(taxon_key,"_perchg.csv"))
+  name_file <- my_path("R","Per_change_realm", paste0(taxon_key,"_perchg.csv"))
   write_csv(final_output, name_file)
   return(paste("Data for",taxon_key, "saved"))
   
@@ -954,19 +883,72 @@ taxon_proportion <- function(taxon_key){
 
 ```
 
-Run the above function
+### Control pannel
 
-```{r proportion_call, eval = F}
+```{r get_straddling, eval = F}
 
-suppressMessages(
-taxon_proportion(taxon_key = 600107
-        )
+# Get fao areas on DBEM grid
+fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T)
+# SAU relations between INDEX and Country's EEZs
+# First get Vicky's data to get high seas
+EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
+  rename(eez_id = eezid)
+EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+colnames(EEZ_CellID) <- c("eez_id","index")
+sau_index_code <- EEZIDs_List %>%  #x
+  left_join(EEZ_CellID)
+
+# Load stradling species
+# One species for test
+# stradd_data <- GetResults("600107") %>% 
+  # rename("fao_area_name"= "fao_name")
+
+
+# Spp list
+
+spp_complete <- list.files(my_path("R","Straddling/"))
+
+stradling_spp <- str_replace(spp_complete,"\\_.*","")
+
+stradd_data <- bind_rows(
+  lapply(stradling_spp,GetResults)
 )
 
 
+# List of SAU species
+exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
+
+
+# List of species identified as highly migratory based on UN 1995 agreement
+high_mig_spp <- my_path("D","Species", "high_migratory_species.csv", read = T) %>% 
+  left_join(exploited_spp)
+
+```
+
+
+### Proportion estimate
+
+```{r proportion_call, eval = F}
+
+# suppressMessages(
+# taxon_proportion(taxon_key = 600107
+#         )
+# )
+
+
+# suppressMessages(
+#   lapply(stradling_spp,
+#          taxon_proportion)
+# )
+
+# Parralelization
+
+
 suppressMessages(
-  lapply(stradling_spp,
-         taxon_proportion)
+  mclapply(stradling_spp,
+           taxon_proportion,
+           mc.cores = detectCores()-2)
 )
 
 
