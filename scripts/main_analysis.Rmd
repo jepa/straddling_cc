@@ -753,7 +753,42 @@ stradd_data <- bind_rows(
   lapply(stradling_spp,GetResults)
 )
 
+
+# List of SAU species
+exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
+
+
+# List of species identified as highly migratory based on UN 1995 agreement
+high_mig_spp <- my_path("D","Species", "high_migratory_species.csv", read = T) %>% 
+  left_join(exploited_spp)
+
 ```
+
+
+```{r}
+
+my_sf("MEOW") %>% 
+  ggplot() +
+  geom_sf(aes(fill = REALM, color = REALM))
+
+spp_data_area %>% 
+  filter(year == 2000,
+         !is.na(value)
+         ) %>% 
+  left_join(coords_dbem) %>%
+  # ggplot() +
+  # geom_tile(
+  #   aes(
+  #     x = lon,
+  #     y = lat,
+  #     fill = value
+  #   )
+  # ) +
+  # facet_wrap(~realm)
+  head()
+
+```
+
 
 ### Proportion estimate
 
@@ -762,10 +797,17 @@ Estimates proportion of abundance in three time periods per taxon
 ```{r estimate_proportion, eval = F}
 
 
-taxon_proportion <- function(taxon_key,high_migratory){
+taxon_proportion <- function(taxon_key){
+  
   print(taxon_key)
+  
   stradd_data <- GetResults(taxon_key) %>% 
-    rename("fao_area_name"= "fao_name")
+    rename("fao_area_name"= "fao_name") %>% 
+    left_join(high_mig_spp)
+  
+  
+  category <- unique(stradd_data$cat)
+  
   
   fao_areas <- stradd_data %>% 
     pull(fao_area_name) %>% 
@@ -803,15 +845,17 @@ taxon_proportion <- function(taxon_key,high_migratory){
         spp_data_area <- spp_data %>% 
           filter(index %in% taxon_fao_dbem_area$index) %>% 
           gather("year","value",`1951`:`2100`) %>% 
+          # left_join(taxon_fao_dbem_area,
+          # by = "index") %>%
           left_join(sau_index_code,
                     by = "index") %>% 
           left_join(meow_dbem_grid,
                     by = "index") %>% 
           mutate(name = ifelse(is.na(name),fao_area,"eezs"),
-                 realm = ifelse(is.na(realm),"high seas",realm)
+                 realm = ifelse(is.na(ecoregion),"high seas",realm)
           ) %>% 
           # When straddling use realm when highly migratory just fao region
-          {if(high_migratory == F) group_by(.,year,realm) else group_by(., year,name)} %>%
+          {if(!is.na(category)) group_by(.,year,fao_area_name) else group_by(., year,realm)} %>%
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
           mutate(taxon_key = taxon_key) %>% 
           filter(total_zone_abd > 0) # fix bug for now
@@ -844,7 +888,7 @@ taxon_proportion <- function(taxon_key,high_migratory){
         # Early proportions
         hs_historical_means <- spp_proportion %>% 
           filter(year <= 2014) %>%
-          {if(high_migratory == F) group_by(.,taxon_key,realm) else group_by(., taxon_key,name)} %>%
+          {if(!is.na(category)) group_by(.,taxon_key,ecoregion) else group_by(., taxon_key,realm,name)} %>%
           summarise(hs_mean = mean(per, na.rm = T),
                     hs_sd = sd(per, na.rm = T)) %>%
           mutate(top_tresh = hs_mean+2*hs_sd,
@@ -858,7 +902,7 @@ taxon_proportion <- function(taxon_key,high_migratory){
           )
           ) %>% 
           filter(!is.na(period)) %>% 
-          {if(high_migratory == F) group_by(.,taxon_key,realm,period) else group_by(., taxon_key,name,period)} %>%
+          {if(!is.na(category)) group_by(.,taxon_key,ecoregion,period) else group_by(., taxon_key,realm,name,period)} %>%
           summarise(mean = mean(per, na.rm = T)) %>% 
           left_join(hs_historical_means) %>% 
           mutate(change = ifelse(mean > top_tresh,"gain",
@@ -916,17 +960,18 @@ Run the above function
 ```{r proportion_call, eval = F}
 
 suppressMessages(
-taxon_proportion(taxon_key = 600089,
-        high_migratory = F
+taxon_proportion(taxon_key = 600107
         )
 )
 
 
 suppressMessages(
   lapply(stradling_spp,
-         taxon_proportion,
-         high_migratory = F)
+         taxon_proportion)
 )
+
+
+
 
 
 ```
