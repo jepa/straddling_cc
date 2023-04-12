@@ -845,17 +845,15 @@ taxon_proportion <- function(taxon_key){
         spp_data_area <- spp_data %>% 
           filter(index %in% taxon_fao_dbem_area$index) %>% 
           gather("year","value",`1951`:`2100`) %>% 
-          # left_join(taxon_fao_dbem_area,
-          # by = "index") %>%
           left_join(sau_index_code,
                     by = "index") %>% 
           left_join(meow_dbem_grid,
                     by = "index") %>% 
-          mutate(name = ifelse(is.na(name),fao_area,"eezs"),
-                 realm = ifelse(is.na(ecoregion),"high seas",realm)
+          mutate(name = ifelse(is.na(name),fao_area,"eezs"), # For adding high migratory
+                 realm = ifelse(is.na(ecoregion),"high seas",realm) # for adding straddling
           ) %>% 
           # When straddling use realm when highly migratory just fao region
-          {if(!is.na(category)) group_by(.,year,fao_area_name) else group_by(., year,realm)} %>%
+          {if(!is.na(category)) group_by(.,year,name) else group_by(., year,realm)} %>%
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
           mutate(taxon_key = taxon_key) %>% 
           filter(total_zone_abd > 0) # fix bug for now
@@ -872,14 +870,15 @@ taxon_proportion <- function(taxon_key){
           mutate(per = total_zone_abd/total_abd)
         
         # How it looks
-        # ggplot(spp_proportion) +
-        #   geom_area(
-        #     aes(
-        #       x = as.numeric(year),
-        #       y = per,
-        #       fill = realm
-        #     )
-        #   )
+        ggplot(spp_proportion) +
+          geom_area(
+            aes(
+              x = as.numeric(year),
+              y = per,
+              # fill = name
+              fill = realm
+            )
+          )
         
         
         
@@ -888,7 +887,7 @@ taxon_proportion <- function(taxon_key){
         # Early proportions
         hs_historical_means <- spp_proportion %>% 
           filter(year <= 2014) %>%
-          {if(!is.na(category)) group_by(.,taxon_key,ecoregion) else group_by(., taxon_key,realm,name)} %>%
+          {if(!is.na(category)) group_by(.,taxon_key,name) else group_by(., taxon_key,realm)} %>%
           summarise(hs_mean = mean(per, na.rm = T),
                     hs_sd = sd(per, na.rm = T)) %>%
           mutate(top_tresh = hs_mean+2*hs_sd,
@@ -902,7 +901,7 @@ taxon_proportion <- function(taxon_key){
           )
           ) %>% 
           filter(!is.na(period)) %>% 
-          {if(!is.na(category)) group_by(.,taxon_key,ecoregion,period) else group_by(., taxon_key,realm,name,period)} %>%
+          {if(!is.na(category)) group_by(.,taxon_key,name,period) else group_by(., taxon_key,realm,period)} %>%
           summarise(mean = mean(per, na.rm = T)) %>% 
           left_join(hs_historical_means) %>% 
           mutate(change = ifelse(mean > top_tresh,"gain",
