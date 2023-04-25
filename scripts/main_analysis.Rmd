@@ -76,10 +76,10 @@ world_land <- ne_countries(scale = 'medium', returnclass = c("sf")) %>%
 fao_regions <- my_sf("FAO") %>% 
   filter(F_LEVEL == "MAJOR")
 st_crs(fao_regions) = 4326
-  
+
 # fao_regions <- fao_regions %>%
-  # st_set_crs(4326) #%>% 
-  # st_transform(crs = "+proj=eck4")
+# st_set_crs(4326) #%>% 
+# st_transform(crs = "+proj=eck4")
 
 # fao_regions %>% 
 #   ggplot() +
@@ -98,16 +98,16 @@ coords_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
 
 
 dbem_sf <-st_as_sf(coords_dbem,
-                           coords = c("lon", "lat")
+                   coords = c("lon", "lat")
 ) %>% 
   st_set_crs(4326) #%>%
-  # st_transform(crs = "+proj=eck4")
-  
-  st_crs(dbem_sf) = 4326
+# st_transform(crs = "+proj=eck4")
+
+st_crs(dbem_sf) = 4326
 
 # Combine both sf
 dbem_fao_sf <- st_join(dbem_sf,
-             fao_regions, join = st_intersects)
+                       fao_regions, join = st_intersects)
 
 # DBEM FAO Regions
 fao_grid <- dbem_fao_sf %>% 
@@ -125,11 +125,11 @@ eez_grid <- left_join(EEZ_CellID,EEZIDs_List) %>%
   select(index,eez_id,area_code = eez_id,name) %>% 
   mutate(cat = "eez",
          eez_name = name)
-  
+
 
 sau_fao_grid <- eez_grid %>% 
   mutate_all(as.character) %>% 
-    bind_rows(fao_grid)
+  bind_rows(fao_grid)
 
 sau_fao_grid %>%
   left_join(complete_lon_lat_dbem) %>%
@@ -170,21 +170,21 @@ complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, heade
 # Save for fouture
 write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 
-  # ggplot(complete_lon_lat_dbem) +
-  # geom_tile(
-  #   aes(
-  #     x = lon,
-  #     y = lat,
-  #     fill = cat
-  #   )
-  # )
+# ggplot(complete_lon_lat_dbem) +
+# geom_tile(
+#   aes(
+#     x = lon,
+#     y = lat,
+#     fill = cat
+#   )
+# )
 
 # All maps test
 # ggplot() +
 #   geom_sf(data = fao_regions, aes()) +
 #   geom_sf(data = world_land, aes()) +
 #   geom_sf(data = world_eez, aes())
-  
+
 
 ### Get MEO to DBEM
 
@@ -192,18 +192,18 @@ meow_regions <- my_sf("MEOW")
 st_crs(meow_regions) = 4326
 
 meow_dbem <- st_join(dbem_sf,
-             meow_regions, join = st_intersects)
+                     meow_regions, join = st_intersects)
 
 dbem_meow_df <- meow_dbem %>% 
   filter(!is.na(ECO_CODE)) %>% 
   as.data.frame() %>% 
   select(-geometry) %>% 
   clean_names()
-  
+
 write_csv(dbem_meow_df, my_path("Spa", "MEOW","meow_dbem_grid.csv"))
 
-  
-  # First get Vicky's data to get high seas
+
+# First get Vicky's data to get high seas
 EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE, system = "jepa")
 colnames(EEZ_SAU) <- c("sau_code","eez")
 
@@ -215,9 +215,9 @@ complete_sau <- EEZ_SAU %>%
 #   left_join(EEZ_CellID) %>% 
 #     rename(sau_eez_id = EEZID) %>% 
 #     gather("code_na","code",f_code:sau_eez_id) %>%
-  
 
-  # write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+
+# write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
 
 
 
@@ -356,7 +356,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   # Get model data from spps
   SppDist <- GetSppDist(Spp,Model,Coord)
   
-    # Result 1. Number of Countries that share the species
+  # Result 1. Number of Countries that share the species
   
   #____________ ESTIMATING MODEL INDEX (TRESHOLD 1)_________ #
   Trans_Spp <- SppDist %>%
@@ -395,7 +395,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   
   # Distributional test
   # test <- Trans_Spp %>% 
-    # left_join(coords)
+  # left_join(coords)
   
   # ggplot(test) +
   #   geom_tile(
@@ -405,7 +405,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   #       fill = category
   #     )
   #   )
-
+  
   
   
   # Step 2.1. Determines not a straddling stock
@@ -551,7 +551,7 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
   }
 } # closes function
 
- #Test me  
+#Test me  
 # suppressMessages(
 #   StraddIndex(600069, Model = "All", Coord = coords, Index_Code = Index_Code)
 # )
@@ -653,7 +653,7 @@ neighbours <- my_path("Spa", extra_path = "SAU", name = "EEZ_Neighbour_List.xlsx
   left_join(fao_to_sau,
             by = "eez_id") %>%
   mutate(fao_area_name = ifelse(territory == "Korea (North)", "Pacific, Northwest",fao_area_name)) # Fix North Korea
-  
+
 
 # Dataset to match all SAU names
 # matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T)
@@ -704,18 +704,18 @@ This function simply reads all results of straddling stocks (see previous step)
 GetResults=function(Spp,type = "strad"){
   
   if(type == "strad"){
-  # Set the path for each file
-  Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
+    # Set the path for each file
+    Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
   }else{
-  Distpath <- paste(my_path("R","Per_change/"),Spp,"_perchg.csv",sep="")
+    Distpath <- paste(my_path("R","Per_change_realm/"),Spp,"_perchg.csv",sep="")
   }
   
   # Loads all files in a df
   Load_Data <- bind_rows(lapply(Distpath, FUN=fread))
   
   if(nrow(Load_Data)>0){
-  
-  return(Load_Data)
+    
+    return(Load_Data)
   }
 }
 
@@ -725,6 +725,8 @@ GetResults=function(Spp,type = "strad"){
 This function is the main analysis estimating the proportion change above historic levels
 
 ```{r estimate_proportion, eval = F}
+
+taxon_key <- 600069
 
 taxon_proportion <- function(taxon_key){
   
@@ -746,7 +748,7 @@ taxon_proportion <- function(taxon_key){
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
-    
+    # m = 1
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
@@ -760,7 +762,7 @@ taxon_proportion <- function(taxon_key){
       rm(sppabdfnl) # remove original load
       
       for(i in 1:length(fao_areas)){
-        # for(i in 1:3){
+        # i = 1
         
         fao_area <- fao_areas[i]
         
@@ -775,14 +777,15 @@ taxon_proportion <- function(taxon_key){
           filter(index %in% taxon_fao_dbem_area$index) %>% 
           gather("year","value",`1951`:`2100`) %>% 
           left_join(sau_index_code,
-                    by = "index") %>% 
+                    by = "index") %>% #name is eez_name
           left_join(meow_dbem_grid,
-                    by = "index") %>% 
-          mutate(name = ifelse(is.na(name),fao_area,"eezs"), # For adding high migratory
-                 realm = ifelse(is.na(ecoregion),"high seas",realm) # for adding straddling
+                    by = c("index")
+          ) %>% 
+          mutate(name = ifelse(is.na(name),fao_area,realm)#, # For adding stradling
+                 # realm = ifelse(is.na(name),fao_area,"eezs") # for adding high migra
           ) %>% 
           # When straddling use realm when highly migratory just fao region
-          {if(!is.na(category)) group_by(.,year,name) else group_by(., year,realm)} %>%
+          {if(is.na(category)) group_by(.,year,name) else group_by(., year,realm)} %>%
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
           mutate(taxon_key = taxon_key) %>% 
           filter(total_zone_abd > 0) # fix bug for now
@@ -804,8 +807,8 @@ taxon_proportion <- function(taxon_key){
             aes(
               x = as.numeric(year),
               y = per,
-              # fill = name
-              fill = realm
+              fill = name
+              # fill = realm
             )
           )
         
@@ -816,7 +819,7 @@ taxon_proportion <- function(taxon_key){
         # Early proportions
         hs_historical_means <- spp_proportion %>% 
           filter(year <= 2014) %>%
-          {if(!is.na(category)) group_by(.,taxon_key,name) else group_by(., taxon_key,realm)} %>%
+          {if(is.na(category)) group_by(.,taxon_key,name) else group_by(., taxon_key,realm)} %>%
           summarise(hs_mean = mean(per, na.rm = T),
                     hs_sd = sd(per, na.rm = T)) %>%
           mutate(top_tresh = hs_mean+2*hs_sd,
@@ -830,12 +833,13 @@ taxon_proportion <- function(taxon_key){
           )
           ) %>% 
           filter(!is.na(period)) %>% 
-          {if(!is.na(category)) group_by(.,taxon_key,name,period) else group_by(., taxon_key,realm,period)} %>%
+          {if(is.na(category)) group_by(.,taxon_key,name,period) else group_by(., taxon_key,realm,period)} %>%
           summarise(mean = mean(per, na.rm = T)) %>% 
           left_join(hs_historical_means) %>% 
           mutate(change = ifelse(mean > top_tresh,"gain",
                                  ifelse(mean < low_tresh,"lost","same")
-          )
+          ),
+          fao_area = fao_area
           )
         
         
@@ -846,7 +850,7 @@ taxon_proportion <- function(taxon_key){
           if(nrow(prop_chng)==0){
             final_data <- final_data
           }else{
-          final_data <- bind_rows(final_data,prop_chng)
+            final_data <- bind_rows(final_data,prop_chng)
           }
         }
         
@@ -899,10 +903,13 @@ colnames(EEZ_CellID) <- c("eez_id","index")
 sau_index_code <- EEZIDs_List %>%  #x
   left_join(EEZ_CellID)
 
+
+
+
 # Load stradling species
 # One species for test
 # stradd_data <- GetResults("600107") %>% 
-  # rename("fao_area_name"= "fao_name")
+# rename("fao_area_name"= "fao_name")
 
 
 # Spp list
@@ -1020,8 +1027,8 @@ stradling_spp <- str_replace(spp_complete,"\\_.*","")
 shared_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "strad")
 ) %>% 
-  left_join(high_mig_spp) %>% 
-  mutate(category = ifelse(is.na(cat),"strad","high_mig"))
+  left_join(exploited_spp) %>% 
+  mutate(category = ifelse(taxon_key %in% high_mig_spp$taxon_key,"strad","high_mig"))
 
 
 # Get proportion analysis
@@ -1039,6 +1046,19 @@ prop_data <- bind_rows(
   )
 
 
+eez_fao <- sau_index_code %>% 
+  left_join(fao_area_grid) %>% 
+  group_by(eez_id,name,fao_area = fao_area_name) %>% 
+  tally()
+
+
+test <- prop_data %>% 
+  rename(name_og = name) %>% 
+  left_join(eez_fao) %>% 
+  group_by(taxon_key,period,change,esm,rcp,fao_area,name) %>% 
+  summarise_at(vars(mean,top_tresh,low_tresh),
+               .funs = mean)
+
 
 ```
 
@@ -1054,7 +1074,7 @@ scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
 # Get MEOW and EEZs
 meow_dbem_eez <- meow_dbem_grid %>% 
-  group_by(ecoregion,territory = name) %>% 
+  group_by(realm,territory = name) %>% 
   tally() %>% 
   select(-n)
 
@@ -1062,48 +1082,228 @@ meow_dbem_eez <- meow_dbem_grid %>%
 strad_meow <- shared_data %>% 
   left_join(meow_dbem_eez) %>% 
   # View()
-  group_by(ecoregion) %>% 
+  group_by(realm) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by FAO region
-
 fao_meow <- meow_dbem_grid %>% 
   left_join(fao_area_grid) %>% 
-  group_by(ecoregion,fao_name = fao_area_name) %>% 
+  group_by(realm,fao_name = fao_area_name) %>% 
   filter(!is.na(fao_name)) %>% 
   tally() %>% 
   select(-n)
 
 strad_fao <- shared_data %>%
-    # filter(fao_name == "Indian Ocean, Eastern") %>% 
+  # filter(fao_name == "Indian Ocean, Eastern") %>% 
   left_join(meow_dbem_eez) %>% 
-  group_by(fao_name,ecoregion) %>%
-    # Estimate number of species per fao name and ecoregion (stock)
-  summarise(n = length(unique(taxon_key))) %>% 
-    # Add number of stocks per FAO region
-  group_by(fao_name)  %>% 
-    summarise(n = sum(n)) %>% 
+  group_by(fao_name) %>%
+  # Estimate number of species per fao name and ecoregion (stock)
+  summarise(n = length(unique(taxon_key)))%>% 
+  # Add number of stocks per FAO region
+  # group_by(fao_name)  %>% 
+  # summarise(n = sum(n)) %>% 
   mutate(scale_n = scaling(n))
 
 # Map it
+
+sf_meow_map <-sf_meow %>% 
+  group_by(realm) %>% 
+  tally() %>% 
+  select(-n)
+
 ggplot() + 
-  geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = scale_n)) +
-  geom_sf(data = sf_meow %>% left_join(strad_meow), aes(fill = scale_n)) +
+  geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = n)) +
+  geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
   scale_fill_viridis_c("", na.value = "white") +
   my_ggtheme_m(leg_pos = "right") 
 
-  # Save plot 
-ggsave("./results/figures/straddling_species_scale.png",
+# Save plot 
+ggsave("./results/figures/straddling_id/straddling_species.png",
        last_plot(),
-       height = 7,
-       width = 14
+       height = 6,
+       width = 12
 )
 
 ```
 
+### Straddling species circle
 
+```{r}
+
+Species_Data <- shared_data %>% 
+  group_by(common_name,group = fao_name) %>% 
+  summarise(value = length(unique(territory)))   # number of eezs sharing the stock
+
+
+label_data <- Species_Data
+
+
+# Set a number of 'empty bar' to add at the end of each group
+Char <- as.factor(Species_Data$group)
+empty_bar <- 2
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(Char), ncol(Species_Data)) )
+colnames(to_add) <- colnames(Species_Data)
+to_add$group <- rep(levels(Char), each=empty_bar)
+Species_Data <- rbind(Species_Data, to_add)
+Species_Data <- Species_Data %>% arrange(group,value)
+Species_Data$id <- seq(1, nrow(Species_Data))
+
+
+# Get the name and the y position of each label
+# Create labels for all but top 5
+label_data <- Species_Data
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+
+# prepare a data frame for base lines
+base_data <- Species_Data %>% 
+  group_by(group) %>% 
+  summarize(start=min(id), 
+            end=max(id) - empty_bar, 
+            median = median(value, na.rm = T)
+  ) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)),
+         label = str_extract(group, '\\b[^,]+$'))
+
+
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+# grid_data <- grid_data[-1,]
+grid_data[1,2] <- 5 # Manually include bathydemerssal
+grid_data[1,3] <- 1 
+# Median data
+median_data <- grid_data %>% 
+  mutate_at(vars(start,end),
+            .funs = as.numeric)
+Seq_axis_spp <- seq(0,40,10)
+Plot_Limit <- max(Species_Data$value,na.rm=T)
+Ticks_Color <- "black"
+  
+# Plot final data
+Plot_Species_Data <- Species_Data %>% 
+  left_join(high_mig_spp) %>% 
+  mutate(category = ifelse(is.na(cat),"straddling","high migr."))
+
+
+
+
+# Spp_circular <- 
+ggplot(Species_Data, 
+       aes(x=as.factor(id), 
+           y=value,
+           fill=group)
+) +       
+  # Note that id is a factor. If x is numeric, there is some space between the first bar
+  geom_bar(aes(x=as.factor(id),
+               y=value,
+               fill=group),
+           stat="identity",
+           alpha=0.5) +
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, 
+               aes(x = end, y = 40, xend = start, yend = 40), 
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data,
+               aes(x = end, y = 30, xend = start, yend = 30),  
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data, 
+               aes(x = end, y = 20, xend = start, yend = 20),  
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  # geom_segment(data=grid_data, 
+  #              aes(x = end, y = 10, xend = start, yend = 20),  
+  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data, 
+               aes(x = end, y = 10, xend = start, yend = 10), 
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  # Add median lines for each gropup
+  geom_segment(data=median_data, 
+               aes(x = end, y = median, xend = start+5, yend = median, colour = group),
+               alpha=1, size=0.5 , inherit.aes = FALSE) +
+  # Add text showing the value of each line
+  annotate("text", 
+           x = rep(max(Species_Data$id),5),
+           y = Seq_axis_spp,
+           label = c(Seq_axis_spp[-5],"40"),
+           color=Ticks_Color, 
+           size=3, 
+           angle=0, 
+           fontface="bold",
+           hjust=1) +
+  geom_bar(aes(x=as.factor(id),
+               y=value,
+               fill=group),
+           stat="identity",
+           alpha=0.5) +
+  # Species names
+  geom_text(data=label_data,
+            aes(x=id, y=41,
+                label = common_name,
+                hjust = hjust), 
+            color="black",
+            fontface="italic",
+            alpha=1,
+            size=3,
+            angle= label_data$angle,
+            inherit.aes = FALSE) +
+  # Continents labels
+  geom_text(data=base_data,
+            aes(x = title,
+                y = 30,
+                label=label),
+            # hjust=c(1,1,1,0,0,0,0,0,0,0,0,0,0,0,0),
+            # hjust = 1.5,
+            colour = "black",
+            # alpha=0,
+            size=3,
+            fontface="bold",
+            inherit.aes = FALSE) +
+# Add base line information
+geom_segment(data=base_data, 
+             aes(x = start, 
+                 y = -5, 
+                 xend = end, 
+                 yend = -5
+             ), 
+             colour = "black",
+             alpha=0.8, 
+             size=0.6 , 
+             inherit.aes = FALSE) +
+  ylim(-50,75) + # sets the circle the first value the central the last value how wide
+  theme_minimal() +
+  theme(
+    # legend.position = c(1,0.11),
+    # legend.position = c(0.5,0.5),
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 14, face = "bold"),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-3.5,4.5),"cm")
+  ) +
+  coord_polar() +
+    scale_fill_viridis(option="magma",discrete = T)
+  scale_fill_manual("FAO region",
+                  values = c(viridis(n = 3, name = "Darjeeling1"), # Atlantic
+                             wes_palette(n = 3, name = "Darjeeling2") # Atlantic
+                  ),
+                  na.value = "white"
+) +
+  scale_colour_manual("Ecosystem Preference",
+                      values = c(wes_palette(n = 5, name = "Darjeeling1"),
+                                 wes_palette(n = 3, name = "Darjeeling2")
+                      ),
+                      na.value = "white"
+  )
+
+  
+```
 
 
 ## Proportion change
@@ -1130,9 +1330,9 @@ number_of_bar <- nrow(label_data)
 angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
 label_data$hjust <- ifelse( angle < -90, 1, 0)
 label_data$angle <- ifelse(angle < -90, angle+180, angle)
- 
 
-  ggplot(plot_data) +
+
+ggplot(plot_data) +
   geom_bar(
     aes(
       x = reorder(realm,mean_n_shifts),
@@ -1145,76 +1345,23 @@ label_data$angle <- ifelse(angle < -90, angle+180, angle)
   facet_wrap(~rcp) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,hjust = 1))
-  # Custom the theme: no axis title and no cartesian grid
-  # theme_minimal() +
-  # theme(
-    # axis.text = element_blank(),
-    # axis.title = element_blank(),
-    # panel.grid = element_blank(),
-    # plot.margin = unit(rep(-1,4), "cm")      # Adjust the margin to make in sort labels are not truncated!
+# Custom the theme: no axis title and no cartesian grid
+theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm")      # Adjust the margin to make in sort labels are not truncated!
   )
-  # This makes the coordinate polar instead of cartesian.
-  # coord_polar(start = 0) +
-  # Add the labels, using the label_data dataframe that we have created before
-  # geom_text(data = label_data, aes(x = id,
-  #                                y = tot+1,
-  #                                label = ecoregion, 
-  #                                hjust = hjust), 
-  #           color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) 
- 
+# This makes the coordinate polar instead of cartesian.
+# coord_polar(start = 0) +
+# Add the labels, using the label_data dataframe that we have created before
+# geom_text(data = label_data, aes(x = id,
+#                      y = tot+1,
+#                      label = ecoregion,
+#                      hjust = hjust),
+# color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE )
+
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
