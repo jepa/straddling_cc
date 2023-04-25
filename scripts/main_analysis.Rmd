@@ -748,7 +748,7 @@ taxon_proportion <- function(taxon_key){
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
-    # m = 1
+    m = 1
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
@@ -773,17 +773,18 @@ taxon_proportion <- function(taxon_key){
                     by = "fao_area_name") %>% 
           select(index,fao_area_name,fao_area_code)
         
-        spp_data_area <- spp_data %>% 
+        spp_data_area <-
+          spp_data %>% 
           filter(index %in% taxon_fao_dbem_area$index) %>% 
-          gather("year","value",`1951`:`2100`) %>% 
-          left_join(sau_index_code,
-                    by = "index") %>% #name is eez_name
+          gather("year","value",`1951`:`2100`) %>%
+          mutate(value = replace_na(value,0)) %>% 
           left_join(meow_dbem_grid,
                     by = c("index")
           ) %>% 
-          mutate(name = ifelse(is.na(name),fao_area,realm)#, # For adding stradling
+            left_join(fao_area_grid) %>% 
+          mutate(name = ifelse(is.na(eco_code),fao_area,ecoregion)#, # For adding stradling
                  # realm = ifelse(is.na(name),fao_area,"eezs") # for adding high migra
-          ) %>% 
+          ) %>%
           # When straddling use realm when highly migratory just fao region
           {if(is.na(category)) group_by(.,year,name) else group_by(., year,realm)} %>%
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
@@ -840,8 +841,11 @@ taxon_proportion <- function(taxon_key){
                                  ifelse(mean < low_tresh,"lost","same")
           ),
           fao_area = fao_area
-          )
-        
+          ) %>% 
+          # remove stuff
+          mutate(keep = ifelse(name == fao_area, "n","y")) %>% 
+          filter(keep == "y") %>% 
+          select(-keep)
         
         if(i == 1){
           final_data <- prop_chng
@@ -1116,7 +1120,7 @@ ggplot() +
   geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
-  scale_fill_viridis_c("", na.value = "white") +
+  scale_fill_viridis_c("Straddling spp. (n)", na.value = "white") +
   my_ggtheme_m(leg_pos = "right") 
 
 # Save plot 
@@ -1127,6 +1131,73 @@ ggsave("./results/figures/straddling_id/straddling_species.png",
 )
 
 ```
+
+#### Straddling catch and revenue
+
+##### Data from SAU
+
+
+```{r}
+sau_catch_data <- read.csv("/Volumes/Enterprise/Data/SAU/SAUCatch_FE_EEZ_FAO_taxa_sector_29May2020.csv")
+
+sau_eez_fes <- read.csv("/Volumes/Enterprise/Data/Spatial/SAU/sau_eez_fes.csv") %>% 
+  group_by(fishing_entity_id,fishing_entity) %>% 
+  tally() %>% 
+  select(-n)
+
+
+# Estimate country-level catch
+country_catch <- sau_catch_data %>% 
+  filter(year > 2010,
+         eezid == 0,
+         taxon_key %in% shared_data$taxon_key) %>% 
+  # pull(taxon_key) %>% 
+  # unique() %>% 
+  # length()
+  # Add sector types
+  group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
+  summarise(sumcatch= sum(sumcatch)
+            ) %>% 
+  # average of 10 years
+  group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
+  summarise(mean_catch = mean(sumcatch)) %>% 
+  left_join(sau_eez_fes)  %>% 
+  # Get country totals
+  group_by(fishing_entity_id,fishing_entity) %>% 
+  summarise(total_catch = sum(mean_catch),
+            n_stocks = length(unique(taxon_key))
+            ) %>% 
+  arrange(desc(total_catch))
+
+# Estimate FAO zone catch
+# fao_catch <- 
+  sau_catch_data %>% 
+  filter(year > 2010,
+         eezid == 0,
+         taxon_key %in% shared_data$taxon_key) %>% 
+  # pull(taxon_key) %>% 
+  # unique() %>% 
+  # length()
+  # Add sector types
+  group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
+  summarise(sumcatch= sum(sumcatch)
+            ) %>% 
+  # average of 10 years
+  group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
+  summarise(mean_catch = mean(sumcatch)) %>% 
+  # left_join(sau_eez_fes)  %>% 
+  # Get country totals
+  group_by(fao_area_id) %>% 
+  summarise(total_catch = sum(mean_catch),
+            n_stocks = length(unique(taxon_key))
+            ) %>% 
+  arrange(desc(total_catch))
+
+
+
+```
+
+
 
 ### Straddling species circle
 
@@ -1314,12 +1385,19 @@ geom_segment(data=base_data,
 ```{r}
 
 
+prop_data %>% 
+  filter(taxon_key == 690354) %>% 
+  View()
+
+
 plot_data <- prop_data %>% 
-  group_by(realm,esm,rcp,change) %>% 
+  group_by(fao_area,esm,rcp,change) %>% 
   tally() %>% 
-  group_by(realm,rcp,change) %>% 
+  group_by(fao_area,rcp,change) %>% 
   summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
   filter(!is.na(change))
+
+prop_data %>% filter(is.na(realm)) %>% View()
 
 
 
@@ -1364,4 +1442,11 @@ theme_minimal() +
 
 ```
 
+
+
+Atlantic, Eastern Central
+Atlantic, Northeast
+Atlantic, Northwest
+Atlantic, Southeast
+Atlantic, Southwest
 
