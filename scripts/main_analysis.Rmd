@@ -1479,9 +1479,8 @@ nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = name) %>%
 ids <-
   nodes %>% 
   rowid_to_column("id") %>% 
-  rename(name = node) %>% 
+    rename(fao_area = name) %>% 
   bind_cols(nodes) %>% 
-  rename(fao_area = node) %>% 
   mutate(
     region = ifelse(name %in% sankey_df$name,"name","fao_area")
   ) %>% 
@@ -1502,27 +1501,34 @@ links <-
     # mutate(id = ifelse(is.na(id.x),id.y,id.x)) 
   ungroup() %>% 
   filter(period == "mid",
-         change == "lost"
+         change != "same"
          ) %>%
     select(source = id.x,
            target = id.y,
            value = n,
-           everything()) %>%
+           change,
+           everything()
+           ) %>%
   mutate(source = source-1,
          target = target - 1)
+
+# Give a color for each group:
+my_color <- 'd3.scaleOrdinal() .domain(["a", "b"]) .range(["#3B9AB2", "#F21A00"])'
+
+
+sankeyNetwork(Links = links,
+              Nodes = nodes,
+              Source = "source",
+              Target = "target",
+              Value = "value", 
+              NodeID = "name",
+              LinkGroup = "change",
+              colourScale = my_color,
+              fontSize = 15, 
+              nodeWidth = 20,
+              sinksRight = T)
   
 
-  sankeyNetwork(Links = links,
-                Nodes = nodes,
-                  Source = "source",
-                Target = "target",
-                  Value = "value", 
-                NodeID = "name",
-                  fontSize = 12, 
-                nodeWidth = 40)
   
-
-   
-
 ```
 
