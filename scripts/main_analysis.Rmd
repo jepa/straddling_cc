@@ -725,8 +725,9 @@ GetResults=function(Spp,type = "strad"){
 This function is the main analysis estimating the proportion change above historic levels
 
 ```{r estimate_proportion, eval = F}
-
-taxon_key <- 600069
+# 
+# taxon_key <- 600069
+# taxon_key <- 600143
 
 taxon_proportion <- function(taxon_key){
   
@@ -748,7 +749,7 @@ taxon_proportion <- function(taxon_key){
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
-    m = 1
+    # m = 1
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
@@ -782,11 +783,13 @@ taxon_proportion <- function(taxon_key){
                     by = c("index")
           ) %>% 
             left_join(fao_area_grid) %>% 
-          mutate(name = ifelse(is.na(eco_code),fao_area,ecoregion)#, # For adding stradling
-                 # realm = ifelse(is.na(name),fao_area,"eezs") # for adding high migra
+          mutate(name = ifelse(is.na(eco_code),fao_area,realm)#, # For adding stradling
+                 # high_mig_spa = ifelse(is.na(eez_id),"eezs",fao_area) # for adding high migra
           ) %>%
+          # View()
           # When straddling use realm when highly migratory just fao region
-          {if(is.na(category)) group_by(.,year,name) else group_by(., year,realm)} %>%
+          # {if(is.na(category)) group_by(.,year,name) else group_by(., year,high_mig_spa)} %>%
+          group_by(year,name) %>% 
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
           mutate(taxon_key = taxon_key) %>% 
           filter(total_zone_abd > 0) # fix bug for now
@@ -803,15 +806,15 @@ taxon_proportion <- function(taxon_key){
           mutate(per = total_zone_abd/total_abd)
         
         # How it looks
-        ggplot(spp_proportion) +
-          geom_area(
-            aes(
-              x = as.numeric(year),
-              y = per,
-              fill = name
-              # fill = realm
-            )
-          )
+        # ggplot(spp_proportion) +
+        #   geom_area(
+        #     aes(
+        #       x = as.numeric(year),
+        #       y = per,
+        #       fill = name
+        #       # fill = high_mig_spa
+        #     )
+        #   )
         
         
         
@@ -820,7 +823,8 @@ taxon_proportion <- function(taxon_key){
         # Early proportions
         hs_historical_means <- spp_proportion %>% 
           filter(year <= 2014) %>%
-          {if(is.na(category)) group_by(.,taxon_key,name) else group_by(., taxon_key,realm)} %>%
+          # {if(is.na(category)) group_by(.,taxon_key,name) else group_by(., taxon_key,realm)} %>%
+          group_by(taxon_key,name) %>% 
           summarise(hs_mean = mean(per, na.rm = T),
                     hs_sd = sd(per, na.rm = T)) %>%
           mutate(top_tresh = hs_mean+2*hs_sd,
@@ -834,7 +838,8 @@ taxon_proportion <- function(taxon_key){
           )
           ) %>% 
           filter(!is.na(period)) %>% 
-          {if(is.na(category)) group_by(.,taxon_key,name,period) else group_by(., taxon_key,realm,period)} %>%
+          # {if(is.na(category)) group_by(.,taxon_key,name,period) else group_by(., taxon_key,realm,period)} %>%
+          group_by(taxon_key,name,period) %>% 
           summarise(mean = mean(per, na.rm = T)) %>% 
           left_join(hs_historical_means) %>% 
           mutate(change = ifelse(mean > top_tresh,"gain",
@@ -963,9 +968,6 @@ suppressMessages(
 )
 
 
-
-
-
 ```
 
 # Results
@@ -1036,6 +1038,10 @@ shared_data <- bind_rows(
 
 
 # Get proportion analysis
+
+spp_complete <- list.files(my_path("R","Per_change_realm/"))
+stradling_spp <- str_replace(spp_complete,"\\_.*","")
+
 
 # Get straddling stocks
 prop_data <- bind_rows(
@@ -1397,12 +1403,12 @@ plot_data <- prop_data %>%
   summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
   filter(!is.na(change))
 
-prop_data %>% filter(is.na(realm)) %>% View()
+# prop_data %>% filter(is.na(realm)) %>% View()
 
 
 
 # Get the name and the y position of each label
-label_data <- plot_data %>% group_by(realm) %>% summarize(tot=sum(mean_n_shifts))%>% 
+label_data <- plot_data %>% group_by(fao_area) %>% summarize(tot=sum(mean_n_shifts))%>% 
   rowid_to_column("id")
 number_of_bar <- nrow(label_data)
 angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
@@ -1413,7 +1419,7 @@ label_data$angle <- ifelse(angle < -90, angle+180, angle)
 ggplot(plot_data) +
   geom_bar(
     aes(
-      x = reorder(realm,mean_n_shifts),
+      x = reorder(fao_area,mean_n_shifts),
       y = mean_n_shifts,
       fill = change,
       color = change
@@ -1443,10 +1449,80 @@ theme_minimal() +
 ```
 
 
+## Sankey flow diagram
 
-Atlantic, Eastern Central
-Atlantic, Northeast
-Atlantic, Northwest
-Atlantic, Southeast
-Atlantic, Southwest
+```{r}
+library(networkD3)
+
+# Load energy projection data
+URL <- "https://cdn.rawgit.com/christophergandrud/networkD3/master/JSONdata/energy.json"
+Energy <- jsonlite::fromJSON(URL)
+
+ 
+# Now we have 2 data frames: a 'links' data frame with 3 columns (from, to, value), and a 'nodes' data frame that gives the name of each node.
+head( Energy$links )
+head( Energy$nodes )
+
+
+
+sankey_df <- prop_data %>% 
+  group_by(name,period,change,fao_area,esm,rcp) %>% 
+  tally() %>% 
+  filter(
+    esm == "c6gfdl",
+    rcp == "rcp85",
+    !is.na(change)
+  )
+
+nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = fao_area)%>% pull(node) %>% unique()))
+
+ids <-
+  nodes %>% 
+  rowid_to_column("id") %>% 
+  rename(name = node) %>% 
+  bind_cols(nodes) %>% 
+  rename(fao_area = node) %>% 
+  mutate(
+    region = ifelse(name %in% sankey_df$name,"name","fao_area")
+  ) %>% 
+    select(id,name,region)
+  
+
+  
+
+links <-
+  sankey_df %>% 
+    left_join(ids,
+              by = "name") %>% 
+    # View()
+    rename(nameb = name) %>%
+    rename(name = fao_area) %>%
+    left_join(ids,
+              by = "name") %>% 
+    # mutate(id = ifelse(is.na(id.x),id.y,id.x)) 
+  ungroup() %>% 
+  filter(period == "mid",
+         change == "lost"
+         ) %>%
+    select(source = id.x,
+           target = id.y,
+           value = n,
+           everything()) %>%
+  mutate(source = source-1,
+         target = target - 1)
+  
+
+  sankeyNetwork(Links = links,
+                Nodes = nodes,
+                  Source = "source",
+                Target = "target",
+                  Value = "value", 
+                NodeID = "name",
+                  fontSize = 12, 
+                nodeWidth = 40)
+  
+
+   
+
+```
 
