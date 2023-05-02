@@ -35,7 +35,10 @@ packages <- c(
   # "pgirmess", # for dune test after kurtis wallas
   "rnaturalearth", # For maps
   "R.matlab", # For Gabs distributions
-  "parallel"
+  "parallel",
+  # Juanitos map
+  "zeallot",
+  "geosphere"
 )
 
 my_lib(packages)
@@ -222,7 +225,19 @@ complete_sau <- EEZ_SAU %>%
 
 
 
+ggplot() +
+  geom_sf(data = sf_fao, aes(), fill ="gray70" ) +
+  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
+  geom_sf(data = sf_land, aes(), fill = "black", col = "black") +
+  geom_sf_label(data = sf_fao, aes(label = f_code), size = 5) +
+  labs(x = "",
+       y = "")
 
+ggsave(filename = "./results/supplements/supp_1.png",
+       plot = last_plot(),
+       width = 10,
+       height = 5
+       )
 
 ```
 
@@ -782,7 +797,7 @@ taxon_proportion <- function(taxon_key){
           left_join(meow_dbem_grid,
                     by = c("index")
           ) %>% 
-            left_join(fao_area_grid) %>% 
+          left_join(fao_area_grid) %>% 
           mutate(name = ifelse(is.na(eco_code),fao_area,realm)#, # For adding stradling
                  # high_mig_spa = ifelse(is.na(eez_id),"eezs",fao_area) # for adding high migra
           ) %>%
@@ -1056,20 +1071,6 @@ prop_data <- bind_rows(
   )
 
 
-eez_fao <- sau_index_code %>% 
-  left_join(fao_area_grid) %>% 
-  group_by(eez_id,name,fao_area = fao_area_name) %>% 
-  tally()
-
-
-test <- prop_data %>% 
-  rename(name_og = name) %>% 
-  left_join(eez_fao) %>% 
-  group_by(taxon_key,period,change,esm,rcp,fao_area,name) %>% 
-  summarise_at(vars(mean,top_tresh,low_tresh),
-               .funs = mean)
-
-
 ```
 
 
@@ -1126,8 +1127,9 @@ ggplot() +
   geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
-  scale_fill_viridis_c("Straddling spp. (n)", na.value = "white") +
-  my_ggtheme_m(leg_pos = "right") 
+  scale_fill_viridis_c("Straddling spp.\n(n)", na.value = "white") +
+  theme_bw() +
+  theme(legend.title.align = 0.5) 
 
 # Save plot 
 ggsave("./results/figures/straddling_id/straddling_species.png",
@@ -1163,7 +1165,7 @@ country_catch <- sau_catch_data %>%
   # Add sector types
   group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
   summarise(sumcatch= sum(sumcatch)
-            ) %>% 
+  ) %>% 
   # average of 10 years
   group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
   summarise(mean_catch = mean(sumcatch)) %>% 
@@ -1172,12 +1174,12 @@ country_catch <- sau_catch_data %>%
   group_by(fishing_entity_id,fishing_entity) %>% 
   summarise(total_catch = sum(mean_catch),
             n_stocks = length(unique(taxon_key))
-            ) %>% 
+  ) %>% 
   arrange(desc(total_catch))
 
 # Estimate FAO zone catch
 # fao_catch <- 
-  sau_catch_data %>% 
+sau_catch_data %>% 
   filter(year > 2010,
          eezid == 0,
          taxon_key %in% shared_data$taxon_key) %>% 
@@ -1187,7 +1189,7 @@ country_catch <- sau_catch_data %>%
   # Add sector types
   group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
   summarise(sumcatch= sum(sumcatch)
-            ) %>% 
+  ) %>% 
   # average of 10 years
   group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
   summarise(mean_catch = mean(sumcatch)) %>% 
@@ -1196,7 +1198,7 @@ country_catch <- sau_catch_data %>%
   group_by(fao_area_id) %>% 
   summarise(total_catch = sum(mean_catch),
             n_stocks = length(unique(taxon_key))
-            ) %>% 
+  ) %>% 
   arrange(desc(total_catch))
 
 
@@ -1210,12 +1212,14 @@ country_catch <- sau_catch_data %>%
 ```{r}
 
 Species_Data <- shared_data %>% 
-  group_by(common_name,group = fao_name) %>% 
-  summarise(value = length(unique(territory)))   # number of eezs sharing the stock
+  left_join(meow_dbem_eez) %>% 
+  group_by(common_name,group = realm) %>% 
+  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
+  group_by(group) %>%
+  top_n(10,value) # select the top 50% shared species
 
 
 label_data <- Species_Data
-
 
 # Set a number of 'empty bar' to add at the end of each group
 Char <- as.factor(Species_Data$group)
@@ -1255,11 +1259,13 @@ grid_data$start <- grid_data$start - 1
 # grid_data <- grid_data[-1,]
 grid_data[1,2] <- 5 # Manually include bathydemerssal
 grid_data[1,3] <- 1 
+
 # Median data
 median_data <- grid_data %>% 
   mutate_at(vars(start,end),
             .funs = as.numeric)
-Seq_axis_spp <- seq(0,40,10)
+
+Seq_axis_spp <- seq(5,65,20)
 Plot_Limit <- max(Species_Data$value,na.rm=T)
 Ticks_Color <- "black"
   
@@ -1285,19 +1291,16 @@ ggplot(Species_Data,
            alpha=0.5) +
   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
   geom_segment(data=grid_data, 
-               aes(x = end, y = 40, xend = start, yend = 40), 
+               aes(x = end, y = 65, xend = start, yend = 65), 
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   geom_segment(data=grid_data,
-               aes(x = end, y = 30, xend = start, yend = 30),  
+               aes(x = end, y = 45, xend = start, yend = 45),  
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   geom_segment(data=grid_data, 
-               aes(x = end, y = 20, xend = start, yend = 20),  
+               aes(x = end, y = 25, xend = start, yend = 25),  
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  # geom_segment(data=grid_data, 
-  #              aes(x = end, y = 10, xend = start, yend = 20),  
-  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  geom_segment(data=grid_data, 
-               aes(x = end, y = 10, xend = start, yend = 10), 
+  geom_segment(data=grid_data,
+               aes(x = end, y = 5, xend = start, yend = 5),
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   # Add median lines for each gropup
   geom_segment(data=median_data, 
@@ -1305,9 +1308,9 @@ ggplot(Species_Data,
                alpha=1, size=0.5 , inherit.aes = FALSE) +
   # Add text showing the value of each line
   annotate("text", 
-           x = rep(max(Species_Data$id),5),
+           x = rep(max(Species_Data$id),4),
            y = Seq_axis_spp,
-           label = c(Seq_axis_spp[-5],"40"),
+           label = c("5","25","45","65"),
            color=Ticks_Color, 
            size=3, 
            angle=0, 
@@ -1320,7 +1323,7 @@ ggplot(Species_Data,
            alpha=0.5) +
   # Species names
   geom_text(data=label_data,
-            aes(x=id, y=41,
+            aes(x=id, y= 66,
                 label = common_name,
                 hjust = hjust), 
             color="black",
@@ -1329,57 +1332,44 @@ ggplot(Species_Data,
             size=3,
             angle= label_data$angle,
             inherit.aes = FALSE) +
-  # Continents labels
-  geom_text(data=base_data,
-            aes(x = title,
-                y = 30,
-                label=label),
-            # hjust=c(1,1,1,0,0,0,0,0,0,0,0,0,0,0,0),
-            # hjust = 1.5,
-            colour = "black",
-            # alpha=0,
-            size=3,
-            fontface="bold",
-            inherit.aes = FALSE) +
-# Add base line information
-geom_segment(data=base_data, 
-             aes(x = start, 
-                 y = -5, 
-                 xend = end, 
-                 yend = -5
-             ), 
-             colour = "black",
-             alpha=0.8, 
-             size=0.6 , 
-             inherit.aes = FALSE) +
-  ylim(-50,75) + # sets the circle the first value the central the last value how wide
-  theme_minimal() +
+  # Add base line information
+  # geom_segment(data=base_data, 
+  #              aes(x = start, 
+  #                  y = -5, 
+  #                  xend = end, 
+  #                  yend = -5
+  #              ), 
+  #              colour = "black",
+  #              alpha=0.8, 
+  #              size=0.6 , 
+  #              inherit.aes = FALSE) +
+  ylim(-50,105) + # sets the circle the first value the central the last value how wide
+  theme_bw() +
   theme(
     # legend.position = c(1,0.11),
-    # legend.position = c(0.5,0.5),
-    legend.text = element_text(size = 13),
-    legend.title = element_text(size = 14, face = "bold"),
+    legend.position = c(0.50,0.5),
+    legend.text = element_text(size = 7),
+    legend.title.align = 0.4,
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key = element_rect(colour = NA, fill = NA),
     axis.text = element_blank(),
     axis.title = element_blank(),
     panel.grid = element_blank(),
     plot.margin = unit(rep(-3.5,4.5),"cm")
   ) +
   coord_polar() +
-    scale_fill_viridis(option="magma",discrete = T)
-  scale_fill_manual("FAO region",
-                  values = c(viridis(n = 3, name = "Darjeeling1"), # Atlantic
-                             wes_palette(n = 3, name = "Darjeeling2") # Atlantic
-                  ),
-                  na.value = "white"
-) +
-  scale_colour_manual("Ecosystem Preference",
-                      values = c(wes_palette(n = 5, name = "Darjeeling1"),
-                                 wes_palette(n = 3, name = "Darjeeling2")
-                      ),
-                      na.value = "white"
-  )
+  scale_fill_viridis("EEZs in Realm",option="magma",discrete = T) +
+  scale_color_viridis("EEZs in Realm",option="magma",discrete = T) +
+  guides(fill=guide_legend(ncol=2))
 
-  
+# Save plot
+ggsave(filename = "./results/figures/species_ohi.jpg",
+       plot = last_plot(),
+       width = 12,
+       height = 12,
+       units = "in")
+
+
 ```
 
 
@@ -1387,64 +1377,214 @@ geom_segment(data=base_data,
 
 ### Proportion change map
 
-
 ```{r}
 
-
-prop_data %>% 
-  filter(taxon_key == 690354) %>% 
-  View()
+# A function that makes a dataframe per connection (we will use these connections to plot each lines)
+data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group){
+  inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=10, addStartEnd=TRUE, breakAtDateLine=F)             
+  inter=data.frame(inter)
+  inter$group=NA
+  diff_of_lon=abs(dep_lon) + abs(arr_lon)
+  if(diff_of_lon > 180){
+    inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
+    inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
+  }else{
+    inter$group=group
+  }
+  return(inter)
+}
 
 
 plot_data <- prop_data %>% 
-  group_by(fao_area,esm,rcp,change) %>% 
+  group_by(name,fao_area,esm,rcp,change) %>% 
   tally() %>% 
-  group_by(fao_area,rcp,change) %>% 
+  group_by(name,fao_area,rcp,change) %>% 
   summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
   filter(!is.na(change))
 
-# prop_data %>% filter(is.na(realm)) %>% View()
 
+# Get FAO and MEOW centroids
 
+fao_centroids <-
+  as.data.frame(st_centroid(sf_fao)) %>% 
+  ungroup() %>% 
+  select(fao_area = fao_name,f_code, the_geom) %>% 
+  separate(col = the_geom, into = c("lon", "lat"), sep = "\\,")
 
-# Get the name and the y position of each label
-label_data <- plot_data %>% group_by(fao_area) %>% summarize(tot=sum(mean_n_shifts))%>% 
-  rowid_to_column("id")
-number_of_bar <- nrow(label_data)
-angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-label_data$hjust <- ifelse( angle < -90, 1, 0)
-label_data$angle <- ifelse(angle < -90, angle+180, angle)
+# Remove "c()"
+fao_centroids$lon <- gsub("\\(","",fao_centroids$lon)
+fao_centroids$lon <- gsub("c","",fao_centroids$lon)
+fao_centroids$lat <- gsub(")","",fao_centroids$lat)
 
-
-ggplot(plot_data) +
-  geom_bar(
-    aes(
-      x = reorder(fao_area,mean_n_shifts),
-      y = mean_n_shifts,
-      fill = change,
-      color = change
-    ),
-    stat = "identity"
-  )  +
-  facet_wrap(~rcp) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45,hjust = 1))
-# Custom the theme: no axis title and no cartesian grid
-theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1,4), "cm")      # Adjust the margin to make in sort labels are not truncated!
+# Modify annolying points (most of them!)
+fao_centroids <- fao_centroids %>% 
+  mutate(
+    # modify latitudes
+    lat = ifelse(fao_area == "Pacific, Northeast",50,
+                 ifelse(fao_area == "Pacific, Antarctic",-65,
+                 ifelse(fao_area == "Atlantic, Northwest",50,
+                        ifelse(fao_area == "Atlantic, Antarctic",-65,
+                               ifelse(fao_area == "Arctic Sea",85,
+                                      ifelse(fao_area == "Indian Ocean, Western",-35,
+                                             ifelse(fao_area == "Indian Ocean, Eastern",-45,
+                                                    ifelse(fao_area == "Indian Ocean, Antarctic",-62,lat)
+                                             ))))))),
+    # modify longitudes
+    lon = ifelse(fao_area == "Pacific, Southwest",-135,
+                 ifelse(fao_area == "Pacific, Southeast",-105,
+                        ifelse(fao_area == "Pacific, Antarctic",-135,
+                        ifelse(fao_area == "Pacific, Northwest",160,
+                               ifelse(fao_area == "Pacific, Western Central",170,
+                                      ifelse(fao_area == "Atlantic, Northwest",-45,
+                                             ifelse(fao_area == "Atlantic, Northeast",-20,
+                                                    ifelse(fao_area == "Atlantic, Western Central",-50,
+                                                           ifelse(fao_area == "Atlantic, Southwest",-30,
+                                                                  ifelse(fao_area == "Atlantic, Western Central",-50,
+                                                                         ifelse(fao_area == "Atlantic, Eastern Central",-30,
+                                                                                ifelse(fao_area == "Arctic Sea",-120,
+                                                                                       lon
+                                                                                ))))))))))))
   )
-# This makes the coordinate polar instead of cartesian.
-# coord_polar(start = 0) +
-# Add the labels, using the label_data dataframe that we have created before
-# geom_text(data = label_data, aes(x = id,
-#                      y = tot+1,
-#                      label = ecoregion,
-#                      hjust = hjust),
-# color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE )
+
+
+
+# ggplot() +
+#   geom_sf(data = sf_fao, aes(), fill ="white" ) +
+#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
+#   geom_text(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = fao_area)) +
+#   geom_point(data = fao_centroids,
+#              aes(
+#                x = as.numeric(lon),
+#                y = as.numeric(lat),
+#                color = fao_area
+#              )
+#   )
+
+# Get MEOW and MEOW centroids
+
+meow_centroids <- as.data.frame(st_centroid(sf_meow)) %>% 
+  ungroup() %>% 
+  select(realm, geometry) %>% 
+  separate(col = geometry, into = c("lon", "lat"), sep = "\\,")
+
+# Remove "c()"
+meow_centroids$lon <- gsub("\\(","", meow_centroids$lon)
+meow_centroids$lon <- gsub("c","", meow_centroids$lon)
+meow_centroids$lat <- gsub(")","", meow_centroids$lat)
+
+
+meow_centroids <- meow_centroids %>% 
+  group_by(name=realm) %>% 
+  summarise(lon = mean(as.numeric(lon)),
+            lat = mean(as.numeric(lat)))
+
+# Modify annolying points (most of them!)
+meow_centroids <- meow_centroids %>% 
+  mutate(
+    lat = ifelse(name == "Temperate Northern Atlantic",72,
+               ifelse(name == "Western Indo-Pacific",-9,
+                      ifelse(name == "Eastern Indo-Pacific",-4,
+                             ifelse(name == "Southern Ocean",-65,
+                                    ifelse(name == "Temperate South America",-55,lat
+               ))))),
+    lon = ifelse(name == "Arctic",-55,
+                 ifelse(name == "Temperate Northern Pacific",-130,
+                 ifelse(name == "Tropical Eastern Pacific",-90,
+                        ifelse(name == "Eastern Indo-Pacific",95,
+                               ifelse(name == "Temperate South America",-60,
+                                      ifelse(name == "Tropical Atlantic",-55,
+                                             ifelse(name == "Temperate North",42,
+                                                    ifelse(name == "Temperate Northern Atlantic",42,
+                                                           ifelse(name == "Western Indo-Pacific",47,lon
+                        )))))))))
+  )
+
+
+# ggplot() +
+#   geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(), fill ="white" ) +
+#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
+#   geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = name)) +
+#   geom_point(data = meow_centroids,
+#              aes(
+#                x = as.numeric(lon),
+#                y = as.numeric(lat),
+#                color = name
+#              )
+#   ) +
+#   geom_point(data = fao_centroids,
+#              aes(
+#                x = as.numeric(lon),
+#                y = as.numeric(lat)
+#              )
+#   )
+
+
+# Prepare data from results
+Data <-
+  plot_data %>% 
+  # get coords for sources
+  left_join(meow_centroids,
+            by = "name") %>%
+  rename(source = name,
+         start_lon = lon,
+         start_lat = lat) %>% 
+  # get coords for targets
+  left_join(fao_centroids,
+            by = "fao_area") %>%
+  rename(target = fao_area,
+         end_lon = lon,
+         end_lat = lat) %>% 
+  ungroup() %>% 
+  drop_na() %>% 
+  mutate_at(vars(end_lon,end_lat),as.numeric)
+
+# Get paths data
+path_data <- Data 
+
+data_ready_plot=data.frame()
+
+for(i in c(1:nrow(path_data))){
+# for(i in 1:4){
+  tmp=data_for_connection(path_data$start_lon[i], path_data$start_lat[i], path_data$end_lon[i], path_data$end_lat[i] , i)
+  tmp$rcp=path_data$rcp[i]
+  tmp$change=path_data$change[i]
+  tmp$mean_n_shifts=path_data$mean_n_shifts[i]
+  tmp$source=path_data$source[i]
+  tmp$objective=path_data$target[i]
+  data_ready_plot=rbind(data_ready_plot,tmp)
+}
+
+
+sf_ready_plot <- data_ready_plot %>% 
+  st_as_sf(coords = c("lon", "lat")) %>% 
+  st_set_crs(4326) #%>% # to match shapefiles
+# st_transform(crs = "+proj=eck4") 
+
+
+# Get arrow data
+arrows_data <- as.data.frame(st_coordinates(st_cast(sf_ready_plot,"POINT")$geometry)) %>% 
+  bind_cols(data_ready_plot)
+
+ggplot() +
+  geom_sf(data = sf_fao, aes(), fill ="white" ) +
+  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes()) +
+  geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
+  geom_point(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
+  geom_text(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = fao_area)) +
+  geom_point(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
+  geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = name), color = "blue") +
+  geom_path(data = arrows_data %>% filter(rcp == "rcp85"),
+            aes(X, 
+                Y,
+                group = group,
+                color = change,
+                # size = mean_n_shifts
+            ),
+            # size = 1,
+            arrow = arrow(length = unit(0.01, "npc"),ends = "first"),
+            show.legend = NA)
+
+
 
 ```
 
@@ -1454,17 +1594,7 @@ theme_minimal() +
 ```{r}
 library(networkD3)
 
-# Load energy projection data
-URL <- "https://cdn.rawgit.com/christophergandrud/networkD3/master/JSONdata/energy.json"
-Energy <- jsonlite::fromJSON(URL)
-
- 
-# Now we have 2 data frames: a 'links' data frame with 3 columns (from, to, value), and a 'nodes' data frame that gives the name of each node.
-head( Energy$links )
-head( Energy$nodes )
-
-
-
+# Prepare data
 sankey_df <- prop_data %>% 
   group_by(name,period,change,fao_area,esm,rcp) %>% 
   tally() %>% 
@@ -1472,50 +1602,50 @@ sankey_df <- prop_data %>%
     esm == "c6gfdl",
     rcp == "rcp85",
     !is.na(change)
-  )
+  ) 
 
+# Get nodes (name of zones)
 nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = fao_area)%>% pull(node) %>% unique()))
 
-ids <-
-  nodes %>% 
+
+# get ids (identify each region by number)
+ids <- nodes %>% 
   rowid_to_column("id") %>% 
-    rename(fao_area = name) %>% 
+  rename(fao_area = name) %>% 
   bind_cols(nodes) %>% 
   mutate(
     region = ifelse(name %in% sankey_df$name,"name","fao_area")
   ) %>% 
-    select(id,name,region)
-  
+  select(id,name,region)
 
-  
 
-links <-
-  sankey_df %>% 
-    left_join(ids,
-              by = "name") %>% 
-    # View()
-    rename(nameb = name) %>%
-    rename(name = fao_area) %>%
-    left_join(ids,
-              by = "name") %>% 
-    # mutate(id = ifelse(is.na(id.x),id.y,id.x)) 
+
+# Create links (source and target data)
+links <- sankey_df %>% 
+  left_join(ids,
+            by = "name") %>% 
+  # View()
+  rename(nameb = name) %>%
+  rename(name = fao_area) %>%
+  left_join(ids,
+            by = "name") %>% 
   ungroup() %>% 
   filter(period == "mid",
          change != "same"
-         ) %>%
-    select(source = id.x,
-           target = id.y,
-           value = n,
-           change,
-           everything()
-           ) %>%
+  ) %>%
+  select(source = id.x,
+         target = id.y,
+         value = n,
+         change,
+         everything()
+  ) %>%
   mutate(source = source-1,
          target = target - 1)
 
 # Give a color for each group:
 my_color <- 'd3.scaleOrdinal() .domain(["a", "b"]) .range(["#3B9AB2", "#F21A00"])'
 
-
+# Plot it!
 sankeyNetwork(Links = links,
               Nodes = nodes,
               Source = "source",
@@ -1526,9 +1656,40 @@ sankeyNetwork(Links = links,
               colourScale = my_color,
               fontSize = 15, 
               nodeWidth = 20,
-              sinksRight = T)
-  
+              sinksRight = T
+)
 
-  
+
+```
+
+
+
+```{r}
+
+
+
+
+
+ggplot() +
+  geom_sf(data = sf_fao, aes(), fill ="#3B9AB2" ) +
+  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
+  geom_sf(data = sf_land, aes(), fill ="grey" ) +
+  ggrepel::geom_label_repel(data = sf_fao_lab,
+                            aes(label = f_code,
+                                geometry = the_geom),
+                            stat = "sf_coordinates",
+                            direction = "y",
+                            seed = 10,
+                            point.padding	 = 1,
+                            alpha = 0.8,
+                            size = 4)
+
+
+sf_fao_lab <-
+  sf_fao %>% 
+  group_by(fao_name,f_code) %>% 
+  tally() %>% 
+  mutate(fao_name_lab = gsub(",","\n",fao_name))
+
 ```
 
