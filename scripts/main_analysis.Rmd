@@ -992,6 +992,68 @@ suppressMessages(
 
 ## Data needed
 
+### Highly migratpry speices
+
+Annex I Highly migratory species https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
+
+```{r un_highly_mig_spp, eval = T}
+
+
+# List of SAU species
+exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
+
+
+# Families
+un_families <- c("Bramidae","Alopiidae","Carcharhinidae","Sphyrnidae","Isurida")
+
+for(i in 1:length(un_families)){
+  fam <- un_families[i]
+  
+  fishbase_df <- fb_tbl("species") %>% 
+    mutate(Family = fam) %>% 
+    select(Genus, Species, FBname, reffered_as = Family) %>% 
+    mutate(scientific_name = paste(Genus,Species)) %>% 
+    select(scientific_name,reffered_as)
+  
+  if(i == 1){
+    output <-  fishbase_df
+  }else{
+    output <- bind_rows(output,fishbase_df)
+  }
+}
+
+
+un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
+                                             "Auxis thazard", "Auxis rochei", 
+                                             "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                             
+                                             "Istiophorus platypterus","Istiophorus albicans",
+                                             "Xiphias gladius",
+                                             "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                             "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                         reffered_as = c(
+                           rep("Tuna",9),
+                           "Frigate mackerel","Frigate mackerel",
+                           rep("Marlin",9),
+                           "Sail-fish","Sail-fish",
+                           "Sword-fish",
+                           rep("Saury",4),
+                           rep("Shark",3)
+                         )) %>% 
+  mutate(source = "species")
+
+
+
+h_migratory_spp <- bind_rows(output,
+                             un_species) %>% 
+  group_by(scientific_name,source) %>% 
+  tally() %>% 
+  mutate(cat = "high_mig")
+
+
+
+```
+
 ```{r results_data, eva; = T}
 
 #-----------------# 
@@ -1032,8 +1094,6 @@ fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T)
 ## Spp related   ##
 #-----------------# 
 
-# List of SAU species
-exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
 
 # List of species identified as highly migratory based on UN 1995 agreement
 high_mig_spp <- my_path("D","Species", "high_migratory_species.csv", read = T) %>% 
@@ -1072,6 +1132,8 @@ prop_data <- bind_rows(
 
 
 ```
+
+
 
 
 ## Straddling identification
@@ -1206,10 +1268,21 @@ sau_catch_data %>%
 ```
 
 
+### Paper numbers on top shared species
+
+```{r}
+shared_data %>% 
+  left_join(meow_dbem_eez) %>% 
+  group_by(common_name) %>% 
+  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
+  top_n(5,value) %>% 
+  arrange(desc(value))
+```
 
 ### Straddling species circle
 
 ```{r}
+
 
 Species_Data <- shared_data %>% 
   left_join(meow_dbem_eez) %>% 
@@ -1368,6 +1441,30 @@ ggsave(filename = "./results/figures/species_ohi.jpg",
        width = 12,
        height = 12,
        units = "in")
+```
+
+### Non-migratpry straddling species circle
+
+#### Numbers for paper
+```{r}
+
+# Numbers for paper
+# Non Annex I species level
+shared_data %>% 
+  filter(!taxon_name %in% h_migratory_spp_id$scientific_name) %>% 
+  left_join(meow_dbem_eez) %>% 
+  group_by(common_name) %>% 
+  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
+  arrange(desc(value))
+
+# Non Annex I at all
+
+shared_data %>% 
+  filter(!taxon_name %in% h_migratory_spp$scientific_name) %>% 
+  left_join(meow_dbem_eez) %>% 
+  group_by(common_name) %>% 
+  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
+  arrange(desc(value))
 
 
 ```
@@ -1377,8 +1474,8 @@ ggsave(filename = "./results/figures/species_ohi.jpg",
 
 ### Proportion change map
 
-```{r}
 
+```{r}
 # A function that makes a dataframe per connection (we will use these connections to plot each lines)
 data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group){
   inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=10, addStartEnd=TRUE, breakAtDateLine=F)             
@@ -1598,11 +1695,9 @@ library(networkD3)
 sankey_df <- prop_data %>% 
   group_by(name,period,change,fao_area,esm,rcp) %>% 
   tally() %>% 
-  filter(
-    esm == "c6gfdl",
-    rcp == "rcp85",
-    !is.na(change)
-  ) 
+  group_by(name,period,change,fao_area,rcp) %>% 
+  summarise(n = mean(n)) %>% 
+  filter(rcp == "rcp85") 
 
 # Get nodes (name of zones)
 nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = fao_area)%>% pull(node) %>% unique()))
@@ -1630,9 +1725,7 @@ links <- sankey_df %>%
   left_join(ids,
             by = "name") %>% 
   ungroup() %>% 
-  filter(period == "mid",
-         change != "same"
-  ) %>%
+  filter(period == "ear") %>%
   select(source = id.x,
          target = id.y,
          value = n,
@@ -1643,7 +1736,12 @@ links <- sankey_df %>%
          target = target - 1)
 
 # Give a color for each group:
-my_color <- 'd3.scaleOrdinal() .domain(["a", "b"]) .range(["#3B9AB2", "#F21A00"])'
+show_col(viridis_pal()(20))
+# loss yellow, FDE725FF
+# same purple, 440154FF
+# gain green, 238A8DFF
+# Check this for color transparency https://stackoverflow.com/questions/46616321/modify-networkd3-sankey-plot-with-user-defined-colors
+my_color <- 'd3.scaleOrdinal() .domain(["a", "b"]) .range(["#FDE725FF","#440154FF","#238A8DFF"])'
 
 # Plot it!
 sankeyNetwork(Links = links,
@@ -1656,8 +1754,52 @@ sankeyNetwork(Links = links,
               colourScale = my_color,
               fontSize = 15, 
               nodeWidth = 20,
-              sinksRight = T
+              sinksRight = F
 )
+
+
+# Paper numbers
+links %>% 
+  group_by(nameb,change) %>% 
+  tally() %>% 
+  View()
+
+
+links %>% 
+  group_by(nameb,change) %>% 
+  summarise(sum(value)) %>% 
+  View()
+
+```
+
+
+### As proportions
+
+```{r}
+
+# Prepare data
+
+# Get totals
+totals <- prop_data %>% 
+  group_by(name,period,change,fao_area,esm,rcp) %>% 
+  tally() %>% 
+  group_by(name,period,change,fao_area,rcp) %>% 
+  summarise(n = mean(n)) %>% 
+  filter(rcp == "rcp85") %>% 
+  group_by(name,period,fao_area,rcp) %>% 
+  summarise(total_stocks = sum(n))
+
+
+sankey_df <-
+  prop_data %>% 
+  group_by(name,period,change,fao_area,esm,rcp) %>% 
+  tally() %>% 
+  group_by(name,period,change,fao_area,rcp) %>% 
+  summarise(n = mean(n)) %>% 
+  filter(rcp == "rcp85") %>% 
+  left_join(totals) %>% 
+    mutate(per = (n/total_stocks)*100)
+
 
 
 ```
