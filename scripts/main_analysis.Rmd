@@ -78,9 +78,9 @@ world_land <- ne_countries(scale = 'medium', returnclass = c("sf")) %>%
 #   geom_sf()
 
 # FAO regions
-fao_regions <- my_sf("FAO") %>% 
-  filter(F_LEVEL == "MAJOR")
-st_crs(fao_regions) = 4326
+# fao_regions <- my_sf("FAO") %>% 
+#   filter(F_LEVEL == "MAJOR")
+# st_crs(fao_regions) = 4326
 
 # fao_regions <- fao_regions %>%
 # st_set_crs(4326) #%>% 
@@ -90,6 +90,15 @@ st_crs(fao_regions) = 4326
 #   ggplot() +
 #   geom_sf(aes(fill = F_AREA))
 
+
+# RFMO regions
+rfmo_sf <- my_sf("RFMO") %>% 
+  filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC"))
+st_crs(rfmo_sf) = 4326
+
+rfmo_sf %>%
+  ggplot() +
+  geom_sf(aes(fill = RFMO_nm_s))
 
 # First get Vicky's data to get high seas
 EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
