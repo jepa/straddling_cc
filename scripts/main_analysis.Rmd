@@ -256,7 +256,8 @@ st_crs(rfmo_sf) = 4326
 
 rfmo_index <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
   filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-  clean_names()
+  clean_names()%>% 
+  rename(rfmo_name = territory)
 
 
 fao_index <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T)
@@ -689,7 +690,7 @@ CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) 
 rfmo_index <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
   filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
   clean_names() %>% 
-  rename(rfmo = territory)
+  rename(rfmo_name = territory)
 
 rfmo_to_sau <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
   filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
@@ -800,7 +801,7 @@ GetResults=function(Spp,type = "strad"){
   
   if(type == "strad"){
     # Set the path for each file
-    Distpath <- paste(my_path("R","Straddling/"),Spp,"_straddling.csv",sep="")
+    Distpath <- paste(my_path("R","Straddling_rfmo/"),Spp,"_straddling.csv",sep="")
   }else{
     Distpath <- paste(my_path("R","Per_change_realm/"),Spp,"_perchg.csv",sep="")
   }
@@ -821,7 +822,7 @@ This function is the main analysis estimating the proportion change above histor
 
 ```{r estimate_proportion, eval = F}
 # 
-taxon_key <- 600069
+taxon_key <- 600006
 # taxon_key <- 600143
 
 
@@ -829,23 +830,17 @@ taxon_proportion <- function(taxon_key){
   
   print(taxon_key)
   
-  stradd_data <- GetResults(taxon_key) %>% 
-    rename("fao_area_name"= "fao_name")# %>% 
-    # left_join(high_mig_spp)
-  
-  # match FAO area to RFMO
-  
-  
-  
+  stradd_data <- GetResults(taxon_key)
   
   category <- unique(stradd_data$cat)
   
   
-  fao_areas <- stradd_data %>% 
-    pull(fao_area_name) %>% 
+  rfmo_areas <- stradd_data %>% 
+    pull(rfmo_name) %>% 
     unique()
   
-  files_path <- list.files("/Volumes/Enterprise/Data/dbem/dbem_cmip6/r_data",full.names = T)
+  files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)
+  
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
@@ -862,38 +857,33 @@ taxon_proportion <- function(taxon_key){
       colnames(spp_data) <- c("index",(seq(1951,2100,1)))
       rm(sppabdfnl) # remove original load
       
-      for(i in 1:length(fao_areas)){
+      for(i in 1:length(rfmo_areas)){
         # i = 1
         
-        fao_area <- fao_areas[i]
+        rfmo_area <- rfmo_areas[i]
         
         # Get area of analysis 
-        taxon_fao_dbem_area <- stradd_data %>% 
-          filter(fao_area_name %in% fao_area) %>% 
-          left_join(fao_area_grid,
-                    by = "fao_area_name") %>% 
-          select(index,fao_area_name,fao_area_code)
+        taxon_rfmo_dbem_area <- stradd_data %>% 
+          filter(rfmo_name %in% rfmo_area) %>% 
+          left_join(rfmo_index,
+                    by = "rfmo_name") %>% 
+          select(index,rfmo_name)
         
         spp_data_area <-
           spp_data %>% 
-          filter(index %in% taxon_fao_dbem_area$index) %>% 
+          filter(index %in% taxon_rfmo_dbem_area$index) %>% 
           gather("year","value",`1951`:`2100`) %>%
           mutate(value = replace_na(value,0)) %>% 
           left_join(meow_dbem_grid,
                     by = c("index")
           ) %>% 
-          left_join(fao_area_grid) %>% 
-          mutate(name = ifelse(is.na(eco_code),fao_area,realm)#, # For adding stradling
-                 # high_mig_spa = ifelse(is.na(eez_id),"eezs",fao_area) # for adding high migra
-          ) %>%
-          # View()
+          left_join(rfmo_index) %>% 
+          mutate(name = ifelse(is.na(eco_code),rfmo_name,realm)) %>% 
           # When straddling use realm when highly migratory just fao region
           # {if(is.na(category)) group_by(.,year,name) else group_by(., year,high_mig_spa)} %>%
           group_by(year,name) %>% 
           summarise(total_zone_abd = sum(value,na.rm = T)) %>% 
-          mutate(taxon_key = taxon_key) %>% 
-          filter(total_zone_abd > 0) # fix bug for now
-        
+          mutate(taxon_key = taxon_key)
         # Estimate proportions
         
         total_yr_abd <- spp_data_area %>% 
@@ -945,10 +935,10 @@ taxon_proportion <- function(taxon_key){
           mutate(change = ifelse(mean > top_tresh,"gain",
                                  ifelse(mean < low_tresh,"lost","same")
           ),
-          fao_area = fao_area
+          rfmo_area = rfmo_area
           ) %>% 
           # remove stuff
-          mutate(keep = ifelse(name == fao_area, "n","y")) %>% 
+          mutate(keep = ifelse(name == rfmo_area, "n","y")) %>% 
           filter(keep == "y") %>% 
           select(-keep)
         
@@ -972,9 +962,11 @@ taxon_proportion <- function(taxon_key){
     
     
     # Incorporate rcp and esm info to data
+    # str_count(files_path[m]) # 90
+    
     final_data <- final_data %>% 
-      mutate(esm = str_to_lower(str_sub(files_path[m],49,54)),
-             rcp = paste0("rcp",str_sub(files_path[m],55,56))
+      mutate(esm = str_to_lower(str_sub(files_path[m],80,83)),
+             rcp = paste0("rcp",str_sub(files_path[m],84,85))
       )
     
     if(m == 1){
@@ -988,7 +980,7 @@ taxon_proportion <- function(taxon_key){
   
   
   # Save file
-  name_file <- my_path("R","Per_change_realm", paste0(taxon_key,"_perchg.csv"))
+  name_file <- my_path("R","Per_change_realm_rfmo", paste0(taxon_key,"_perchg.csv"))
   write_csv(final_output, name_file)
   return(paste("Data for",taxon_key, "saved"))
   
@@ -1001,14 +993,17 @@ taxon_proportion <- function(taxon_key){
 ```{r get_straddling, eval = F}
 
 # Get fao areas on DBEM grid
-fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
-meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T)
+# fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  clean_names()
+
 # SAU relations between INDEX and Country's EEZs
 # First get Vicky's data to get high seas
 EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
   rename(eez_id = eezid)
 EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
 colnames(EEZ_CellID) <- c("eez_id","index")
+
 sau_index_code <- EEZIDs_List %>%  #x
   left_join(EEZ_CellID)
 
@@ -1023,7 +1018,7 @@ sau_index_code <- EEZIDs_List %>%  #x
 
 # Spp list
 
-spp_complete <- list.files(my_path("R","Straddling/"))
+spp_complete <- list.files(my_path("R","Straddling_rfmo/"))
 
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
