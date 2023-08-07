@@ -245,9 +245,11 @@ ggsave(filename = "./results/supplements/supp_1.png",
 
 ```{r}
 # RFMO regions
-rfmo_sf <- my_sf("RFMO") %>% 
-  filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT"))
-st_crs(rfmo_sf) = 4326
+sf_rfmo <- my_sf("RFMO", simple = 1) %>% 
+  filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
+  dplyr::rename(rfmo_name = RFMO_nm_s) %>% 
+  st_simplify()
+st_crs(sf_rfmo) = 4326
 
 # rfmo_sf %>%
 #   ggplot() +
@@ -428,33 +430,32 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
     select(-Model, -Value, -latitude,-longitude) %>%
     rename(index = INDEX) %>% 
     # joint eez names
-    left_join(Index_Code,
+    left_join(meow_dbem_grid, # No EEZs but MEOWs
               by = "index") %>% 
     # joint rfmo area names
     left_join(rfmo_index,
               by = "index") %>% 
     mutate(
-      territory = ifelse(!is.na(name),name,rfmo),
-      category = ifelse(!is.na(name),"eez","rfmo"),
-    ) %>% 
+      territory = ifelse(is.na(rfmo_name),realm,rfmo_name),
+      category = ifelse(!is.na(rfmo_name),"rfmo","realm"),
+    ) %>%
     select(1:3,territory,category) %>% 
     clean_names() %>% 
     filter(model_index == 100)
   
   
   # Distributional test
-  test <- Trans_Spp %>%
-    left_join(coords_dbem)
-  
-  ggplot(test) +
-    geom_tile(
-      aes(
-        x = lon,
-        y = lat,
-        fill = category
-      )
-    )
-  
+  # test <- Trans_Spp %>%
+  #   left_join(coords_dbem)
+  # 
+  # ggplot(test) +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       fill = category
+  #     )
+  #   )
   
   
   # Step 2.1. Determines not a straddling stock
@@ -684,13 +685,23 @@ Mclapply_Hack <- function(...){
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
   mutate(INDEX = seq(1,259200,1))
 
-# Fao combo
-# fao_to_sau <- my_path("Spa", extra_path = "SAU", name = "EEZ-FAO-Country-Combo.xlsx", read = T)
+# RFMO data
+rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T)
 
-rfmo_index <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
-  filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-  clean_names() %>% 
-  rename(rfmo_name = territory)
+
+# rfmo_index %>%
+#   left_join(coords_dbem) %>%
+#   ggplot() +
+#   geom_tile(
+#     aes(
+#       x = lon,
+#       y = lat,
+#       fill = rfmo_name
+#     )
+#   ) +
+#   geom_sf(data = sf_land, aes())
+
+
 
 rfmo_to_sau <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
   filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
@@ -803,7 +814,7 @@ GetResults=function(Spp,type = "strad"){
     # Set the path for each file
     Distpath <- paste(my_path("R","Straddling_rfmo/"),Spp,"_straddling.csv",sep="")
   }else{
-    Distpath <- paste(my_path("R","Per_change_realm/"),Spp,"_perchg.csv",sep="")
+    Distpath <- paste(my_path("R","Per_change_realm_rfmo/"),Spp,"_perchg.csv",sep="")
   }
   
   # Loads all files in a df
@@ -822,7 +833,7 @@ This function is the main analysis estimating the proportion change above histor
 
 ```{r estimate_proportion, eval = F}
 # 
-taxon_key <- 600006
+# taxon_key <- 600142
 # taxon_key <- 600143
 
 
@@ -848,7 +859,9 @@ taxon_proportion <- function(taxon_key){
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
+    
     if(file.exists(file_to_read)){
+      
       load(file_to_read)
       
       # Transform it to df
@@ -873,7 +886,7 @@ taxon_proportion <- function(taxon_key){
           spp_data %>% 
           filter(index %in% taxon_rfmo_dbem_area$index) %>% 
           gather("year","value",`1951`:`2100`) %>%
-          mutate(value = replace_na(value,0)) %>% 
+          # mutate(value = replace_na(value,0)) %>% 
           left_join(meow_dbem_grid,
                     by = c("index")
           ) %>% 
@@ -941,6 +954,7 @@ taxon_proportion <- function(taxon_key){
           mutate(keep = ifelse(name == rfmo_area, "n","y")) %>% 
           filter(keep == "y") %>% 
           select(-keep)
+        
         
         if(i == 1){
           final_data <- prop_chng
@@ -1069,15 +1083,15 @@ suppressMessages(
 
 ## Functions needed
 
-
 ## Data needed
 
 ### Highly migratpry speices
 
 Annex I Highly migratory species https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
 
-```{r un_highly_mig_spp, eval = T}
+```{r un_highly_mig_spp, eval = F}
 
+# CANCELLED CHUNK
 
 # List of SAU species
 exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
@@ -1139,12 +1153,7 @@ h_migratory_spp <- bind_rows(output,
 #-----------------# 
 
 # SAU relations between INDEX and Country's EEZs
-EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
-  rename(eez_id = eezid)
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("eez_id","index")
-sau_index_code <- EEZIDs_List %>%  #x
-  left_join(EEZ_CellID)
+sau_index_code <- my_data("sau_index")
 
 #world land 
 sf_land <- ne_countries(scale = 'small', returnclass = c("sf")) %>% 
@@ -1159,35 +1168,42 @@ meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>%
   left_join(sau_index_code,
             by = "index")
 
-# Get fao areas on DBEM grid
-sf_fao <- my_sf("FAO") %>% 
-  clean_names() %>% 
-  filter(f_level == "MAJOR") %>% 
-  select(1:7,fao_name = name_en)
-st_crs(sf_fao) = 4326
+# RFMO regions
+sf_rfmo <- my_sf("RFMO", simple = 1) %>% 
+  filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
+  dplyr::rename(rfmo_name = RFMO_nm_s)
+st_crs(sf_rfmo) = 4326
 
-fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
+# rfmo_sf %>%
+#   ggplot() +
+#   geom_sf(aes(fill = RFMO_nm_s))
+
+rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T) 
+  
 
 #-----------------# 
 ## Spp related   ##
 #-----------------# 
 
+# List of SAU species
+exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
+
 ## Straddling species ##
 # Spp list
-spp_complete <- list.files(my_path("R","Straddling/"))
+spp_complete <- list.files(my_path("R","Straddling_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Get straddling stocks
 shared_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "strad")
 ) %>% 
-  left_join(exploited_spp) %>% 
-  mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+  left_join(exploited_spp) #%>% 
+  # mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
 
 
 # Get proportion analysis
 
-spp_complete <- list.files(my_path("R","Per_change_realm/"))
+spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 
@@ -1203,10 +1219,7 @@ prop_data <- bind_rows(
          )
   )
 
-
 ```
-
-
 
 
 ## Straddling identification
@@ -1220,7 +1233,7 @@ scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
 # Get MEOW and EEZs
 meow_dbem_eez <- meow_dbem_grid %>% 
-  group_by(realm,territory = name) %>% 
+  group_by(realm,eez_name) %>% 
   tally() %>% 
   select(-n)
 
@@ -1232,18 +1245,18 @@ strad_meow <- shared_data %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
-# Number of straddling stocks by FAO region
-fao_meow <- meow_dbem_grid %>% 
-  left_join(fao_area_grid) %>% 
-  group_by(realm,fao_name = fao_area_name) %>% 
-  filter(!is.na(fao_name)) %>% 
+# Number of straddling stocks by RFMO
+rfmo_meow <- meow_dbem_grid %>% 
+  left_join(rfmo_index) %>% 
+  group_by(realm,rfmo_name) %>%
+  filter(!is.na(rfmo_name)) %>% 
   tally() %>% 
   select(-n)
 
-strad_fao <- shared_data %>%
+strad_rfmo <- shared_data %>%
   # filter(fao_name == "Indian Ocean, Eastern") %>% 
   left_join(meow_dbem_eez) %>% 
-  group_by(fao_name) %>%
+  group_by(rfmo_name) %>%
   # Estimate number of species per fao name and ecoregion (stock)
   summarise(n = length(unique(taxon_key)))%>% 
   # Add number of stocks per FAO region
@@ -1258,17 +1271,18 @@ sf_meow_map <-sf_meow %>%
   tally() %>% 
   select(-n)
 
-ggplot() + 
-  geom_sf(data = sf_fao %>%  left_join(strad_fao), aes(fill = n)) +
+map_rfmo_stradd <- ggplot() + 
+  geom_sf(data = sf_rfmo %>%  left_join(strad_rfmo), aes(fill = n,color = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
   scale_fill_viridis_c("Straddling spp.\n(n)", na.value = "white") +
+  scale_color_viridis_c("Straddling spp.\n(n)", na.value = "white") +
   theme_bw() +
   theme(legend.title.align = 0.5) 
 
 # Save plot 
-ggsave("./results/figures/straddling_id/straddling_species.png",
-       last_plot(),
+ggsave("./results/figures/straddling_id/straddling_species_rfmo.png",
+       map_rfmo_stradd,
        height = 6,
        width = 12
 )
@@ -1346,10 +1360,11 @@ sau_catch_data %>%
 ```{r}
 shared_data %>% 
   left_join(meow_dbem_eez) %>% 
-  group_by(common_name) %>% 
+  group_by(common_name,rfmo_name) %>% 
   summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
   top_n(5,value) %>% 
-  arrange(desc(value))
+  arrange(desc(value)) %>% 
+  View()
 ```
 
 ### Straddling species circle
@@ -1416,7 +1431,7 @@ Plot_Limit <- max(Species_Data$value,na.rm=T)
 Ticks_Color <- "black"
   
 # Plot final data
-Plot_Species_Data <- Species_Data %>% 
+Plot_Species_Data <- Species_Data %>%
   left_join(high_mig_spp) %>% 
   mutate(category = ifelse(is.na(cat),"straddling","high migr."))
 
@@ -1509,7 +1524,7 @@ ggplot(Species_Data,
   guides(fill=guide_legend(ncol=2))
 
 # Save plot
-ggsave(filename = "./results/figures/species_ohi.jpg",
+ggsave(filename = "./results/figures/species_ohi_rfmo.jpg",
        plot = last_plot(),
        width = 12,
        height = 12,
@@ -1524,7 +1539,7 @@ ggsave(filename = "./results/figures/species_ohi.jpg",
 # Numbers for paper
 # Non Annex I species level
 shared_data %>% 
-  filter(!taxon_name %in% h_migratory_spp_id$scientific_name) %>% 
+  # filter(!taxon_name %in% h_migratory_spp_id$scientific_name) %>% 
   left_join(meow_dbem_eez) %>% 
   group_by(common_name) %>% 
   summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
@@ -1533,7 +1548,7 @@ shared_data %>%
 # Non Annex I at all
 
 shared_data %>% 
-  filter(!taxon_name %in% h_migratory_spp$scientific_name) %>% 
+  # filter(!taxon_name %in% h_migratory_spp$scientific_name) %>% 
   left_join(meow_dbem_eez) %>% 
   group_by(common_name) %>% 
   summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
@@ -1565,29 +1580,37 @@ data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group){
 }
 
 
+test <- sf_rfmo %>% 
+  group_by(rfmo_name) %>% 
+  summarise(geometry = st_union(geometry))
+
+ggplot(test) +
+  geom_sf(aes(fill =rfmo_name))
+
+
 plot_data <- prop_data %>% 
-  group_by(name,fao_area,esm,rcp,change) %>% 
+  group_by(name,rfmo_area,esm,rcp,change) %>% 
   tally() %>% 
-  group_by(name,fao_area,rcp,change) %>% 
+  group_by(name,rfmo_area,rcp,change) %>% 
   summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
   filter(!is.na(change))
 
 
 # Get FAO and MEOW centroids
 
-fao_centroids <-
-  as.data.frame(st_centroid(sf_fao)) %>% 
+rfmo_centroids <-
+  as.data.frame(st_centroid(sf_rfmo)) %>% 
   ungroup() %>% 
-  select(fao_area = fao_name,f_code, the_geom) %>% 
-  separate(col = the_geom, into = c("lon", "lat"), sep = "\\,")
+  select(rfmo_name, geometry) %>% 
+  separate(col = geometry, into = c("lon", "lat"), sep = "\\,")
 
 # Remove "c()"
-fao_centroids$lon <- gsub("\\(","",fao_centroids$lon)
-fao_centroids$lon <- gsub("c","",fao_centroids$lon)
-fao_centroids$lat <- gsub(")","",fao_centroids$lat)
+rfmo_centroids$lon <- gsub("\\(","",rfmo_centroids$lon)
+rfmo_centroids$lon <- gsub("c","",rfmo_centroids$lon)
+rfmo_centroids$lat <- gsub(")","",rfmo_centroids$lat)
 
 # Modify annolying points (most of them!)
-fao_centroids <- fao_centroids %>% 
+rfmo_centroids <- rfmo_centroids %>% 
   mutate(
     # modify latitudes
     lat = ifelse(fao_area == "Pacific, Northeast",50,
@@ -1618,17 +1641,17 @@ fao_centroids <- fao_centroids %>%
 
 
 
-# ggplot() +
-#   geom_sf(data = sf_fao, aes(), fill ="white" ) +
-#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-#   geom_text(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = fao_area)) +
-#   geom_point(data = fao_centroids,
-#              aes(
-#                x = as.numeric(lon),
-#                y = as.numeric(lat),
-#                color = fao_area
-#              )
-#   )
+ggplot() +
+  geom_sf(data = sf_rfmo, aes(), fill ="white" ) +
+  geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
+  geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
+  geom_point(data = rfmo_centroids,
+             aes(
+               x = as.numeric(lon),
+               y = as.numeric(lat),
+               color = rfmo_name
+             )
+  )
 
 # Get MEOW and MEOW centroids
 
