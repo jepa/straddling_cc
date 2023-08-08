@@ -74,29 +74,6 @@ sf::sf_use_s2(use_s2 = FALSE)
 world_land <- ne_countries(scale = 'medium', returnclass = c("sf")) %>% 
   st_transform(crs = 4326)# 4326
 
-# ggplot(world_land) +
-#   geom_sf()
-
-# FAO regions
-# fao_regions <- my_sf("FAO") %>% 
-#   filter(F_LEVEL == "MAJOR")
-# st_crs(fao_regions) = 4326
-
-# fao_regions <- fao_regions %>%
-# st_set_crs(4326) #%>% 
-# st_transform(crs = "+proj=eck4")
-
-# fao_regions %>% 
-#   ggplot() +
-#   geom_sf(aes(fill = F_AREA))
-
-# First get Vicky's data to get high seas
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("eez_id","index")
-
-EEZ_CellID <- EEZ_CellID %>% 
-  mutate(area_code = as.character(eez_id))
-
 # Coordinatres DBEM
 coords_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
 colnames(coords_dbem) <- c("index","lon","lat")
@@ -109,86 +86,11 @@ dbem_sf <-st_as_sf(coords_dbem,
 
 st_crs(dbem_sf) = 4326
 
-# Combine both sf
-dbem_fao_sf <- st_join(dbem_sf,
-                       fao_regions, join = st_intersects)
-
-# DBEM FAO Regions
-fao_grid <- dbem_fao_sf %>% 
-  filter(!is.na(F_CODE)) %>% 
-  as.data.frame() %>% 
-  select(index,fao_area_code=F_CODE,area_code=F_CODE,ocean=OCEAN,name = NAME_EN) %>% 
-  # filter(cat == "abnj") %>% 
-  mutate_all(as.character) %>% 
-  rename(fao_area_name = name)
-
-# write_csv(fao_grid, my_path("Spa", "DBEM","fao_to_dbem_grid.csv"))
-
-
-eez_grid <- left_join(EEZ_CellID,EEZIDs_List) %>% 
-  select(index,eez_id,area_code = eez_id,name) %>% 
-  mutate(cat = "eez",
-         eez_name = name)
-
-
-sau_fao_grid <- eez_grid %>% 
-  mutate_all(as.character) %>% 
-  bind_rows(fao_grid)
-
-sau_fao_grid %>%
-  left_join(complete_lon_lat_dbem) %>%
-  ggplot() +
-  geom_tile(
-    aes(
-      x = lon,
-      y = lat,
-      fill = area_code
-    )
-  ) +
-  theme(legend.position = "")
-
-
 # EEZs
-world_eez <- my_sf("SAU",simple = 1000,system = "jepa")
+# world_eez <- my_sf("SAU",simple = 1000)
 
-# Lon-lat DBEM
-
-# First get Vicky's data to get high seas
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("id","index")
-
-# Now our gridcell
-abny <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
-  bind_cols(my_path("Spa","DBEM","WArea.txt",read = T, header = F) %>% slice(-259201)) %>% 
-  filter(!index %in% EEZ_CellID$index) %>% 
-  mutate(cat = ifelse(v1>0, "abnj","land")) %>% 
-  select(-v1)
-
-# SAVE FOR COMPLETE DBEM
-complete_lon_lat_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F) %>% 
-  left_join(abny) %>% 
-  mutate(cat = ifelse(is.na(cat), "eez",cat),
-         index = as.character(index))
-
-
-# Save for fouture
-write_csv(complete_lon_lat_dbem, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
-
-# ggplot(complete_lon_lat_dbem) +
-# geom_tile(
-#   aes(
-#     x = lon,
-#     y = lat,
-#     fill = cat
-#   )
-# )
-
-# All maps test
-# ggplot() +
-#   geom_sf(data = fao_regions, aes()) +
-#   geom_sf(data = world_land, aes()) +
-#   geom_sf(data = world_eez, aes())
-
+# SAU index table
+sau_index_code <- my_data("sau_index")
 
 ### Get MEO to DBEM
 
@@ -196,87 +98,59 @@ meow_regions <- my_sf("MEOW")
 st_crs(meow_regions) = 4326
 
 meow_dbem <- st_join(dbem_sf,
-                     meow_regions, join = st_intersects)
+                     meow_regions,
+                     join = st_intersects)
 
+
+# Get eez per realm
 dbem_meow_df <- meow_dbem %>% 
-  filter(!is.na(ECO_CODE)) %>% 
   as.data.frame() %>% 
   select(-geometry) %>% 
-  clean_names()
-
-write_csv(dbem_meow_df, my_path("Spa", "MEOW","meow_dbem_grid.csv"))
-
-
-# First get Vicky's data to get high seas
-EEZ_SAU <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = TRUE, system = "jepa")
-colnames(EEZ_SAU) <- c("sau_code","eez")
-
-complete_sau <- EEZ_SAU %>% 
-  left_join(EEZ_CellID)
-
-#   
-# coords %>% 
-#   left_join(EEZ_CellID) %>% 
-#     rename(sau_eez_id = EEZID) %>% 
-#     gather("code_na","code",f_code:sau_eez_id) %>%
+  clean_names() %>% 
+  filter(!is.na(realm))
 
 
-# write_csv(Coord, my_path("Spa", "DBEM","complete_lon_lat_dbem.csv"))
+# dbem_meow_df %>% 
+#   left_join(coords_dbem) %>% 
+#   ggplot() +
+#   geom_tile(
+#     aes(
+#       x = lon,
+#       y = lat,
+#       fill = realm
+#     )
+#   ) 
 
 
-
-
-ggplot() +
-  geom_sf(data = sf_fao, aes(), fill ="gray70" ) +
-  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
-  geom_sf(data = sf_land, aes(), fill = "black", col = "black") +
-  geom_sf_label(data = sf_fao, aes(label = f_code), size = 5) +
-  labs(x = "",
-       y = "")
-
-ggsave(filename = "./results/supplements/supp_1.png",
-       plot = last_plot(),
-       width = 10,
-       height = 5
-       )
-
-```
-
-
-```{r}
 # RFMO regions
-sf_rfmo <- my_sf("RFMO", simple = 1) %>% 
+# RFMO data
+sf_rfmo <- my_sf("RFMO") %>% 
   filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
   dplyr::rename(rfmo_name = RFMO_nm_s) %>% 
-  st_simplify()
+  group_by(rfmo_name) %>% 
+  summarise(geometry = st_union(geometry))
+
 st_crs(sf_rfmo) = 4326
 
-# rfmo_sf %>%
-#   ggplot() +
-#   geom_sf(aes(fill = RFMO_nm_s))
+rfmo_dbem <- st_join(dbem_sf,
+                     sf_rfmo,
+                     join = st_intersects)
+
+# Select only high seas (i.e., remove waters within EEZs)
+rfmo_dbem_hs <- rfmo_dbem %>% 
+  as.data.frame()%>% 
+  select(-geometry) %>% 
+  clean_names() %>% 
+  filter(!is.na(rfmo_name)) # remove areas where no tuna RFMO exists (some high seas pockets)
 
 
-rfmo_index <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
-  filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-  clean_names()%>% 
-  rename(rfmo_name = territory)
-
-
-fao_index <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T)
-
-
-rfmo_to_fao_index <- rfmo_index %>% 
-  left_join(fao_index,
-            by ="index") %>% 
-  rename(rfmo_name = territory)
-
-rfmo_to_fao <- rfmo_to_fao_index %>% 
-  group_by(rfmo_name,fao_area_name) %>% 
-  tally() %>% 
-  select(-n)
+# Finalize data
+dbem_rfmo_index <- rfmo_dbem_hs %>% 
+  filter(!index %in% dbem_meow_df$index)
+  
+write_csv(dbem_meow_df, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
 
 ```
-
 
 
 ## Determining straddling stocks
@@ -441,21 +315,47 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
     ) %>%
     select(1:3,territory,category) %>% 
     clean_names() %>% 
-    filter(model_index == 100)
+    filter(model_index == 100) %>% 
+    mutate()
   
   
   # Distributional test
-  # test <- Trans_Spp %>%
-  #   left_join(coords_dbem)
+  test <- Trans_Spp %>%
+    left_join(coords_dbem) %>% 
+    filter(is.na(territory))
+  
+  sau_index_code %>% filter(eez_name != "High seas") %>% 
+    left_join(coords_dbem) %>% 
+    ggplot() +
+    geom_tile(
+      aes(
+        x = lon,
+        y = lat
+      ),
+      fill = "red"
+    ) + 
+    geom_tile(data = meow_dbem_grid %>% left_join(coords_dbem),
+      aes(
+        x = lon,
+        y = lat,
+        # fill = rfmo_name
+      ),
+      fill = "black"
+    ) + 
+    geom_sf(data = sf_land, aes())
+  
+  sau_index_code %>% filter(index %in% test$index) %>% View()
+  
   # 
-  # ggplot(test) +
-  #   geom_tile(
-  #     aes(
-  #       x = lon,
-  #       y = lat,
-  #       fill = category
-  #     )
-  #   )
+  ggplot(test) +
+    geom_tile(
+      aes(
+        x = lon,
+        y = lat,
+        fill = territory
+      )
+    ) +
+    geom_sf(data = sf_land, aes())
   
   
   # Step 2.1. Determines not a straddling stock
