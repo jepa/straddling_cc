@@ -110,8 +110,8 @@ dbem_meow_df <- meow_dbem %>%
   filter(!is.na(realm))
 
 
-# dbem_meow_df %>% 
-#   left_join(coords_dbem) %>% 
+# dbem_meow_df %>%
+#   left_join(coords_dbem) %>%
 #   ggplot() +
 #   geom_tile(
 #     aes(
@@ -119,7 +119,7 @@ dbem_meow_df <- meow_dbem %>%
 #       y = lat,
 #       fill = realm
 #     )
-#   ) 
+#   )
 
 
 # RFMO regions
@@ -148,17 +148,116 @@ rfmo_dbem_hs <- rfmo_dbem %>%
 dbem_rfmo_index <- rfmo_dbem_hs %>% 
   filter(!index %in% dbem_meow_df$index)
   
-write_csv(dbem_meow_df, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
+
+# dbem_rfmo_index %>%
+#   left_join(coords_dbem) %>%
+#   ggplot() +
+#   geom_tile(
+#     aes(
+#       x = lon,
+#       y = lat,
+#       fill = rfmo_name
+#     )
+#   ) +
+#   geom_tile(data = dbem_meow_df %>% left_join(coords_dbem),
+#     aes(
+#       x = lon,
+#       y = lat
+#     ),
+#     fill = "red"
+#   )
+
+write_csv(dbem_rfmo_index, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
+
+
+
+
+
+## Coombine rfmo and MEOW shapefiles in one
+
+
+sf_rfmo_to_combine <- sf_rfmo %>% 
+  select(region = rfmo_name, geometry)
+
+sf_meow_to_combine <- meow_regions %>% 
+  select(region = REALM, geometry)
+  
+sf_meow_rfmo <- rbind(sf_rfmo_to_combine, 
+                      sf_meow_to_combine)
+
+
+
 
 ```
 
+## Determine adjacent RFMOs and MEOWS
+
+Code modifioed from FishForVisa
+
+```{r funEstNeighbours, eval = F, echo=T}
+
+Shapefile = sf_meow_rfmo
+
+  # Get sparse matrix
+int = suppressMessages(st_intersects(Shapefile))
+  # Warnning message
+  # although coordinates are longitude/latitude, st_intersects assumes that they are planar
+  
+  
+  # Intitalize new object
+  mat = NULL
+  
+  # Fill
+  for(i in 1:NROW(int)){
+    #Create matrix with ID and intersecting IDs
+    tmp = cbind(i, int[[i]])
+    
+    # Join to Initalized object
+    mat  = rbind(mat, tmp)
+  }
+  
+  # Build final data.frame substituting ID for name (in this case nc$name)
+  Result_table = data.frame(region = Shapefile$region[mat[,1]], 
+                            adjacent_region = Shapefile$region[mat[,2]]
+                            )
+  
+  # Remove duplicates... eg of course an object intersects with itself...
+  Result_table = Result_table[Result_table$region != Result_table$adjacent_region,]
+  
+ # Get index cells within those RFMOs
+  rfmo_partial <- Result_table %>% 
+        rename(rfmo_name = region) %>% 
+    left_join(rfmo_dbem, 
+                  by = "rfmo_name")%>% 
+    filter(!is.na(index)) %>% 
+    rename(region = rfmo_name)
+  
+  # Get index cells within those MEOWS
+  meow_partial <- Result_table %>% 
+        rename(realm = region) %>% 
+    left_join(meow_dbem_grid, 
+                  by = "realm") %>% 
+    filter(!is.na(index)) %>% 
+    rename(region = realm)
+  
+  rfmo_meow_final <- bind_rows(rfmo_partial,meow_partial) %>% 
+    group_by(region,adjacent_region) %>% 
+    tally() %>% 
+    select(-n)
+  
+  
+  write_csv(rfmo_meow_final, my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv"))
+  
+  
+  
+```
 
 ## Determining straddling stocks
 
 ```{r GetSppDistFun, eval = F}
 
 # Spp = 600069
-# Data_Path <- my_path("G","FishForVisa")
+Data_Path <- my_path("G","FishForVisa")
 
 
 GetSppDist=function(Spp,Model,Coord){
@@ -281,7 +380,8 @@ GetSppDist=function(Spp,Model,Coord){
 ```{r StraddIndexFun, eval = F}
 
 
-StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
+
+StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
   
   # Get model data from spps
   SppDist <- GetSppDist(Spp,Model,Coord)
@@ -310,187 +410,148 @@ StraddIndex <- function(Spp,Model = "All",Neighbours,Coord,Index_Code){
     left_join(rfmo_index,
               by = "index") %>% 
     mutate(
-      territory = ifelse(is.na(rfmo_name),realm,rfmo_name),
+      region = ifelse(is.na(rfmo_name),realm,rfmo_name),
       category = ifelse(!is.na(rfmo_name),"rfmo","realm"),
     ) %>%
-    select(1:3,territory,category) %>% 
+    select(1:3,region,category) %>% 
     clean_names() %>% 
-    filter(model_index == 100) %>% 
-    mutate()
+    filter(model_index == 100)
   
+  ### ----------  Distributional test  ---------- ###
+  # test <- Trans_Spp %>%
+  # left_join(coords_dbem) #%>% 
+  # filter(is.na(territory))
   
-  # Distributional test
-  test <- Trans_Spp %>%
-    left_join(coords_dbem) %>% 
-    filter(is.na(territory))
-  
-  sau_index_code %>% filter(eez_name != "High seas") %>% 
-    left_join(coords_dbem) %>% 
-    ggplot() +
-    geom_tile(
-      aes(
-        x = lon,
-        y = lat
-      ),
-      fill = "red"
-    ) + 
-    geom_tile(data = meow_dbem_grid %>% left_join(coords_dbem),
-      aes(
-        x = lon,
-        y = lat,
-        # fill = rfmo_name
-      ),
-      fill = "black"
-    ) + 
-    geom_sf(data = sf_land, aes())
-  
-  sau_index_code %>% filter(index %in% test$index) %>% View()
+  # sau_index_code %>% filter(eez_name != "High seas") %>% 
+  #   left_join(coords_dbem) %>% 
+  #   ggplot() +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat
+  #     ),
+  #     fill = "red"
+  #   ) + 
+  #   geom_tile(data = meow_dbem_grid %>% left_join(coords_dbem),
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       # fill = rfmo_name
+  #     ),
+  #     fill = "black"
+  #   ) + 
+  #   geom_sf(data = sf_land, aes())
   
   # 
-  ggplot(test) +
-    geom_tile(
-      aes(
-        x = lon,
-        y = lat,
-        fill = territory
-      )
-    ) +
-    geom_sf(data = sf_land, aes())
+  # ggplot(test) +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       fill = territory
+  #     )
+  #   ) +
+  #   geom_sf(data = sf_land, aes())
   
   
-  # Step 2.1. Determines not a straddling stock
-  if("rfmo" %in% Trans_Spp$category == FALSE){
-    
-    return(print("not a straddling stock"))
-    stop()
-    
-    
-  }else{
-    
-    
-    # MODEL INDEX (TRESHOLDS 1 & 2) #
-    Model_Index_D <- Trans_Spp %>% 
-      group_by(territory,
-               category,
-               taxon_key,
-               model_index
-      ) %>% 
-      summarise(n_cells_spp = n()) %>% 
-      select(-n_cells_spp)
-    
-    
-    #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
-    # The number of species' cells present within each country's EEZ
-    
-    # if(n_Territory > 1){
-    
-    #Step 1.  Get EEZ id and Neighbour
-    Neighbours_List <- neighbours %>%
-      group_by(territory,neighbour) %>%
-      summarise(n=n()) %>%
-      ungroup() %>%
-      select(-n) %>% 
-      left_join(rfmo_to_sau) %>% 
-      filter(!is.na(territory))
-    
-    # Set RFMO neighbours... 
-    rfmo_neighbours <- Neighbours_List %>% 
-      select(territory, rfmo) %>% 
-      rename(territory = rfmo,
-             neighbour = territory) %>% 
-      group_by(territory, neighbour) %>% 
-      summarise(n())
-    
-    
-    rfmo_territory <- rfmo_neighbours %>% 
-      rename(territory = neighbour,
-             neighbour = territory)
-    
-    
-    neighbours_list_rfmo <- rfmo_neighbours %>% 
-      bind_rows(Neighbours_List,rfmo_territory) %>% 
-      select(-rfmo)
-    
-    
-    # Step 2. Determines the amount of grids present in each country
-    Spp_Grid <- Trans_Spp %>% 
-      group_by(taxon_key,
-               model_index, # Un-comment after producing models x datasets
-               territory,
-               category) %>% 
-      summarise(n_spp_eez = length(unique(index))) %>% 
-      left_join(neighbours_list_rfmo,
-                by = "territory") %>% 
-      filter(territory %in% Trans_Spp$territory, #Filter out unwanted Neighbours (those who don't have grids within but get included because they are Neighbours)
-             neighbour %in% Trans_Spp$territory)
-    
-    
-    # Split dataframes to merge latter
-    Territory_T <- Spp_Grid %>% 
-      filter(category == "eez") %>% 
-      ungroup() %>% 
-      select(
-        model_index, # Un-comment after producing models x datasets
-        taxon_key,
-        Name=territory,
-        n_spp_eez
-      )
-    
-    Neighbour_T <- Spp_Grid %>%
-      filter(category == "eez") %>% 
-      ungroup() %>% 
-      select(
-        model_index,
-        taxon_key,
-        n_spp_eez,
-        territory,
-        Name=neighbour,
-        territory
-      ) 
-    
-    
-    rfmo_grid <- Spp_Grid %>% 
-      filter(category == "rfmo") %>% 
-      left_join(neighbours_list_rfmo) %>% 
-      select(Name =neighbour,
-             rfmo_name = territory,
-             n_spp_eez.z = n_spp_eez)
-    
-    # Merge dataframes to get totals per Neighbourds
-    Area_Index_D <- full_join(Territory_T,
-                              Neighbour_T, 
-                              by = c("model_index","Name","taxon_key")
+  ### ----------------------------------- ###
+  
+  # Get realms and RFMOs
+  rfmo_to_realm <- Neighbours %>% 
+    filter(region %in% c(Trans_Spp %>% filter(category == "rfmo") %>% pull(region) %>% unique()),
+           adjacent_region %in% c(Trans_Spp %>% filter(category == "realm") %>% pull(region) %>% unique()))
+  
+  
+  # Model treshold
+  Model_Index_D<- Trans_Spp %>% 
+    filter(region %in% rfmo_to_realm$region) %>% 
+    left_join(rfmo_to_realm,
+              by = "region",
+              relationship = "many-to-many") %>%
+    group_by(region,
+             adjacent_region,
+             category,
+             taxon_key,
+             model_index
+    ) %>% 
+    summarise(n_cells_spp = n(),
+              .groups = "drop") %>% 
+    select(-n_cells_spp)
+  
+  
+  
+  #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
+  # The number of species' cells present within each REALM and RFMO
+  
+  Spp_Grid <- Trans_Spp %>% 
+    group_by(taxon_key,
+             model_index, 
+             region,
+             category) %>% 
+    summarise(n_cells_territory = length(unique(index)),
+              .groups = "drop")
+  
+  # Split dataframes to merge latter
+  Territory_T <- Spp_Grid %>% 
+    filter(category == "realm") %>% 
+    ungroup() %>% 
+    select(
+      model_index, # Un-comment after producing models x datasets
+      taxon_key,
+      Name=region,
+      n_cells_territory
+    )
+  
+  Neighbour_T <- Spp_Grid %>%
+    filter(category == "rfmo") %>% 
+    ungroup() %>% 
+    select(
+      model_index,
+      taxon_key,
+      n_cells_territory,
+      Name=region
+    ) 
+  
+  
+  rfmo_grid <- Spp_Grid %>% 
+    filter(category == "rfmo") %>% 
+    left_join(rfmo_to_realm,
+              by = "region") %>% 
+    select(Name =adjacent_region,
+           rfmo_name = region,
+           n_cells_territory)
+  
+  # Merge dataframes to get totals per Neighbourds
+  Area_Index_D <-
+    full_join(Territory_T,
+              Neighbour_T, 
+              by = c("model_index","Name","taxon_key")
     ) %>%
-      left_join(rfmo_grid) %>% 
-      filter(!is.na(rfmo_name)) %>% # remove non-straddling stocks
-      rowwise() %>%
-      mutate(spp_total = sum(n_spp_eez.x,n_spp_eez.y,n_spp_eez.z,na.rm=T)) %>% # Total gridcelles per Neighbours
-      distinct() %>% # Removes false duplicates from `full_join()`
-      rename(territory = Name,
-             neighbour = territory,
-             n_spp_country = n_spp_eez.x,
-             n_spp_neighbour = n_spp_eez.y,
-             n_spp_rfmo = n_spp_eez.z) %>%
-      # Estimate if it is straddling
-      mutate(stradling_index = (n_spp_rfmo/spp_total)*100)
-    
-    ### Save spp dataframe
-    
-    output <- Area_Index_D %>% 
-      select(taxon_key,
-             territory,
-             neighbour,
-             rfmo_name,
-             stradling_index)
-    
-    File_Name <- paste(Spp,"_straddling.csv",sep = "")
-    Save_Path <- my_path("R","Straddling_rfmo", File_Name)
-    
-    # Save_Path <- paste(Results_Path,"Trans_Results/",File_Name,sep="")
-    
-    write_csv(output,
-              Save_Path)
-  }
+    left_join(rfmo_grid,
+              by ="Name") %>% 
+    filter(!is.na(rfmo_name)) %>% # remove non-straddling stocks
+    rowwise() %>%
+    mutate(spp_total = sum(n_cells_territory.x,n_cells_territory,na.rm=T)) %>% # Total gridcelles per Neighbours
+    distinct() %>% # Removes false duplicates from `full_join()`
+    rename(realm = Name,
+           n_cells_realm = n_cells_territory.x,
+           n_cells_rfmo = n_cells_territory) %>%
+    # Estimate if it is straddling by counting the percentage of the distribution in the RFMO
+    mutate(stradling_index = (n_cells_rfmo/spp_total)*100)
+  
+  
+  output <- Area_Index_D %>% 
+    select(taxon_key,
+           realm,
+           rfmo_name,
+           stradling_index)
+  
+  File_Name <- paste(Spp,"_straddling.csv",sep = "")
+  Save_Path <- my_path("R","Straddling_realm_rfmo", File_Name)
+  
+  write_csv(output,
+            Save_Path)
+  
 } # closes function
 
 #Test me  
@@ -581,12 +642,19 @@ Mclapply_Hack <- function(...){
 # DBEM coordinate system
 # complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
 
-# Gabriel's coordinate system
+# Gabriel's coordinate system 
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
   mutate(INDEX = seq(1,259200,1))
 
-# RFMO data
-rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T)
+# RFMO data (REQUIRED)
+rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
+
+# DBEM to MEOW grid (REQUIRED)
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  clean_names()
+
+# Neighboring RFMOs and MEOWs created in previous chunk on July 20
+rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
 
 
 # rfmo_index %>%
@@ -602,23 +670,22 @@ rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T)
 #   geom_sf(data = sf_land, aes())
 
 
-
-rfmo_to_sau <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/RFMO_Index_Code.csv") %>% 
-  filter(Territory %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-  clean_names() %>% 
-  left_join(sau_index_code) %>% 
-  group_by(rfmo = territory,
-           territory = name) %>% 
-  tally() %>% 
-  select(-n)
-
-
 # Neighbouring dataset
-neighbours <- my_path("G","FishForVisa/Data/Spatial/", name = "EEZ_Neighbour_List.xlsx", read = T) %>%
-  clean_names() %>% 
-  rename(eez_id = eezid) %>% 
-  left_join(rfmo_index,
-            by = "index")
+
+
+
+
+# neighbours <- my_path("G","FishForVisa/Data/Spatial/", name = "EEZ_Neighbour_List.xlsx", read = T) %>%
+#   clean_names() %>% 
+#   rename(eez_id = eezid) %>% 
+#   left_join(rfmo_index,
+#             by = "index")
+
+# eez_rfmo_neighoubrs <- neighbours %>% 
+#   group_by(territory,neighbour,rfmo_name) %>% 
+#   tally() %>% 
+#   select(-n) %>% 
+#   filter(!is.na(rfmo_name))
 
 
 # Dataset to match all SAU names
