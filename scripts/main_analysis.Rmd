@@ -380,8 +380,6 @@ GetSppDist=function(Spp,Model,Coord){
 
 ```{r StraddIndexFun, eval = F}
 
-
-
 StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
   
   # Get model data from spps
@@ -649,8 +647,6 @@ Mclapply_Hack <- function(...){
 ### Control pannel
 
 ```{r control_pannel, eva = F}
-# DBEM coordinate system
-# complete_lat_lon <- my_path("Spa", "DBEM","complete_lon_lat_dbem.csv", read = T)
 
 # Gabriel's coordinate system 
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
@@ -666,41 +662,6 @@ meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>%
 # Neighboring RFMOs and MEOWs created in previous chunk on July 20
 rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
 
-
-# rfmo_index %>%
-#   left_join(coords_dbem) %>%
-#   ggplot() +
-#   geom_tile(
-#     aes(
-#       x = lon,
-#       y = lat,
-#       fill = rfmo_name
-#     )
-#   ) +
-#   geom_sf(data = sf_land, aes())
-
-
-# Neighbouring dataset
-
-
-
-
-# neighbours <- my_path("G","FishForVisa/Data/Spatial/", name = "EEZ_Neighbour_List.xlsx", read = T) %>%
-#   clean_names() %>% 
-#   rename(eez_id = eezid) %>% 
-#   left_join(rfmo_index,
-#             by = "index")
-
-# eez_rfmo_neighoubrs <- neighbours %>% 
-#   group_by(territory,neighbour,rfmo_name) %>% 
-#   tally() %>% 
-#   select(-n) %>% 
-#   filter(!is.na(rfmo_name))
-
-
-# Dataset to match all SAU names
-# matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T)
-
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
   # Set same filters as in FishForVisa
@@ -713,24 +674,9 @@ transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/Fi
 # Double check we have 633 species
 length(unique(transboundary_spp$taxon_key)) # 633
 
-
-# Spp <- 600069 #x
-# Model = "All" #x
 coords_dbem <- my_data("dbem_coords")
 
-# SAU relations between INDEX and Country's EEZs
-# First get Vicky's data to get high seas
-# EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
-#   rename(eez_id = eezid)
-# EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-# colnames(EEZ_CellID) <- c("eez_id","index")
-# sau_index_code <- EEZIDs_List %>%  #x
-#   left_join(EEZ_CellID)
-
-
-
-# Raspecies
-
+# Species to ran
 run_species <- list.files(my_path("R","Straddling_realm_rfmo"))
 run_species <- str_sub(run_species,1,6)
 
@@ -741,6 +687,13 @@ run_me <- transboundary_spp %>%
 
 
 ```
+
+
+Methodological points to consider
+
+- RFMOs neighbouring realms from the MEOW
+- THe straddling index accounts for how much of the population is present (as a %) in the RFMO. So if it says 80%, it means that 80% of the population is present in the RFMO and 20% in the realm.
+- A straddling stock is herein defined as a stock that is shared between a REALM (and its EEZs) and a RFMO.
 
 
 ```{r run_me, eval = F}
