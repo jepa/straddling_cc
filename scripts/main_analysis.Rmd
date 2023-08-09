@@ -192,7 +192,7 @@ sf_meow_rfmo <- rbind(sf_rfmo_to_combine,
 
 ## Determine adjacent RFMOs and MEOWS
 
-Code modifioed from FishForVisa
+Code modified from FishForVisa
 
 ```{r funEstNeighbours, eval = F, echo=T}
 
@@ -393,7 +393,8 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
     filter(Model != "SAU_C") %>% 
     mutate(Value = ifelse(Value > 0, 1,0)) %>%  
     group_by(TaxonKey, INDEX) %>%
-    summarise(Model_Index = sum(Value,na.rm=T)/3) %>%
+    summarise(Model_Index = sum(Value,na.rm=T)/3,
+              .groups = "drop") %>%
     filter(Model_Index > 0.4) %>% # at least 2 sources agree
     # ____________ ESTIMATING FUNDAMENTAL NICHE (TRESHOLD 2)_________ #
     left_join(SppDist,
@@ -549,8 +550,16 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
   File_Name <- paste(Spp,"_straddling.csv",sep = "")
   Save_Path <- my_path("R","Straddling_realm_rfmo", File_Name)
   
+  if(nrow(output) >0){
+  
   write_csv(output,
             Save_Path)
+    
+    return(print(paste("Completed analysis for taxon key",Spp)))
+  }else{
+    return(print(paste("Taxon key",Spp,"is not a straddling stock")))
+  }
+  
   
 } # closes function
 
@@ -706,22 +715,22 @@ length(unique(transboundary_spp$taxon_key)) # 633
 
 # Spp <- 600069 #x
 # Model = "All" #x
-coords <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
+coords_dbem <- my_data("dbem_coords")
 
 # SAU relations between INDEX and Country's EEZs
 # First get Vicky's data to get high seas
-EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
-  rename(eez_id = eezid)
-EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
-colnames(EEZ_CellID) <- c("eez_id","index")
-sau_index_code <- EEZIDs_List %>%  #x
-  left_join(EEZ_CellID)
+# EEZIDs_List <- my_path("Spa","DBEM", "Updated_EEZList_17June2016.xlsx", read = T) %>% 
+#   rename(eez_id = eezid)
+# EEZ_CellID <- my_path("Spa","DBEM", "EEZ_CellID.xlsx", read = TRUE)
+# colnames(EEZ_CellID) <- c("eez_id","index")
+# sau_index_code <- EEZIDs_List %>%  #x
+#   left_join(EEZ_CellID)
 
 
 
 # Raspecies
 
-run_species <- list.files(my_path("R","Straddling_rfmo"))
+run_species <- list.files(my_path("R","Straddling_realm_rfmo"))
 run_species <- str_sub(run_species,1,6)
 
 run_me <- transboundary_spp %>% 
@@ -735,8 +744,8 @@ run_me <- transboundary_spp %>%
 
 ```{r run_me, eval = F}
 
-# lapply(run_me, StraddIndex, Model = "All", Coord = coords_dbem, Index_Code = sau_index_code)
-
+# lapply(run_me[1:2], StraddIndex, Model = "All", Coord = coords_dbem, Index_Code = sau_index_code, Neighbours = rfmo_meow)
+# 
 # library(doParallel)
 clb <- makeCluster(10) # total 12
 # registerDoSNOW(cl)
@@ -757,7 +766,8 @@ foreach(i=1:repetitions,
     run_me[i],
     Model = "All",
     Coord = coords,
-    Index_Code = sau_index_code
+    Index_Code = sau_index_code,
+    Neighbours = rfmo_meow
   )
 
 close(pb2)
