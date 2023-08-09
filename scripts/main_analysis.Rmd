@@ -29,6 +29,7 @@ packages <- c(
   # "rgdal", #Spatial analysis
   "tools", #Spatial analysis 
   "parallel", # for parallelization
+  "doParallel", # for parallelization
   # "taxize", # For getting species names
   "rfishbase", # for species ecosystem affinity
   "zoo", #for runing mean
@@ -746,14 +747,14 @@ run_me <- transboundary_spp %>%
 
 # lapply(run_me[1:2], StraddIndex, Model = "All", Coord = coords_dbem, Index_Code = sau_index_code, Neighbours = rfmo_meow)
 # 
-# library(doParallel)
-clb <- makeCluster(10) # total 12
+
+cl <- makeCluster(10) # total 12
 # registerDoSNOW(cl)
 
 repetitions <- length(run_me)
-pb2 <- txtProgressBar(max = repetitions, style = 3)
+pb <- txtProgressBar(max = repetitions, style = 3)
 
-progress <- function(n) setTxtProgressBar(pb2, n)
+progress <- function(n) setTxtProgressBar(pb, n)
 opts <- list(progress = progress)
 
 
@@ -770,8 +771,8 @@ foreach(i=1:repetitions,
     Neighbours = rfmo_meow
   )
 
-close(pb2)
-stopCluster(cl2)
+close(pb)
+stopCluster(cl)
 gc()
 
 ```
