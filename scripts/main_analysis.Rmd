@@ -1011,7 +1011,7 @@ st_crs(sf_meow) = 4326
             # by = "index")
 
 # RFMO regions
-sf_rfmo <- my_sf("RFMO_tuna")
+sf_rfmo <- my_sf("RFMO_tuna",simple = 1)
 
 # rfmo_sf %>%
 #   ggplot() +
@@ -1334,32 +1334,6 @@ ggplot(Species_Data,
 #        units = "in")
 ```
 
-### Non-migratpry straddling species circle
-
-#### Numbers for paper
-```{r}
-
-# Numbers for paper
-# Non Annex I species level
-shared_data %>% 
-  # filter(!taxon_name %in% h_migratory_spp_id$scientific_name) %>% 
-  left_join(meow_dbem_eez) %>% 
-  group_by(common_name) %>% 
-  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
-  arrange(desc(value))
-
-# Non Annex I at all
-
-shared_data %>% 
-  # filter(!taxon_name %in% h_migratory_spp$scientific_name) %>% 
-  left_join(meow_dbem_eez) %>% 
-  group_by(common_name) %>% 
-  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
-  arrange(desc(value))
-
-
-```
-
 
 ## Proportion change
 
@@ -1383,18 +1357,11 @@ data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group){
 }
 
 
-test <- sf_rfmo %>% 
-  group_by(rfmo_name) %>% 
-  summarise(geometry = st_union(geometry))
-
-ggplot(test) +
-  geom_sf(aes(fill =rfmo_name))
-
 
 plot_data <- prop_data %>% 
-  group_by(name,rfmo_area,esm,rcp,change) %>% 
+  group_by(rfmo_name,realm_name,esm,rcp,change) %>% 
   tally() %>% 
-  group_by(name,rfmo_area,rcp,change) %>% 
+  group_by(realm_name,rfmo_name,rcp,change) %>% 
   summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
   filter(!is.na(change))
 
@@ -1412,55 +1379,24 @@ rfmo_centroids$lon <- gsub("\\(","",rfmo_centroids$lon)
 rfmo_centroids$lon <- gsub("c","",rfmo_centroids$lon)
 rfmo_centroids$lat <- gsub(")","",rfmo_centroids$lat)
 
-# Modify annolying points (most of them!)
-rfmo_centroids <- rfmo_centroids %>% 
-  mutate(
-    # modify latitudes
-    lat = ifelse(fao_area == "Pacific, Northeast",50,
-                 ifelse(fao_area == "Pacific, Antarctic",-65,
-                 ifelse(fao_area == "Atlantic, Northwest",50,
-                        ifelse(fao_area == "Atlantic, Antarctic",-65,
-                               ifelse(fao_area == "Arctic Sea",85,
-                                      ifelse(fao_area == "Indian Ocean, Western",-35,
-                                             ifelse(fao_area == "Indian Ocean, Eastern",-45,
-                                                    ifelse(fao_area == "Indian Ocean, Antarctic",-62,lat)
-                                             ))))))),
-    # modify longitudes
-    lon = ifelse(fao_area == "Pacific, Southwest",-135,
-                 ifelse(fao_area == "Pacific, Southeast",-105,
-                        ifelse(fao_area == "Pacific, Antarctic",-135,
-                        ifelse(fao_area == "Pacific, Northwest",160,
-                               ifelse(fao_area == "Pacific, Western Central",170,
-                                      ifelse(fao_area == "Atlantic, Northwest",-45,
-                                             ifelse(fao_area == "Atlantic, Northeast",-20,
-                                                    ifelse(fao_area == "Atlantic, Western Central",-50,
-                                                           ifelse(fao_area == "Atlantic, Southwest",-30,
-                                                                  ifelse(fao_area == "Atlantic, Western Central",-50,
-                                                                         ifelse(fao_area == "Atlantic, Eastern Central",-30,
-                                                                                ifelse(fao_area == "Arctic Sea",-120,
-                                                                                       lon
-                                                                                ))))))))))))
-  )
 
-
-
-ggplot() +
-  geom_sf(data = sf_rfmo, aes(), fill ="white" ) +
-  geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-  geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
-  geom_point(data = rfmo_centroids,
-             aes(
-               x = as.numeric(lon),
-               y = as.numeric(lat),
-               color = rfmo_name
-             )
-  )
+# ggplot() +
+#   geom_sf(data = sf_rfmo %>% sf_simplify, aes(), fill ="white" ) +
+#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
+#   geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
+#   geom_point(data = rfmo_centroids,
+#              aes(
+#                x = as.numeric(lon),
+#                y = as.numeric(lat),
+#                color = rfmo_name
+#              )
+#   )
 
 # Get MEOW and MEOW centroids
 
 meow_centroids <- as.data.frame(st_centroid(sf_meow)) %>% 
   ungroup() %>% 
-  select(realm, geometry) %>% 
+  select(realm_name = realm, geometry) %>% 
   separate(col = geometry, into = c("lon", "lat"), sep = "\\,")
 
 # Remove "c()"
@@ -1470,28 +1406,28 @@ meow_centroids$lat <- gsub(")","", meow_centroids$lat)
 
 
 meow_centroids <- meow_centroids %>% 
-  group_by(name=realm) %>% 
+  group_by(realm_name) %>% 
   summarise(lon = mean(as.numeric(lon)),
             lat = mean(as.numeric(lat)))
 
 # Modify annolying points (most of them!)
 meow_centroids <- meow_centroids %>% 
   mutate(
-    lat = ifelse(name == "Temperate Northern Atlantic",72,
-               ifelse(name == "Western Indo-Pacific",-9,
-                      ifelse(name == "Eastern Indo-Pacific",-4,
-                             ifelse(name == "Southern Ocean",-65,
-                                    ifelse(name == "Temperate South America",-55,lat
+    lat = ifelse(realm_name == "Temperate Northern Atlantic",72,
+               ifelse(realm_name == "Western Indo-Pacific",-9,
+                      ifelse(realm_name == "Eastern Indo-Pacific",-4,
+                             ifelse(realm_name == "Southern Ocean",-65,
+                                    ifelse(realm_name == "Temperate South America",-55,lat
                ))))),
-    lon = ifelse(name == "Arctic",-55,
-                 ifelse(name == "Temperate Northern Pacific",-130,
-                 ifelse(name == "Tropical Eastern Pacific",-90,
-                        ifelse(name == "Eastern Indo-Pacific",95,
-                               ifelse(name == "Temperate South America",-60,
-                                      ifelse(name == "Tropical Atlantic",-55,
-                                             ifelse(name == "Temperate North",42,
-                                                    ifelse(name == "Temperate Northern Atlantic",42,
-                                                           ifelse(name == "Western Indo-Pacific",47,lon
+    lon = ifelse(realm_name == "Arctic",-55,
+                 ifelse(realm_name == "Temperate Northern Pacific",-130,
+                 ifelse(realm_name == "Tropical Eastern Pacific",-90,
+                        ifelse(realm_name == "Eastern Indo-Pacific",95,
+                               ifelse(realm_name == "Temperate South America",-60,
+                                      ifelse(realm_name == "Tropical Atlantic",-55,
+                                             ifelse(realm_name == "Temperate North",42,
+                                                    ifelse(realm_name == "Temperate Northern Atlantic",42,
+                                                           ifelse(realm_name == "Western Indo-Pacific",47,lon
                         )))))))))
   )
 
@@ -1520,14 +1456,15 @@ Data <-
   plot_data %>% 
   # get coords for sources
   left_join(meow_centroids,
-            by = "name") %>%
-  rename(source = name,
-         start_lon = lon,
+            by = "realm_name") %>%
+  rename(start_lon = lon,
          start_lat = lat) %>% 
   # get coords for targets
-  left_join(fao_centroids,
-            by = "fao_area") %>%
-  rename(target = fao_area,
+  left_join(rfmo_centroids,
+            by = "rfmo_name") %>%
+  rename(
+    source = rfmo_name,
+    target = realm_name,
          end_lon = lon,
          end_lat = lat) %>% 
   ungroup() %>% 
@@ -1562,23 +1499,25 @@ arrows_data <- as.data.frame(st_coordinates(st_cast(sf_ready_plot,"POINT")$geome
   bind_cols(data_ready_plot)
 
 ggplot() +
-  geom_sf(data = sf_fao, aes(), fill ="white" ) +
+  # geom_sf(data = sf_rfmo, aes(), fill ="white" ) +
   geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes()) +
   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-  geom_point(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
-  geom_text(data = fao_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = fao_area)) +
+  geom_point(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
+  geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
   geom_point(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
-  geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = name), color = "blue") +
+  geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = realm_name)) +
   geom_path(data = arrows_data %>% filter(rcp == "rcp85"),
             aes(X, 
                 Y,
                 group = group,
                 color = change,
-                # size = mean_n_shifts
+                size = mean_n_shifts
             ),
             # size = 1,
             arrow = arrow(length = unit(0.01, "npc"),ends = "first"),
-            show.legend = NA)
+            show.legend = NA) +
+  facet_wrap(~change,
+             ncol =1)
 
 
 
@@ -1592,9 +1531,9 @@ ggplot() +
 
 # Prepare data
 sankey_df <- prop_data %>% 
-  group_by(name,period,change,fao_area,esm,rcp) %>% 
+  group_by(realm_name,period,change,rfmo_name,esm,rcp) %>% 
   tally() %>% 
-  group_by(name,period,change,fao_area,rcp) %>% 
+  group_by(realm_name,period,change,rfmo_name,rcp) %>% 
   summarise(n = round(mean(n))) %>% 
   filter(rcp == "rcp85") 
 
