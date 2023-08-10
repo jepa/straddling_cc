@@ -37,6 +37,7 @@ packages <- c(
   "rnaturalearth", # For maps
   "R.matlab", # For Gabs distributions
   "parallel",
+  "viridis",
   # Juanitos map
   "zeallot",
   "geosphere",
@@ -1192,11 +1193,10 @@ shared_data %>%
 ```{r}
 
 Species_Data <- shared_data %>% 
-  left_join(meow_dbem_eez) %>% 
-  group_by(common_name,group = realm) %>% 
-  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
-  group_by(group) %>%
-  top_n(10,value) # select the top 50% shared species
+  mutate(combo = paste0(realm,"_",rfmo_name)) %>% 
+  group_by(group = common_name) %>% 
+  summarise(value = length(unique(combo))) %>%
+  top_frac(0.15,value)
 
 
 label_data <- Species_Data
@@ -1245,16 +1245,10 @@ median_data <- grid_data %>%
   mutate_at(vars(start,end),
             .funs = as.numeric)
 
-Seq_axis_spp <- seq(5,65,20)
+Seq_axis_spp <- seq(0,30,10)
 Plot_Limit <- max(Species_Data$value,na.rm=T)
 Ticks_Color <- "black"
   
-# Plot final data
-Plot_Species_Data <- Species_Data %>%
-  left_join(high_mig_spp) %>% 
-  mutate(category = ifelse(is.na(cat),"straddling","high migr."))
-
-
 
 
 # Spp_circular <- 
@@ -1271,17 +1265,17 @@ ggplot(Species_Data,
            alpha=0.5) +
   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
   geom_segment(data=grid_data, 
-               aes(x = end, y = 65, xend = start, yend = 65), 
+               aes(x = end, y = 30, xend = start, yend = 30), 
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   geom_segment(data=grid_data,
-               aes(x = end, y = 45, xend = start, yend = 45),  
+               aes(x = end, y = 20, xend = start, yend = 20),  
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   geom_segment(data=grid_data, 
-               aes(x = end, y = 25, xend = start, yend = 25),  
+               aes(x = end, y = 10, xend = start, yend = 10),  
                colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  geom_segment(data=grid_data,
-               aes(x = end, y = 5, xend = start, yend = 5),
-               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  # geom_segment(data=grid_data,
+  #              aes(x = end, y = 5, xend = start, yend = 5),
+  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
   # Add median lines for each gropup
   geom_segment(data=median_data, 
                aes(x = end, y = median, xend = start+5, yend = median, colour = group),
@@ -1290,7 +1284,7 @@ ggplot(Species_Data,
   annotate("text", 
            x = rep(max(Species_Data$id),4),
            y = Seq_axis_spp,
-           label = c("5","25","45","65"),
+           label = Seq_axis_spp,
            color=Ticks_Color, 
            size=3, 
            angle=0, 
@@ -1303,8 +1297,8 @@ ggplot(Species_Data,
            alpha=0.5) +
   # Species names
   geom_text(data=label_data,
-            aes(x=id, y= 66,
-                label = common_name,
+            aes(x=id, y= 30,
+                label = group,
                 hjust = hjust), 
             color="black",
             fontface="italic",
@@ -1312,22 +1306,12 @@ ggplot(Species_Data,
             size=3,
             angle= label_data$angle,
             inherit.aes = FALSE) +
-  # Add base line information
-  # geom_segment(data=base_data, 
-  #              aes(x = start, 
-  #                  y = -5, 
-  #                  xend = end, 
-  #                  yend = -5
-  #              ), 
-  #              colour = "black",
-  #              alpha=0.8, 
-  #              size=0.6 , 
-  #              inherit.aes = FALSE) +
-  ylim(-50,105) + # sets the circle the first value the central the last value how wide
+  ylim(-10,105) + # sets the circle the first value the central the last value how wide
   theme_bw() +
   theme(
     # legend.position = c(1,0.11),
-    legend.position = c(0.50,0.5),
+    # legend.position = c(0.50,0.5),
+    legend.position = c(0,0),
     legend.text = element_text(size = 7),
     legend.title.align = 0.4,
     legend.title = element_text(size = 16, face = "bold"),
@@ -1339,15 +1323,15 @@ ggplot(Species_Data,
   ) +
   coord_polar() +
   scale_fill_viridis("EEZs in Realm",option="magma",discrete = T) +
-  scale_color_viridis("EEZs in Realm",option="magma",discrete = T) +
-  guides(fill=guide_legend(ncol=2))
+  scale_color_viridis("EEZs in Realm",option="magma",discrete = T) #+
+  # guides(fill=guide_legend(ncol=2))
 
 # Save plot
-ggsave(filename = "./results/figures/species_ohi_rfmo.jpg",
-       plot = last_plot(),
-       width = 12,
-       height = 12,
-       units = "in")
+# ggsave(filename = "./results/figures/species_ohi_rfmo.jpg",
+#        plot = last_plot(),
+#        width = 12,
+#        height = 12,
+#        units = "in")
 ```
 
 ### Non-migratpry straddling species circle
