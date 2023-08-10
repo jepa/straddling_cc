@@ -42,7 +42,8 @@ packages <- c(
   "zeallot",
   "geosphere",
   # Sankey network
-  "networkD3"
+  "networkD3",
+  "circlize"
 )
 
 my_lib(packages)
@@ -1531,37 +1532,43 @@ ggplot() +
 
 # Prepare data
 sankey_df <- prop_data %>% 
-  group_by(realm_name,period,change,rfmo_name,esm,rcp) %>% 
+  group_by(period,esm,rcp,rfmo_name,change,realm_name) %>% 
   tally() %>% 
-  group_by(realm_name,period,change,rfmo_name,rcp) %>% 
+  group_by(period,rcp,rfmo_name,change,realm_name) %>% 
   summarise(n = round(mean(n))) %>% 
-  filter(rcp == "rcp85") 
+  filter(rcp == "rcp85") %>% 
+  mutate(
+    realm_name = str_replace(realm_name,"Southern","S."),
+         realm_name = str_replace(realm_name,"Northern","N."),
+         realm_name = str_replace(realm_name, "Western", "W."),
+         realm_name = str_replace(realm_name,"Eastern", "E.")
+  )
 
 # Get nodes (name of zones)
-nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = fao_area)%>% pull(node) %>% unique()))
+nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = realm_name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = rfmo_name)%>% pull(node) %>% unique()))
 
 
 # get ids (identify each region by number)
 ids <- nodes %>% 
   rowid_to_column("id") %>% 
-  rename(fao_area = name) %>% 
+  rename(realm_name = name) %>% 
   bind_cols(nodes) %>% 
   mutate(
-    region = ifelse(name %in% sankey_df$name,"name","fao_area")
+    region = ifelse(name %in% sankey_df$realm_name,"realm_name","rfmo_name")
   ) %>% 
-  select(id,name,region)
+  select(id,realm_name,region)
 
 
 
 # Create links (source and target data)
 links <- sankey_df %>% 
   left_join(ids,
-            by = "name") %>% 
+            by = "realm_name") %>% 
   # View()
-  rename(nameb = name) %>%
-  rename(name = fao_area) %>%
+  rename(nameb = realm_name) %>%
+  rename(realm_name = rfmo_name) %>%
   left_join(ids,
-            by = "name") %>% 
+            by = "realm_name") %>% 
   ungroup() %>% 
   filter(period == "mid") %>%
   select(source = id.x,
@@ -1628,46 +1635,86 @@ Resources:
 ```{r}
 library(circlize)
 
-test_data <- sankey_df %>% 
+# Gain Data
+circle_data <-
+  sankey_df %>% 
   filter(period == "ear",
-         change == "same") %>% 
-  ungroup() %>% 
-  mutate(name = gsub(" ","\n",name),
-         name = gsub("-","\n",name),
-         fao_area = gsub(" ","\n",fao_area),
-         fao_area = gsub(",","",fao_area)
+         change == "gain"
+         # change == "lost"
          ) %>% 
+  mutate(name = str_replace(realm_name," ", "\n")) %>% 
+  ungroup() %>% 
   select(rowname = name,
-         key = fao_area,
+         key = rfmo_name,
          value = n)
 
 
 # Color scale for gains
+
+# length(unique(circle_data$key)) #5
+# length(unique(circle_data$rowname)) #12
+
+# Total colors 17
 mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(27-12, alpha = 1, begin = 0, end = 1, option = "F")
-             )
-# Color scale for loses
-mycolor_l <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(24-11, alpha = 1, begin = 0, end = 1, option = "F")
+             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
-# Color scale for no change
-mycolor_s <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(27-12, alpha = 1, begin = 0, end = 1, option = "F")
-             )
-
+# png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
+png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
 chordDiagram(
-  x = test_data, 
-  # grid.col = mycolor_g,
-  # grid.col = mycolor_l,
-  grid.col = mycolor_s,
-  # directional = 1,
-  # direction.type = c("arrows", "diffHeight"),
-  # link.arr.type = "big.arrow",
+  x = circle_data, 
+  grid.col = mycolor_g,
+  directional = 1, #gains
+  # directional = -1, #lost
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
   link.sort = TRUE,
   link.largest.ontop = TRUE,
-  transparency = 0.25
+  transparency = 0.30,
+  scale = F,
+  symmetric = F,
+  big.gap = 5
 )
+dev.off() 
+
+
+
+# Gain Data
+net_change <-
+  sankey_df %>% 
+  filter(period == "ear") %>% 
+  pivot_wider(
+    names_from = change,
+    values_from = n) %>% 
+mutate(name = str_replace(realm_name," ", "\n"),
+         value = gain - lost,
+       rowname_b = ifelse(value > 0,name,rfmo_name),
+       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+    # View()
+  ungroup() %>% 
+  select(rowname = rowname_b,
+         key = key_b,
+         value)
+
+mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
+             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
+             )
+
+
+png("./results/figures/circular_net.png", width = 1200, height = 1200, res = 150, units = "px")
+chordDiagram(
+  x = net_change, 
+  grid.col = mycolor_g,
+  directional = 1, 
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
+  link.sort = F,
+  link.largest.ontop = TRUE,
+  transparency = 0.30,
+  scale = F,
+  symmetric = F
+  )
+dev.off() 
 
 
 ```
@@ -1705,10 +1752,9 @@ sankey_df <-
 ```
 
 
+# Old code 
 
 ```{r}
-
-
 
 
 
@@ -1736,7 +1782,7 @@ sf_fao_lab <-
 ```
 
 
-# Old code 
+
 
 ### Highly migratpry speices
 
