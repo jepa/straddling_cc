@@ -1021,6 +1021,8 @@ sf_rfmo <- my_sf("RFMO_tuna",simple = 1)
 # rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T) 
   
 
+sf_eez <- my_sf("SAU", simple = 0.1)
+
 #-----------------# 
 ## Spp related   ##
 #-----------------# 
@@ -1095,20 +1097,19 @@ sf_meow_map <- sf_meow %>%
 map_rfmo_stradd <- ggplot() + 
   geom_sf(data = sf_rfmo %>%  left_join(stradd_rfmo), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
-  geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
-  scale_fill_viridis_c("Straddling spp.\n(n)", na.value = "white") +
-  # scale_color_viridis_c("Straddling spp.\n(n)", na.value = "white") +
-  theme_bw() +
-  theme(legend.title.align = 0.5) 
+  geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey70") +
+  scale_fill_viridis_c("Straddling stocks\n(n)", na.value = "white") +
+  my_ggtheme_m(leg_pos = "right") +
+  theme(legend.title.align = 0.5)
 
 # Save plot 
-ggsave("./results/figures/straddling_id/straddling_species_rfmo_new.png",
+ggsave("./results/figures/to_paper/fig_1.png",
        map_rfmo_stradd,
-       height = 6,
-       width = 12
+       height = 5,
+       width = 11
 )
 
-```
+ ```
 
 #### Straddling catch and revenue
 
