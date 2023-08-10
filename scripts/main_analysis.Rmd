@@ -765,7 +765,7 @@ This function is the main analysis estimating the proportion change above histor
 
 ```{r estimate_proportion, eval = F}
 # 
-taxon_key <- 600069
+# taxon_key <- 600069
 # taxon_key <- 600143
 
 
@@ -918,8 +918,8 @@ taxon_proportion <- function(taxon_key){
   
 }
 
-taxon_proportion(600069)
-gc()
+# taxon_proportion(600069)
+# gc()
 ```
 
 ### Control pannel
@@ -961,9 +961,9 @@ stradd_data <- bind_rows(
 
 ```{r proportion_call, eval = F}
 
-# suppressMessages(
-# taxon_proportion(taxon_key = 600143)
-# )
+
+# taxon_proportion(taxon_key = 600069)
+
 
 
 # suppressMessages(
@@ -985,70 +985,7 @@ suppressMessages(
 
 # Results
 
-## Functions needed
-
 ## Data needed
-
-### Highly migratpry speices
-
-Annex I Highly migratory species https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
-
-```{r un_highly_mig_spp, eval = F}
-
-# CANCELLED CHUNK
-
-# List of SAU species
-exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
-
-
-# Families
-un_families <- c("Bramidae","Alopiidae","Carcharhinidae","Sphyrnidae","Isurida")
-
-for(i in 1:length(un_families)){
-  fam <- un_families[i]
-  
-  fishbase_df <- fb_tbl("species") %>% 
-    mutate(Family = fam) %>% 
-    select(Genus, Species, FBname, reffered_as = Family) %>% 
-    mutate(scientific_name = paste(Genus,Species)) %>% 
-    select(scientific_name,reffered_as)
-  
-  if(i == 1){
-    output <-  fishbase_df
-  }else{
-    output <- bind_rows(output,fishbase_df)
-  }
-}
-
-
-un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
-                                             "Auxis thazard", "Auxis rochei", 
-                                             "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
-                                             
-                                             "Istiophorus platypterus","Istiophorus albicans",
-                                             "Xiphias gladius",
-                                             "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
-                                             "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
-                         reffered_as = c(
-                           rep("Tuna",9),
-                           "Frigate mackerel","Frigate mackerel",
-                           rep("Marlin",9),
-                           "Sail-fish","Sail-fish",
-                           "Sword-fish",
-                           rep("Saury",4),
-                           rep("Shark",3)
-                         )) %>% 
-  mutate(source = "species")
-
-
-
-h_migratory_spp <- bind_rows(output,
-                             un_species) %>% 
-  group_by(scientific_name,source) %>% 
-  tally() %>% 
-  mutate(cat = "high_mig")
-
-```
 
 ```{r results_data, eva; = T}
 
@@ -1057,32 +994,29 @@ h_migratory_spp <- bind_rows(output,
 #-----------------# 
 
 # SAU relations between INDEX and Country's EEZs
-sau_index_code <- my_data("sau_index")
+# sau_index_code <- my_data("sau_index")
 
 #world land 
-sf_land <- ne_countries(scale = 'small', returnclass = c("sf")) %>% 
-  st_transform(crs = 4326) 
+sf_land <- ne_countries(scale = 'small', returnclass = c("sf")) %>%
+  st_transform(crs = 4326)
 
 # meows
 sf_meow <- my_sf("MEOW") %>% 
   clean_names()
 st_crs(sf_meow) = 4326
 
-meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
-  left_join(sau_index_code,
-            by = "index")
+# meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  # left_join(sau_index_code,
+            # by = "index")
 
 # RFMO regions
-sf_rfmo <- my_sf("RFMO", simple = 1) %>% 
-  filter(RFMO_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-  dplyr::rename(rfmo_name = RFMO_nm_s)
-st_crs(sf_rfmo) = 4326
+sf_rfmo <- my_sf("RFMO_tuna")
 
 # rfmo_sf %>%
 #   ggplot() +
 #   geom_sf(aes(fill = RFMO_nm_s))
 
-rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T) 
+# rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T) 
   
 
 #-----------------# 
@@ -1094,7 +1028,7 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 ## Straddling species ##
 # Spp list
-spp_complete <- list.files(my_path("R","Straddling_rfmo/"))
+spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Get straddling stocks
@@ -1106,21 +1040,12 @@ shared_data <- bind_rows(
 
 
 # Get proportion analysis
-
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
-
 
 # Get straddling stocks
 prop_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "prop")
-) %>% 
-  # left_join(un_species) %>% 
-  mutate(#category = ifelse(is.na(cat),"strad","high_mig"),
-         rcp = ifelse(rcp == "rcp6F","rcp26",
-                      ifelse(rcp == "rcp5F","rcp85",rcp
-                      )
-         )
   )
 
 ```
@@ -1135,57 +1060,47 @@ prop_data <- bind_rows(
 # Scaling function for plot
 scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
-# Get MEOW and EEZs
-meow_dbem_eez <- meow_dbem_grid %>% 
-  group_by(realm,eez_name) %>% 
-  tally() %>% 
-  select(-n)
+# Get MEOW and EEZs (REMOVE)
+# meow_dbem_eez <- meow_dbem_grid %>% 
+#   group_by(realm,eez_name) %>% 
+#   tally() %>% 
+#   select(-n)
 
 # Number of straddling stocks by MEOW
 strad_meow <- shared_data %>% 
-  left_join(meow_dbem_eez) %>% 
-  # View()
   group_by(realm) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by RFMO
-rfmo_meow <- meow_dbem_grid %>% 
-  left_join(rfmo_index) %>% 
-  group_by(realm,rfmo_name) %>%
-  filter(!is.na(rfmo_name)) %>% 
-  tally() %>% 
-  select(-n)
-
-strad_rfmo <- shared_data %>%
-  # filter(fao_name == "Indian Ocean, Eastern") %>% 
-  left_join(meow_dbem_eez) %>% 
+stradd_rfmo <- shared_data %>% 
   group_by(rfmo_name) %>%
-  # Estimate number of species per fao name and ecoregion (stock)
-  summarise(n = length(unique(taxon_key)))%>% 
-  # Add number of stocks per FAO region
-  # group_by(fao_name)  %>% 
-  # summarise(n = sum(n)) %>% 
+  summarise(n = length(unique(taxon_key))) %>% 
+  mutate(scale_n = scaling(n))
+
+# Number of straddling stocks by RFMO and Realm
+rfmo_realm <- shared_data %>% 
+  group_by(rfmo_name,realm) %>% 
+  summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Map it
-
-sf_meow_map <-sf_meow %>% 
+sf_meow_map <- sf_meow %>% 
   group_by(realm) %>% 
   tally() %>% 
   select(-n)
 
 map_rfmo_stradd <- ggplot() + 
-  geom_sf(data = sf_rfmo %>%  left_join(strad_rfmo), aes(fill = n,color = n)) +
+  geom_sf(data = sf_rfmo %>%  left_join(stradd_rfmo), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "grey30", color = "grey30") +
   scale_fill_viridis_c("Straddling spp.\n(n)", na.value = "white") +
-  scale_color_viridis_c("Straddling spp.\n(n)", na.value = "white") +
+  # scale_color_viridis_c("Straddling spp.\n(n)", na.value = "white") +
   theme_bw() +
   theme(legend.title.align = 0.5) 
 
 # Save plot 
-ggsave("./results/figures/straddling_id/straddling_species_rfmo.png",
+ggsave("./results/figures/straddling_id/straddling_species_rfmo_new.png",
        map_rfmo_stradd,
        height = 6,
        width = 12
@@ -1263,9 +1178,10 @@ sau_catch_data %>%
 
 ```{r}
 shared_data %>% 
-  left_join(meow_dbem_eez) %>% 
-  group_by(common_name,rfmo_name) %>% 
-  summarise(value = length(unique(territory))) %>%   # number of eezs sharing the stock
+  mutate(combo = paste0(realm,"_",rfmo_name)) %>% 
+  group_by(common_name) %>% 
+  summarise(value = length(unique(combo))) %>%
+  # View()
   top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
@@ -1274,7 +1190,6 @@ shared_data %>%
 ### Straddling species circle
 
 ```{r}
-
 
 Species_Data <- shared_data %>% 
   left_join(meow_dbem_eez) %>% 
@@ -1897,3 +1812,66 @@ sf_fao_lab <-
 
 ```
 
+
+# Old code 
+
+### Highly migratpry speices
+
+Annex I Highly migratory species https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
+
+```{r un_highly_mig_spp, eval = F}
+
+# CANCELLED CHUNK
+
+# List of SAU species
+exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
+
+
+# Families
+un_families <- c("Bramidae","Alopiidae","Carcharhinidae","Sphyrnidae","Isurida")
+
+for(i in 1:length(un_families)){
+  fam <- un_families[i]
+  
+  fishbase_df <- fb_tbl("species") %>% 
+    mutate(Family = fam) %>% 
+    select(Genus, Species, FBname, reffered_as = Family) %>% 
+    mutate(scientific_name = paste(Genus,Species)) %>% 
+    select(scientific_name,reffered_as)
+  
+  if(i == 1){
+    output <-  fishbase_df
+  }else{
+    output <- bind_rows(output,fishbase_df)
+  }
+}
+
+
+un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
+                                             "Auxis thazard", "Auxis rochei", 
+                                             "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                             
+                                             "Istiophorus platypterus","Istiophorus albicans",
+                                             "Xiphias gladius",
+                                             "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                             "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                         reffered_as = c(
+                           rep("Tuna",9),
+                           "Frigate mackerel","Frigate mackerel",
+                           rep("Marlin",9),
+                           "Sail-fish","Sail-fish",
+                           "Sword-fish",
+                           rep("Saury",4),
+                           rep("Shark",3)
+                         )) %>% 
+  mutate(source = "species")
+
+
+
+h_migratory_spp <- bind_rows(output,
+                             un_species) %>% 
+  group_by(scientific_name,source) %>% 
+  tally() %>% 
+  mutate(cat = "high_mig")
+
+```
