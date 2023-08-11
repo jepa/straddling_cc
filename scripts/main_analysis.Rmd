@@ -768,7 +768,7 @@ This function is the main analysis estimating the proportion change above histor
 ```{r estimate_proportion, eval = F}
 # 
 # taxon_key <- 600069
-# taxon_key <- 600143
+taxon_key <- 600107
 
 
 taxon_proportion <- function(taxon_key){
@@ -776,7 +776,6 @@ taxon_proportion <- function(taxon_key){
   print(taxon_key)
   
   stradd_data <- GetResults(taxon_key)
-  
   # category <- unique(stradd_data$cat)
   
   rfmo_areas <- stradd_data %>% 
@@ -824,7 +823,7 @@ taxon_proportion <- function(taxon_key){
         group_by(year,name) %>% 
         summarise(total_zone_abd = sum(value,na.rm = T),
                   .groups = "drop") %>% 
-        mutate(taxon_key = taxon_key)
+        mutate(taxon_key = as.integer(taxon_key))
       
       # Estimate proportions of each region
       
@@ -832,7 +831,11 @@ taxon_proportion <- function(taxon_key){
       rfmo_values <- spp_data_area %>% 
         filter(name %in% stradd_data$rfmo_name) %>% 
         rename(rfmo_total_zone_abd = total_zone_abd,
-               rfmo_name = name)
+               rfmo_name = name) %>% 
+        left_join(stradd_data,
+                  by = c("rfmo_name","taxon_key"),
+                  relationship = "many-to-many") %>% 
+        rename(realm_name = realm)
       
       # Realms values
       realm_values <- spp_data_area %>% 
@@ -843,7 +846,7 @@ taxon_proportion <- function(taxon_key){
       
       # combine both regions to estimate proportions
     spp_proportion <- left_join(rfmo_values,realm_values,
-                by = join_by("year", "taxon_key")
+                by = join_by("year", "taxon_key","realm_name")
                 ) %>% 
         mutate(region_total = rfmo_total_zone_abd+realm_total_zone_abd) %>% 
         mutate(per_rfmo = rfmo_total_zone_abd/region_total*100) # done with RFMO 
@@ -854,10 +857,12 @@ taxon_proportion <- function(taxon_key){
       #     aes(
       #       x = as.numeric(year),
       #       y = per_rfmo,
-      #       fill = name
+      #       fill = realm
       #       # fill = high_mig_spa
       #     )
-      #   )
+      #   ) +
+      #   facet_wrap(~rfmo_name)
+        
       
       # Estimate changes in abd proportion
       
@@ -879,11 +884,11 @@ taxon_proportion <- function(taxon_key){
         )
         ) %>% 
         filter(!is.na(period)) %>% 
-        group_by(taxon_key,rfmo_name,period) %>% 
+        group_by(taxon_key,rfmo_name,realm_name,period) %>% 
         summarise(mean = mean(per_rfmo, na.rm = T),
                   .groups = "drop") %>% 
         left_join(hs_historical_means,
-                  by = c("taxon_key","rfmo_name"),
+                  by = c("taxon_key","rfmo_name","realm_name"),
                   relationship = "many-to-many") %>% 
         mutate(change = ifelse(mean > top_tresh,"gain",
                                ifelse(mean < low_tresh,"lost","same")
@@ -920,7 +925,7 @@ taxon_proportion <- function(taxon_key){
   
 }
 
-# taxon_proportion(600069)
+taxon_proportion(600006)
 # gc()
 ```
 
@@ -954,7 +959,8 @@ stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 stradd_data <- bind_rows(
   lapply(stradling_spp,GetResults)
-)
+) %>% 
+  mutate(taxon_key = as.character(taxon_key))
 
 ```
 
@@ -969,11 +975,11 @@ stradd_data <- bind_rows(
 
 
 # suppressMessages(
-#   lapply(stradling_spp,
+#   lapply(stradling_spp[1:2],
 #          taxon_proportion)
 # )
 
-# Parralelization
+# Parallelization
 
 
 suppressMessages(
@@ -1050,7 +1056,8 @@ stradling_spp <- str_replace(spp_complete,"\\_.*","")
 # Get straddling stocks
 prop_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "prop")
-  )
+  ) %>% 
+  filter(mean > 0)
 
 ```
 
@@ -1640,8 +1647,8 @@ library(circlize)
 circle_data <-
   sankey_df %>% 
   filter(period == "ear",
-         change == "gain"
-         # change == "lost"
+         # change == "gain"
+         change == "lost"
          ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
   ungroup() %>% 
@@ -1660,13 +1667,13 @@ mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
              viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
-# png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
+png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
+# png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
 chordDiagram(
   x = circle_data, 
   grid.col = mycolor_g,
-  directional = 1, #gains
-  # directional = -1, #lost
+  # directional = 1, #gains
+  directional = -1, #lost
   direction.type = c("diffHeight","arrows"),
   link.arr.type = "big.arrow",
   link.sort = TRUE,
@@ -1695,14 +1702,16 @@ mutate(name = str_replace(realm_name," ", "\n"),
   ungroup() %>% 
   select(rowname = rowname_b,
          key = key_b,
-         value)
+         value) %>% 
+  filter(value != 0)
 
 mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
+             viridis(4, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
 
 png("./results/figures/circular_net.png", width = 1200, height = 1200, res = 150, units = "px")
+
 chordDiagram(
   x = net_change, 
   grid.col = mycolor_g,
