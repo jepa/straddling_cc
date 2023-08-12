@@ -768,7 +768,7 @@ This function is the main analysis estimating the proportion change above histor
 ```{r estimate_proportion, eval = F}
 # 
 # taxon_key <- 600069
-taxon_key <- 600107
+taxon_key <- 600088
 
 
 taxon_proportion <- function(taxon_key){
@@ -787,7 +787,7 @@ taxon_proportion <- function(taxon_key){
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
-    # m = 1
+    m = 1
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
@@ -849,7 +849,8 @@ taxon_proportion <- function(taxon_key){
                 by = join_by("year", "taxon_key","realm_name")
                 ) %>% 
         mutate(region_total = rfmo_total_zone_abd+realm_total_zone_abd) %>% 
-        mutate(per_rfmo = rfmo_total_zone_abd/region_total*100) # done with RFMO 
+        mutate(per_rfmo = rfmo_total_zone_abd/region_total*100) %>%  # done with RFMO 
+      filter(region_total >0) # Remove cases where there is no catch data in any area
       
       # How it looks
       # ggplot(spp_proportion) +
