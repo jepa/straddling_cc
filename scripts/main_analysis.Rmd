@@ -4,7 +4,7 @@ author: "Juliano Palacios-Abrantes"
 date: '2022-04-20'
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -768,7 +768,7 @@ This function is the main analysis estimating the proportion change above histor
 ```{r estimate_proportion, eval = F}
 # 
 # taxon_key <- 600069
-taxon_key <- 600088
+# taxon_key <- 600088
 
 
 taxon_proportion <- function(taxon_key){
@@ -787,7 +787,7 @@ taxon_proportion <- function(taxon_key){
   to_read <- paste0(taxon_key,"Abd.RData")
   
   for(m in 1:6){
-    m = 1
+    # m = 1
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
@@ -845,12 +845,12 @@ taxon_proportion <- function(taxon_key){
       
       
       # combine both regions to estimate proportions
-    spp_proportion <- left_join(rfmo_values,realm_values,
-                by = join_by("year", "taxon_key","realm_name")
-                ) %>% 
+      spp_proportion <- left_join(rfmo_values,realm_values,
+                                  by = join_by("year", "taxon_key","realm_name")
+      ) %>% 
         mutate(region_total = rfmo_total_zone_abd+realm_total_zone_abd) %>% 
         mutate(per_rfmo = rfmo_total_zone_abd/region_total*100) %>%  # done with RFMO 
-      filter(region_total >0) # Remove cases where there is no catch data in any area
+        filter(region_total >0) # Remove cases where there is no catch data in any area
       
       # How it looks
       # ggplot(spp_proportion) +
@@ -863,7 +863,7 @@ taxon_proportion <- function(taxon_key){
       #     )
       #   ) +
       #   facet_wrap(~rfmo_name)
-        
+      
       
       # Estimate changes in abd proportion
       
@@ -893,8 +893,8 @@ taxon_proportion <- function(taxon_key){
                   relationship = "many-to-many") %>% 
         mutate(change = ifelse(mean > top_tresh,"gain",
                                ifelse(mean < low_tresh,"lost","same")
-                               )
-               ) 
+        )
+        ) 
       
       
       # Incorporate rcp and esm info to data
@@ -926,7 +926,7 @@ taxon_proportion <- function(taxon_key){
   
 }
 
-taxon_proportion(600006)
+# taxon_proportion(600006)
 # gc()
 ```
 
@@ -1006,7 +1006,7 @@ suppressMessages(
 # sau_index_code <- my_data("sau_index")
 
 #world land 
-sf_land <- ne_countries(scale = 'small', returnclass = c("sf")) %>%
+sf_land <- ne_countries(scale = 'large', returnclass = c("sf")) %>%
   st_transform(crs = 4326)
 
 # meows
@@ -1014,21 +1014,24 @@ sf_meow <- my_sf("MEOW") %>%
   clean_names()
 st_crs(sf_meow) = 4326
 
-# meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
-  # left_join(sau_index_code,
-            # by = "index")
-
 # RFMO regions
 sf_rfmo <- my_sf("RFMO_tuna",simple = 1)
 
-# rfmo_sf %>%
-#   ggplot() +
-#   geom_sf(aes(fill = RFMO_nm_s))
-
-# rfmo_index <- my_path("D","/Spatial/","RFMO_Index_Code.csv", read = T) 
-  
-
+# SAU shapefile
 sf_eez <- my_sf("SAU", simple = 0.1)
+
+# SAU index table
+sau_index_code <- my_data("sau_index")
+
+# SAU eez to fishing entity
+sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/sau_matching_names.csv") %>% 
+  select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
+
+
+
+
+
+
 
 #-----------------# 
 ## Spp related   ##
@@ -1057,11 +1060,39 @@ stradling_spp <- str_replace(spp_complete,"\\_.*","")
 # Get straddling stocks
 prop_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "prop")
-  ) %>% 
-  filter(mean > 0)
+  )
+
+
+
+#### Catch data
+
+rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
+  my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
+  # my_path("D","SAU/catch/iccat",),
+  my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
+  my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
+  )
+
+
+rfmo_catch <- bind_rows(
+  lapply(rfmo_list, read_csv)) %>% 
+  filter(scientific_name %in% unique(shared_data$taxon_name)) %>% 
+  group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>% 
+  #adds up gear type, fishing sectors, catch type and reporting
+  summarise_at(.vars = c("tonnes","landed_value"),
+               .funs = sum) %>% 
+  # Average last 10 years of data
+  filter(year >= 2007) %>% 
+  group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>% 
+  summarise_at(.vars = c("tonnes","landed_value"),
+               .funs = mean,
+               na.rm = T) %>% 
+  filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
+         !(common_name == "Japanese anchovy" & fishing_entity == "China"),
+         !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
+         ) #remove wrong data as per personal communication with Deng P.
 
 ```
-
 
 ## Straddling identification
 
@@ -1103,84 +1134,19 @@ sf_meow_map <- sf_meow %>%
   select(-n)
 
 map_rfmo_stradd <- ggplot() + 
-  geom_sf(data = sf_rfmo %>%  left_join(stradd_rfmo), aes(fill = n)) +
+  geom_sf(data = sf_rfmo %>% left_join(stradd_rfmo), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
-  geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey70") +
-  scale_fill_viridis_c("Straddling stocks\n(n)", na.value = "white") +
-  my_ggtheme_m(leg_pos = "right") +
-  theme(legend.title.align = 0.5)
+  geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
+  scale_fill_viridis_c("Stocks\n(n)", na.value = "white",
+                       limits = c(20,100)) +
+  my_ggtheme_m(leg_pos = "right")
 
 # Save plot 
-ggsave("./results/figures/to_paper/fig_1.png",
+ggsave("../results/figures/fig_1.png",
        map_rfmo_stradd,
        height = 5,
        width = 11
 )
-
- ```
-
-#### Straddling catch and revenue
-
-##### Data from SAU
-
-
-```{r}
-sau_catch_data <- read.csv("/Volumes/Enterprise/Data/SAU/SAUCatch_FE_EEZ_FAO_taxa_sector_29May2020.csv")
-
-sau_eez_fes <- read.csv("/Volumes/Enterprise/Data/Spatial/SAU/sau_eez_fes.csv") %>% 
-  group_by(fishing_entity_id,fishing_entity) %>% 
-  tally() %>% 
-  select(-n)
-
-
-# Estimate country-level catch
-country_catch <- sau_catch_data %>% 
-  filter(year > 2010,
-         eezid == 0,
-         taxon_key %in% shared_data$taxon_key) %>% 
-  # pull(taxon_key) %>% 
-  # unique() %>% 
-  # length()
-  # Add sector types
-  group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
-  summarise(sumcatch= sum(sumcatch)
-  ) %>% 
-  # average of 10 years
-  group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
-  summarise(mean_catch = mean(sumcatch)) %>% 
-  left_join(sau_eez_fes)  %>% 
-  # Get country totals
-  group_by(fishing_entity_id,fishing_entity) %>% 
-  summarise(total_catch = sum(mean_catch),
-            n_stocks = length(unique(taxon_key))
-  ) %>% 
-  arrange(desc(total_catch))
-
-# Estimate FAO zone catch
-# fao_catch <- 
-sau_catch_data %>% 
-  filter(year > 2010,
-         eezid == 0,
-         taxon_key %in% shared_data$taxon_key) %>% 
-  # pull(taxon_key) %>% 
-  # unique() %>% 
-  # length()
-  # Add sector types
-  group_by(year,fishing_entity_id,fao_area_id,taxon_key) %>% 
-  summarise(sumcatch= sum(sumcatch)
-  ) %>% 
-  # average of 10 years
-  group_by(fishing_entity_id,fao_area_id,taxon_key) %>% 
-  summarise(mean_catch = mean(sumcatch)) %>% 
-  # left_join(sau_eez_fes)  %>% 
-  # Get country totals
-  group_by(fao_area_id) %>% 
-  summarise(total_catch = sum(mean_catch),
-            n_stocks = length(unique(taxon_key))
-  ) %>% 
-  arrange(desc(total_catch))
-
-
 
 ```
 
@@ -1342,6 +1308,261 @@ ggplot(Species_Data,
 #        width = 12,
 #        height = 12,
 #        units = "in")
+```
+
+## Catch and value
+
+Cath and value data from the Sea Around Us as an average from 2007 to 2016
+
+### By RFMO
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(area_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### By commercial group
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(commercial_group) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+### By country
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(fishing_entity) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### OHI circle map
+
+```{r}
+
+c_data <- rfmo_catch %>% 
+  group_by(area_name,common_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  select(
+    individual = common_name,
+    value = value_billion,
+    group = area_name
+  ) %>% 
+  filter(value >0) %>% 
+  arrange(group,value)
+
+
+
+# Set a number of 'empty bar' to add at the end of each group
+empty_bar <- 5
+to_add <- data.frame( matrix(NA, empty_bar*length(unique(c_data$group)), ncol(c_data)) )
+colnames(to_add) <- colnames(c_data)
+to_add$group <- rep(unique(c_data$group), each=empty_bar)
+c_data <- rbind(c_data, to_add)
+c_data <- c_data %>% arrange(group)
+c_data$id <- seq(1, nrow(c_data))
+
+# Get the name and the y position of each label
+label_data <- c_data
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+
+# prepare a data frame for base lines
+base_data <- c_data %>% 
+  group_by(group) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+
+
+# The plot
+ggplot(c_data %>% filter(!is.na(individual)), 
+       aes(x = as.factor(id), 
+                   y = value, 
+                   fill = group)
+       ) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  geom_bar(stat="identity", alpha=0.5) +
+   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, aes(x = end, y = 600, xend = start, yend = 600), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 400, xend = start, yend = 400), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  annotate("text", x = rep(max(c_data$id),4), 
+           y = c(0, 200, 400, 600), 
+           label = c("0", "200", "400", "600") ,
+           color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
+  geom_text(data=label_data, aes(x=id, 
+                                 y=value+10, 
+                                 label=individual,
+                                 hjust=hjust), 
+            color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
+  ylim(-100,600) +
+  # theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm")
+  ) +
+  coord_polar()
+
+ggsave("../results/figures/circular_test.png",
+       last_plot(),
+       width = 7,
+       height = 7)
+
+
+```
+
+
+### Horizontal bar plot
+
+```{r}
+
+rfmo_catch %>% 
+  group_by(area_name,common_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  filter(value_billion >0) %>% 
+  pivot_longer(
+    cols = c("value_billion","tonnes_million"),
+    names_to = "variable",
+    values_to = "value"
+  ) %>% 
+  ggplot() +
+  aes(x = reorder(common_name, value),
+      y = value, 
+      fill = area_name)+
+  geom_bar(stat="identity", alpha=0.5) +
+  my_ggtheme_p(axx_tx_ang = 45,
+               leg_pos = "right",
+               hjust = 1) +
+  facet_wrap(~variable,
+             ncol = 1,
+             scales = "free_y")
+
+ggsave("../results/figures/circular_test.png",
+       last_plot(),
+       width = 10,
+       height = 7)
+
+```
+
+### Economic map
+
+```{r}
+# Economics
+
+rfmo_catch_country <- rfmo_catch %>% 
+  group_by(fishing_entity,commercial_group) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/10000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  left_join(sau_matching_names) %>% 
+  distinct() %>% 
+  group_by(iso_a3) %>% 
+  summarise_at(.vars = c("tonnes_million","value_billion"),
+               .funs = mean,
+               na.rm = T
+               )
+
+
+# Make sure everyone is included
+# rfmo_catch_country %>% 
+#   anti_join(sf_eez,
+#             by = "name") %>% 
+#   View()
+
+econ_map <- ggplot() +
+  geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
+  geom_sf(data = sf_land %>% left_join(rfmo_catch_country, by = "iso_a3"), aes(fill = value_billion))+ scale_fill_viridis_c("Value \n (USD)", na.value = "white") +
+  my_ggtheme_m(leg_pos = "right")
+
+
+# save legend
+# legend <- cowplot::get_legend(econ_map)
+# ggsave("../results/figures/legend.png", legend, width = 2, height = 2, dpi = 150)
+# econ_map <- econ_map + my_ggtheme_m(leg_pos = "")
+
+
+# Save plot 
+ggsave("../results/figures/econ_map.png",
+       econ_map,
+       height = 5,
+       width = 11
+)
+
+
 ```
 
 
@@ -1648,8 +1869,8 @@ library(circlize)
 circle_data <-
   sankey_df %>% 
   filter(period == "ear",
-         # change == "gain"
-         change == "lost"
+         change == "gain"
+         # change == "lost"
          ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
   ungroup() %>% 
@@ -1668,13 +1889,13 @@ mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
              viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
-png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-# png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
+# png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
+png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
 chordDiagram(
   x = circle_data, 
   grid.col = mycolor_g,
-  # directional = 1, #gains
-  directional = -1, #lost
+  directional = 1, #gains
+  # directional = -1, #lost
   direction.type = c("diffHeight","arrows"),
   link.arr.type = "big.arrow",
   link.sort = TRUE,
