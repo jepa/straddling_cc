@@ -259,8 +259,8 @@ int = suppressMessages(st_intersects(Shapefile))
 
 ```{r GetSppDistFun, eval = F}
 
-# Spp = 600069
-Data_Path <- my_path("G","FishForVisa")
+# Spp = 600066
+# Data_Path <- my_path("G","FishForVisa")
 
 
 GetSppDist=function(Spp,Model,Coord){
@@ -382,10 +382,27 @@ GetSppDist=function(Spp,Model,Coord){
 
 ```{r StraddIndexFun, eval = F}
 
+Spp = 600066
+
 StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
   
   # Get model data from spps
   SppDist <- GetSppDist(Spp,Model,Coord)
+  
+  
+  # ggplot(SppDist %>% filter(Value >0)) +
+  #   geom_tile(
+  #     aes(
+  #       x = longitude,
+  #       y = latitude,
+  #       fill = Value,
+  #       color = Value
+  #     )
+  #   ) +
+  #   facet_wrap(~Model) +
+  #   geom_sf(data = rnaturalearth::ne_countries(scale = 'small', returnclass = c("sf")))
+  
+  
   
   # Result 1. Number of Countries that share the species
   
@@ -396,15 +413,26 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
     group_by(TaxonKey, INDEX) %>%
     summarise(Model_Index = sum(Value,na.rm=T)/3,
               .groups = "drop") %>%
-    filter(Model_Index > 0.4) %>% # at least 2 sources agree
+    # filter(Model_Index > 0.4) %>% # at least 2 sources agree
     # ____________ ESTIMATING FUNDAMENTAL NICHE (TRESHOLD 2)_________ #
     left_join(SppDist,
               by = c("TaxonKey","INDEX")) %>%
     filter(Model == "SAU_C", # Only keeping cells where SAU catch exists
            Value > 0) %>%
-    mutate(Model_Index = Model_Index*100) %>%
+    # mutate(Model_Index = Model_Index*100) %>%
     select(-Model, -Value, -latitude,-longitude) %>%
-    rename(index = INDEX) %>% 
+    rename(index = INDEX) 
+  
+  Trans_Spp %>%
+    left_join(coords_dbem) %>%
+    ggplot() +
+    geom_tile(
+      aes(x = lon,
+          y = lat,
+          fill = index)
+    )
+  
+  
     # joint eez names
     left_join(meow_dbem_grid, # No EEZs but MEOWs
               by = "index") %>% 
@@ -414,10 +442,27 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code){
     mutate(
       region = ifelse(is.na(rfmo_name),realm,rfmo_name),
       category = ifelse(!is.na(rfmo_name),"rfmo","realm"),
-    ) %>%
-    select(1:3,region,category) %>% 
+    ) #%>%
+    # select(1:3,region,category) %>% 
+    # clean_names() %>% 
+    # filter(model_index == 100)
+  
+  # Make sure the number of grid cells shared between the high seas and *all* realms is more than 10%
+  
+  Trans_Spp %>% 
+    group_by(category) %>% 
+    tally() %>% 
+    spread(category,n) %>% 
+    mutate(total = realm + rfmo,
+           per_tresh_all = rfmo/total*100) %>% 
+    View()
+  
+  
+  select(1:3,region,category) %>% 
     clean_names() %>% 
     filter(model_index == 100)
+  
+  
   
   ### ----------  Distributional test  ---------- ###
   # test <- Trans_Spp %>%
@@ -996,7 +1041,7 @@ suppressMessages(
 
 ## Data needed
 
-```{r results_data, eva; = T}
+```{r results_data, eva = T}
 
 #-----------------# 
 ## Georeferenced ##
@@ -1018,7 +1063,7 @@ st_crs(sf_meow) = 4326
 sf_rfmo <- my_sf("RFMO_tuna",simple = 1)
 
 # SAU shapefile
-sf_eez <- my_sf("SAU", simple = 0.1)
+# sf_eez <- my_sf("SAU", simple = 0.1)
 
 # SAU index table
 sau_index_code <- my_data("sau_index")
@@ -1026,11 +1071,6 @@ sau_index_code <- my_data("sau_index")
 # SAU eez to fishing entity
 sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/sau_matching_names.csv") %>% 
   select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
-
-
-
-
-
 
 
 #-----------------# 
@@ -1042,16 +1082,15 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 ## Straddling species ##
 # Spp list
-spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
+# spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
+# stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Get straddling stocks
-shared_data <- bind_rows(
-  lapply(stradling_spp,GetResults, type = "strad")
-) %>% 
-  left_join(exploited_spp) #%>% 
+# shared_data <- bind_rows(
+#   lapply(stradling_spp,GetResults, type = "strad")
+# ) %>% 
+#   left_join(exploited_spp) #%>% 
   # mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
-
 
 # Get proportion analysis
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
@@ -1060,8 +1099,14 @@ stradling_spp <- str_replace(spp_complete,"\\_.*","")
 # Get straddling stocks
 prop_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "prop")
-  )
-
+  ) %>% 
+  # Remove species not present in high seas
+  filter(
+    low_tresh != 0 &
+      mean != 0 &
+      top_tresh != 0
+           ) %>% 
+  left_join(exploited_spp)
 
 
 #### Catch data
@@ -1088,13 +1133,40 @@ rfmo_catch <- bind_rows(
                .funs = mean,
                na.rm = T) %>% 
   filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
-         !(common_name == "Japanese anchovy" & fishing_entity == "China"),
+         !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
          ) #remove wrong data as per personal communication with Deng P.
 
 ```
 
 ## Straddling identification
+
+### Speices list for supplements
+
+```{r}
+
+# Remove treshold 
+
+prop_data %>% 
+  left_join(rfmo_catch) %>% 
+  group_by(taxon_name,common_name,commercial_group) %>% 
+  tally() %>% 
+  View()
+
+# Questionable species
+# Chirocentrus nudus
+# Herring likes
+  # Clupea harengus Atlantic herring
+# Clupea pallasii pallasii Pacific herring
+# Regalecus glesne King of herrings
+
+
+
+  
+```
+
+
+
 
 ### Straddling species map
 
@@ -1110,25 +1182,25 @@ scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 #   select(-n)
 
 # Number of straddling stocks by MEOW
-strad_meow <- shared_data %>% 
-  group_by(realm) %>% 
+strad_meow <- prop_data %>% 
+  group_by(realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by RFMO
-stradd_rfmo <- shared_data %>% 
+stradd_rfmo <- prop_data %>% 
   group_by(rfmo_name) %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by RFMO and Realm
-rfmo_realm <- shared_data %>% 
-  group_by(rfmo_name,realm) %>% 
+rfmo_realm <- prop_data %>% 
+  group_by(rfmo_name,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Straddling stocks by RFMO
-shared_data %>% 
+prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(rfmo_catch) %>% 
   group_by(rfmo_name,commercial_group) %>% 
@@ -1138,7 +1210,7 @@ shared_data %>%
 
 # Map it
 sf_meow_map <- sf_meow %>% 
-  group_by(realm) %>% 
+  group_by(realm_name = realm) %>% 
   tally() %>% 
   select(-n)
 
@@ -1146,8 +1218,8 @@ map_rfmo_stradd <- ggplot() +
   geom_sf(data = sf_rfmo %>% left_join(stradd_rfmo), aes(fill = n)) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
-  scale_fill_viridis_c("Stocks\n(n)", na.value = "white",
-                       limits = c(20,100)) +
+  scale_fill_viridis_c("Stocks (n)", na.value = "white",
+                       limits = c(10,70)) +
   my_ggtheme_m(leg_pos = "right")
 
 # Save plot 
@@ -1163,8 +1235,8 @@ ggsave("../results/figures/fig_1.png",
 ### Paper numbers on top shared species
 
 ```{r}
-shared_data %>% 
-  mutate(combo = paste0(realm,"_",rfmo_name)) %>% 
+prop_data %>% 
+  mutate(combo = paste0(realm_name,"_",rfmo_name)) %>% 
   group_by(common_name) %>% 
   summarise(value = length(unique(combo))) %>%
   # View()
@@ -1906,14 +1978,15 @@ Resources:
  - https://www.data-to-viz.com/graph/chord.html
 
 ```{r}
-library(circlize)
+
 
 # Gain Data
 circle_data <-
   sankey_df %>% 
-  filter(period == "ear",
-         change == "gain"
-         # change == "lost"
+  filter(
+    period == "ear",
+    change == "gain"
+    # change == "lost"
          ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
   ungroup() %>% 
@@ -1932,8 +2005,8 @@ mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
              viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
-# png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
+# png("../results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
+png("../results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
 chordDiagram(
   x = circle_data, 
   grid.col = mycolor_g,
@@ -1941,6 +2014,7 @@ chordDiagram(
   # directional = -1, #lost
   direction.type = c("diffHeight","arrows"),
   link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
   link.sort = TRUE,
   link.largest.ontop = TRUE,
   transparency = 0.30,
@@ -1952,7 +2026,7 @@ dev.off()
 
 
 
-# Gain Data
+# Net Change Data
 net_change <-
   sankey_df %>% 
   filter(period == "ear") %>% 
@@ -1975,14 +2049,14 @@ mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
              )
 
 
-png("./results/figures/circular_net.png", width = 1200, height = 1200, res = 150, units = "px")
-
+png("../results/figures/circular_net.png", width = 1200, height = 1200, res = 150, units = "px")
 chordDiagram(
   x = net_change, 
   grid.col = mycolor_g,
   directional = 1, 
   direction.type = c("diffHeight","arrows"),
   link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
   link.sort = F,
   link.largest.ontop = TRUE,
   transparency = 0.30,
