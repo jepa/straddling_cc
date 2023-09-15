@@ -1148,6 +1148,7 @@ rfmo_catch <- bind_rows(
          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
          ) #remove wrong data as per personal communication with Deng P.
 
+
 ```
 
 ## Straddling identification
@@ -1330,10 +1331,83 @@ prop_data %>%
 
 ```
 
-### Straddling species circle
+
+## Catch and value
+
+Catch and value data from the Sea Around Us as an average from 2007 to 2016
+
+### By RFMO
 
 ```{r}
 
+# total catch
+sum(rfmo_catch$tonnes)/1000000 #million tones
+sum(rfmo_catch$landed_value)/1000000000 #million tones
+
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(area_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### By commercial group
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(commercial_group) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+### By country
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(fishing_entity) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### Circular SAU catch and Revenue
+
+#### All species
+
+```{r}
 Species_Data <- rfmo_catch %>% 
   group_by(common_name = fishing_entity,
            rfmo_name = area_name) %>% 
@@ -1502,178 +1576,116 @@ ggplot(Species_Data,
 
 
 # Save plot
-ggsave(filename = "../results/figures/ohi_country_tonnes.jpg",
+ggsave(filename = name_save,
        plot = last_plot(),
        width = 8,
        height = 8,
        units = "in")
 ```
 
-## Catch and value
 
-Catch and value data from the Sea Around Us as an average from 2007 to 2016
+#### Tunas 
 
-### By RFMO
 
 ```{r}
 
-# total catch
-sum(rfmo_catch$tonnes)/1000000 #million tones
-sum(rfmo_catch$landed_value)/1000000000 #million tones
-
-
-# Catch and value by RFMO
-rfmo_catch %>% 
-  group_by(area_name) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  arrange(desc(value_billion))
-
-```
-
-
-### By commercial group
-
-```{r}
-
-# Catch and value by RFMO
-rfmo_catch %>% 
-  group_by(commercial_group) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  arrange(desc(value_billion))
-
-```
-
-### By country
-
-```{r}
-
-# Catch and value by RFMO
-rfmo_catch %>% 
+top_10_coiuntries <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes") %>% 
   group_by(fishing_entity) %>% 
   summarise_at(
     .vars = c("tonnes","landed_value"),
     .funs = sum,
     na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  arrange(desc(value_billion))
+  ) %>%
+  # group_by(fishing_entity) %>%
+  arrange(landed_value) %>%
+  top_n(10,landed_value)
 
-```
+totals <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes") %>% 
+  gather("category","value",tonnes,landed_value) %>% 
+  group_by(category) %>% 
+  summarise_if(is.numeric,c("tot"=sum))
 
 
-### OHI circle map
+top_10_coiuntries %>% 
+  # filter(fishing_entity %in% c("Indonesia","Japan","Philippines")) %>% 
+  gather("category","value",tonnes,landed_value) %>% 
+  left_join(totals) %>% 
+  mutate(per = (value/tot)*100) %>% 
+  View()
+  group_by(category) %>% 
+  summarise_if(is.numeric,sum)
 
-```{r}
+round(563715940668/1000000000)
+3521510/1000000
 
-c_data <- rfmo_catch %>% 
-  group_by(area_name,common_name) %>% 
+tunas <- c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")
+
+
+Species_Data <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes",
+         fishing_entity %in% top_10_coiuntries$fishing_entity) %>% 
+  mutate(common_name = ifelse(common_name %in% tunas, common_name,"Other billfishes")) %>% 
+  group_by(common_name,
+           fishing_entity#,
+           # rfmo_name = area_name
+           ) %>% 
   summarise_at(
     .vars = c("tonnes","landed_value"),
     .funs = sum,
     na.rm = T
-  ) %>% 
+  ) %>%
+  # mutate(price_per_kilo = landed_value/tonnes) %>% 
+  gather("category","value",tonnes:landed_value) %>%
+  filter(!is.na(value)) %>%
   mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  select(
-    individual = common_name,
-    value = value_billion,
-    group = area_name
-  ) %>% 
-  filter(value >0) %>% 
-  arrange(group,value)
+  value = ifelse(category == "landed_value", round(value/1000000000,4),round(value/1000,4)),
+  category = ifelse(category == "tonnes","Catch (thousand tonnes)","Value (billion USD)")
+  )
 
 
-
-# Set a number of 'empty bar' to add at the end of each group
-empty_bar <- 5
-to_add <- data.frame( matrix(NA, empty_bar*length(unique(c_data$group)), ncol(c_data)) )
-colnames(to_add) <- colnames(c_data)
-to_add$group <- rep(unique(c_data$group), each=empty_bar)
-c_data <- rbind(c_data, to_add)
-c_data <- c_data %>% arrange(group)
-c_data$id <- seq(1, nrow(c_data))
-
-# Get the name and the y position of each label
-label_data <- c_data
-number_of_bar <- nrow(label_data)
-angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-label_data$hjust <- ifelse( angle < -90, 1, 0)
-label_data$angle <- ifelse(angle < -90, angle+180, angle)
-
-# prepare a data frame for base lines
-base_data <- c_data %>% 
-  group_by(group) %>% 
-  summarize(start=min(id), end=max(id) - empty_bar) %>% 
-  rowwise() %>% 
-  mutate(title=mean(c(start, end)))
-
-# prepare a data frame for grid (scales)
-grid_data <- base_data
-grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
-grid_data$start <- grid_data$start - 1
-grid_data <- grid_data[-1,]
-
-
-# The plot
-ggplot(c_data %>% filter(!is.na(individual)), 
-       aes(x = as.factor(id), 
-                   y = value, 
-                   fill = group)
-       ) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
-  geom_bar(stat="identity", alpha=0.5) +
-   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
-  geom_segment(data=grid_data, aes(x = end, y = 600, xend = start, yend = 600), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  geom_segment(data=grid_data, aes(x = end, y = 400, xend = start, yend = 400), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-    geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  annotate("text", x = rep(max(c_data$id),4), 
-           y = c(0, 200, 400, 600), 
-           label = c("0", "200", "400", "600") ,
-           color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
-  geom_text(data=label_data, aes(x=id, 
-                                 y=value+10, 
-                                 label=individual,
-                                 hjust=hjust), 
-            color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
-  ylim(-100,600) +
-  # theme_minimal() +
-  theme(
-    legend.position = "none",
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1,4), "cm")
+ggplot(Species_Data) +
+  geom_bar(
+    aes(
+      x = reorder(fishing_entity,-value),
+      y = value,
+      fill = reorder(common_name,value)
+    ),
+    stat = "identity"
   ) +
-  coord_polar()
+  coord_flip() +
+  facet_wrap(~category,
+             scales = "free_x") +
+  scale_fill_manual("Species ",values = c(wes_palette("Darjeeling1"),wes_palette("Darjeeling2"))) +
+  labs(x = "Country",
+       y = "Value") +
+  my_ggtheme_p(
+  leg_pos = "right",
+  leg_tl_s = 12,
+  leg_tx_s = 10,
+  facet_tx_s = 11,
+  ax_tx_s = 11,
+  ax_tl_s = 12
+  )
 
-ggsave("../results/figures/circular_test.png",
-       last_plot(),
-       width = 7,
-       height = 7)
 
+# Save plot
+ggsave(filename = "./results/figures/top10_tuna.png",
+       plot = last_plot(),
+       width = 10,
+       height = 5,
+       units = "in")
+
+
+# Categories dominating 
+Species_Data %>% 
+  group_by(common_name,category) %>% 
+  summarise(sum(value)) %>% 
+  View()
 
 ```
+
 
 
 ## Proportion change
@@ -2275,6 +2287,102 @@ ggsave("../results/figures/econ_map.png",
        height = 5,
        width = 11
 )
+
+
+```
+
+### OHI circle map
+
+```{r}
+
+
+c_data <- rfmo_catch %>% 
+  group_by(area_name,common_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  select(
+    individual = common_name,
+    value = value_billion,
+    group = area_name
+  ) %>% 
+  filter(value >0) %>% 
+  arrange(group,value)
+
+
+
+# Set a number of 'empty bar' to add at the end of each group
+empty_bar <- 5
+to_add <- data.frame( matrix(NA, empty_bar*length(unique(c_data$group)), ncol(c_data)) )
+colnames(to_add) <- colnames(c_data)
+to_add$group <- rep(unique(c_data$group), each=empty_bar)
+c_data <- rbind(c_data, to_add)
+c_data <- c_data %>% arrange(group)
+c_data$id <- seq(1, nrow(c_data))
+
+# Get the name and the y position of each label
+label_data <- c_data
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+
+# prepare a data frame for base lines
+base_data <- c_data %>% 
+  group_by(group) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+
+
+# The plot
+ggplot(c_data %>% filter(!is.na(individual)), 
+       aes(x = as.factor(id), 
+                   y = value, 
+                   fill = group)
+       ) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  geom_bar(stat="identity", alpha=0.5) +
+   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, aes(x = end, y = 600, xend = start, yend = 600), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 400, xend = start, yend = 400), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  annotate("text", x = rep(max(c_data$id),4), 
+           y = c(0, 200, 400, 600), 
+           label = c("0", "200", "400", "600") ,
+           color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
+  geom_text(data=label_data, aes(x=id, 
+                                 y=value+10, 
+                                 label=individual,
+                                 hjust=hjust), 
+            color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
+  ylim(-100,600) +
+  # theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm")
+  ) +
+  coord_polar()
+
+ggsave("../results/figures/circular_test.png",
+       last_plot(),
+       width = 7,
+       height = 7)
 
 
 ```
