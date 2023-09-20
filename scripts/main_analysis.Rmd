@@ -1008,6 +1008,16 @@ stradd_data <- bind_rows(
 ) %>% 
   mutate(taxon_key = as.character(taxon_key))
 
+
+# For Lauren
+# dbem_index <- my_data("sau_index") %>% 
+#   left_join(meow_dbem_grid) %>% 
+#   group_by(eez_name,realm) %>% 
+#   tally() %>% 
+#   filter(!is.na(realm))
+
+# write.csv(dbem_index, "eez_to_realm.csv")
+
 ```
 
 
