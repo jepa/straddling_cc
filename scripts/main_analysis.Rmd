@@ -1114,7 +1114,10 @@ prop_data <- bind_rows(
   filter(
     low_tresh != 0 &
       mean != 0 &
-      top_tresh != 0
+      top_tresh != 0,
+    low_tresh != 100 &
+      mean != 100 &
+      top_tresh != 100
            ) %>% 
   left_join(exploited_spp) %>%
   # Re- estimate change with average of all ESMs
@@ -1139,7 +1142,7 @@ rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
   my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
   )
 
-
+suppressMessages(
 rfmo_catch <- bind_rows(
   lapply(rfmo_list, read_csv)) %>% 
   filter(scientific_name %in% unique(prop_data$taxon_name)) %>% 
@@ -1157,6 +1160,13 @@ rfmo_catch <- bind_rows(
          !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
          ) #remove wrong data as per personal communication with Deng P.
+) %>% 
+  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
+         commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
+                                   ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
+                                          commercial_group)
+         )
+  )
 
 
 ```
@@ -1168,29 +1178,25 @@ rfmo_catch <- bind_rows(
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key))
-round(98/633 *100)
+length(unique(prop_data$taxon_key)) #98
+round(98/633 *100) #15
 
 # Number of straddling stocks
 prop_data %>% 
   group_by(rfmo_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 775
+  pull(x) %>% sum() # 733
 
-prop_data %>% 
+straddling_species <- prop_data %>% 
   left_join(rfmo_catch) %>% 
+  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   tally() %>% 
-  View()
+  select(-n)
 
-# Questionable species
-# Chirocentrus nudus
-# Herring likes
-  # Clupea harengus Atlantic herring
-# Clupea pallasii pallasii Pacific herring
-# Regalecus glesne King of herrings
 
+write_csv(straddling_species, my_path("R", name = "straddling_species.csv"))
 
 
   
@@ -1262,6 +1268,7 @@ ggsave("./results/figures/fig_1a.png",
 stradd_commercial <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(rfmo_catch) %>% 
+  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group)) %>% 
   group_by(rfmo_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";"))
@@ -1291,7 +1298,7 @@ stradd_bar_plot <- stradd_commercial %>%
              scales = "free") +
   labs(x = "", y = "Number of straddling stocks") +
   scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1"),wes_palette("Darjeeling2"))) +
-  scale_y_continuous(breaks = c(0,5,10,15))+
+  scale_y_continuous(breaks = seq(0,30,5))+
   theme_bw() +
   theme(
     panel.grid.minor = element_blank(), 
@@ -1308,7 +1315,7 @@ stradd_bar_plot <- stradd_commercial %>%
 # Save plot 
 ggsave("./results/figures/fig_1b.png",
        stradd_bar_plot,
-       height = 5,
+       height = 6,
        width = 12
 )
 
@@ -1709,10 +1716,11 @@ Resources:
 ```{r}
 
 # Prepare data
-sankey_df <- prop_data %>% 
+sankey_df <-
+  prop_data %>% 
   group_by(period,rcp,rfmo_name,change,realm_name) %>% 
   tally() %>% 
-  filter(rcp == "rcp85") %>% 
+  # filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
          realm_name = str_replace(realm_name,"Northern","N."),
@@ -1720,12 +1728,29 @@ sankey_df <- prop_data %>%
          realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
+# Total changes
+
+# reg_total <- sankey_df %>% 
+  # group_by(rcp,period) %>% 
+  # summarise(total_changes = sum(n))
+
+# sankey_df %>% 
+#   group_by(rcp,period,change) %>% 
+#   summarise(n = sum(n)) %>% 
+#   left_join(reg_total) %>% 
+#   mutate(per = round(n/total_changes*100)) %>% 
+#   select(-total_changes) %>% 
+  # write_csv(.,my_path("R", name = "gains_losses.csv"))
+
+
 # Gain Data
 circle_data <-
   sankey_df %>% 
   filter(
     period == "ear",
-    change == "gain"
+    change == "same",
+    rcp == "rcp85"
+    # change == "gain"
     # change == "lost"
          ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
@@ -1735,6 +1760,19 @@ circle_data <-
          value = n)
 
 
+  sankey_df %>% 
+  filter(
+    # period == "ear",
+    change == "same",
+    # rcp == "rcp85"
+    # change == "gain"
+    # change == "lost"
+) %>% 
+    group_by(period,rcp) %>% 
+    summarise(n_eez = length(unique(realm_name)),
+              n_rfmo = length(unique(rfmo_name))) %>% 
+  View()
+
 # Color scale for gains
 
 length(unique(circle_data$key)) #5
@@ -1742,7 +1780,8 @@ length(unique(circle_data$rowname)) #11
 
 # Total colors 17
 mycolor_g <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
+             viridis(5, alpha = 1, begin = 0, end = 1, option = "F"),
+             viridis(1, alpha = 1, begin = 0, end = 1, option = "F")
              )
 
 mycolor_l <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
@@ -1751,13 +1790,14 @@ mycolor_l <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
              )
 
 # png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
+# png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
+png("./results/figures/circular_same.png", width = 1300, height = 1300, res = 150, units = "px")
 chordDiagram(
   x = circle_data, 
   grid.col = mycolor_g,
-  directional = 1, #gains
+  # directional = 1, #gains
   # directional = -1, #lost
-  direction.type = c("diffHeight","arrows"),
+  # direction.type = c("diffHeight","arrows"),
   link.arr.type = "big.arrow",
   link.arr.length = 0.1,
   link.sort = TRUE,
@@ -1774,7 +1814,6 @@ dev.off()
 # Net Change Data
 net_change <-
   sankey_df %>% 
-  filter(period == "ear") %>% 
   pivot_wider(
     names_from = change,
     values_from = n) %>% 
@@ -1787,6 +1826,14 @@ mutate(name = str_replace(realm_name," ", "\n"),
        key_b = ifelse(value < 0,name,rfmo_name)) %>% 
     # View()
   ungroup() %>%
+  mutate(
+    n_shifting = gain+lost,
+    per = value/(n_shifting),
+    per_non = same/(gain+lost+same)*100
+    ) %>% 
+  View()
+  filter(period == "ear",
+         rcp == "rcp85") %>% 
   select(rowname = rowname_b,
          key = key_b,
          value) %>% 
@@ -1824,7 +1871,6 @@ sankey_df <- prop_data %>%
   filter(common_name %in% c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")) %>% 
   group_by(period,rcp,rfmo_name,change,realm_name) %>% 
   tally() %>% 
-  filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
          realm_name = str_replace(realm_name,"Northern","N."),
@@ -1832,61 +1878,10 @@ sankey_df <- prop_data %>%
          realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
-# Gain Data
-# circle_data <-
-#   sankey_df %>% 
-#   filter(
-#     period == "ear",
-#     change == "gain"
-#     # change == "lost"
-#          ) %>% 
-#   mutate(name = str_replace(realm_name," ", "\n")) %>% 
-#   ungroup() %>% 
-#   select(rowname = name,
-#          key = rfmo_name,
-#          value = n)
-# 
-# 
-# # Color scale for gains
-# 
-# length(unique(circle_data$key)) #5
-# length(unique(circle_data$rowname)) #11
-# 
-# # Total colors 17
-# mycolor_g <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
-#              viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-#              )
-# 
-# mycolor_l <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
-#              viridis(5, alpha = 1, begin = 0, end = 1, option = "F"),
-#              viridis(1, alpha = 1, begin = 0, end = 1, option = "F")
-#              )
-# 
-# # png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-# png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
-# chordDiagram(
-#   x = circle_data, 
-#   grid.col = mycolor_g,
-#   directional = 1, #gains
-#   # directional = -1, #lost
-#   direction.type = c("diffHeight","arrows"),
-#   link.arr.type = "big.arrow",
-#   link.arr.length = 0.1,
-#   link.sort = TRUE,
-#   link.largest.ontop = TRUE,
-#   transparency = 0.30,
-#   scale = F,
-#   symmetric = F,
-#   big.gap = 5
-# )
-# dev.off() 
-
-
 
 # Net Change Data
 net_change <-
   sankey_df %>% 
-  filter(period == "ear") %>% 
   pivot_wider(
     names_from = change,
     values_from = n) %>% 
@@ -1896,12 +1891,19 @@ mutate(name = str_replace(realm_name," ", "\n"),
          value = gain - lost,
        rowname_b = ifelse(value > 0,name,rfmo_name),
        key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-    # View()
+# Uncomment for overall numbers
+  # group_by(period,rcp) %>%
+  # summarise_at(c("gain","lost","same"),
+  #              .funs = sum,
+  #              na.rm = T) %>%
+  # mutate(per_change = 100-same/(gain+lost+same)*100)
   ungroup() %>% 
   select(rowname = rowname_b,
          key = key_b,
          value) %>% 
-  filter(value != 0)
+  filter(value != 0,
+         period == "ear",
+         rcp == "rcp85") 
 
 length(unique(net_change$key))
 length(unique(net_change$rowname))
