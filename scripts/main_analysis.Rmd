@@ -738,7 +738,7 @@ This function is the main analysis estimating the proportion change above histor
 
 ```{r estimate_proportion, eval = F}
 # 
-taxon_key <- 600107
+# taxon_key <- 600107
 # taxon_key <- 600088
 
 
@@ -989,6 +989,49 @@ suppressMessages(
            taxon_proportion,
            mc.cores = detectCores()-2)
 )
+
+```
+
+
+## understand differences
+
+```{r}
+
+stradling_spp <- list.files(my_path("R","Straddling_realm_rfmo/"))
+stradling_spp <- str_replace(stradling_spp,"\\_.*","")
+
+# Species to ran
+proportion_spp <- list.files(my_path("R","Per_change_realm_rfmo"))
+proportion_spp <- str_sub(proportion_spp,1,6)
+
+# Run reminindg species
+missing_spp <- stradling_spp[!(stradling_spp %in% proportion_spp)]
+
+# Get straddling species
+straddling_df <- prop_data <- bind_rows(
+  lapply(stradling_spp,GetResults, type = "strad")
+  ) %>% 
+  rename(realm_name = realm
+         ) %>% 
+  filter(taxon_key %in% missing_spp) 
+
+# 134 records are under 10%
+tresh10_df <- straddling_df%>% 
+  mutate(
+    tresh10 = ifelse(round(area_rfmo) >= 90 | round(area_rfmo) <= 10, "10per",NA)
+  ) 
+
+
+rest <- tresh10_df %>% 
+  filter(
+    is.na(tresh10) 
+  )
+
+rest %>% pull(taxon_key) %>% unique()
+# 600107 600115 600143 600216 600223 600303 600319 600363 600467 600482 600751 600868 600875 600912 601072 601365 601664 601951 602535 603267 604239 614290 690124 690206
+
+# Some of them are in RCP 45
+
 
 ```
 
