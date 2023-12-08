@@ -738,7 +738,7 @@ This function is the main analysis estimating the proportion change above histor
 
 ```{r estimate_proportion, eval = F}
 # 
-# taxon_key <- 600069
+taxon_key <- 600107
 # taxon_key <- 600088
 
 
@@ -762,16 +762,25 @@ taxon_proportion <- function(taxon_key){
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
-    
+    print(file_to_read)
     if(file.exists(file_to_read)){
       
       load(file_to_read)
       
       # Transform it to df--
-      spp_data <- as.data.frame(sppabdfnl) %>% 
-        rowid_to_column("index")
-      colnames(spp_data) <- c("index",(seq(1951,2100,1)))
-      rm(sppabdfnl) # remove original load
+      
+      
+      if(exists("sppabdfnl")){
+        spp_data <- as.data.frame(sppabdfnl) %>% 
+          rowid_to_column("index")
+        colnames(spp_data) <- c("index", seq(1951, 2100, 1))
+        rm(sppabdfnl) 
+      }else{
+        spp_data <- as.data.frame(data) %>% 
+          rowid_to_column("index")
+        colnames(spp_data) <- c("index", seq(1951, 2100, 1))
+        rm(data) 
+      }
       
       
       # Get area of analysis
@@ -858,6 +867,7 @@ taxon_proportion <- function(taxon_key){
         filter(!is.na(period)) %>% 
         group_by(taxon_key,rfmo_name,realm_name,period) %>% 
         summarise(mean = mean(per_rfmo, na.rm = T),
+                  sd = sd(per_rfmo, na.rm = T),
                   .groups = "drop") %>% 
         left_join(hs_historical_means,
                   by = c("taxon_key","rfmo_name","realm_name"),
@@ -877,7 +887,7 @@ taxon_proportion <- function(taxon_key){
                esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)),
                rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcp5F","rcp85",rcp)),
         ) %>% 
-        select(taxon_key,esm,rcp,period,rfmo_name,change,realm_name,low_tresh,mean,top_tresh)
+        select(taxon_key,esm,rcp,period,rfmo_name,change,realm_name,low_tresh,mean,top_tresh, sd) 
       
       if(m == 1){
         final_output <- final_data
@@ -925,14 +935,24 @@ meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>%
 # RFMO data (REQUIRED)
 rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
 
+
 # Spp list
 spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
-stradd_data <- bind_rows(
-  lapply(stradling_spp,GetResults)
-) %>% 
-  mutate(taxon_key = as.character(taxon_key))
+# Species to ran
+ran_species <- list.files(my_path("R","Per_change_realm_rfmo"))
+ran_species <- str_sub(ran_species,1,6)
+
+# Run reminindg species
+run_me_list <- stradling_spp[!(stradling_spp %in% ran_species)]
+
+
+
+# stradd_data <- bind_rows(
+#   lapply(stradling_spp,GetResults)
+# ) %>% 
+#   mutate(taxon_key = as.character(taxon_key))
 
 
 # For Lauren
@@ -965,13 +985,13 @@ stradd_data <- bind_rows(
 
 
 suppressMessages(
-  mclapply(stradling_spp,
+  mclapply(run_me_list,
            taxon_proportion,
            mc.cores = detectCores()-2)
 )
 
-
 ```
+
 
 # Results
 
@@ -1055,10 +1075,20 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
+straddling_df <- prop_data <- bind_rows(
+  lapply(stradling_spp,GetResults, type = "strad")
+  ) %>% 
+  rename(realm_name = realm
+         )
+
 # Get straddling stocks
 prop_data <- bind_rows(
   lapply(stradling_spp,GetResults, type = "prop")
   ) %>% 
+  # Include area index info
+  left_join(straddling_df,
+            by = c("taxon_key","rfmo_name","realm_name")
+        )
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
