@@ -971,67 +971,21 @@ run_me_list <- stradling_spp[!(stradling_spp %in% ran_species)]
 
 ```{r proportion_call, eval = F}
 
-
+# Single species
 # taxon_proportion(taxon_key = 600069)
 
-
-
+# Multiple speices in one
 # suppressMessages(
 #   lapply(stradling_spp[1:2],
 #          taxon_proportion)
 # )
 
-# Parallelization
-
-
+#Multiple species in parallel
 suppressMessages(
   mclapply(run_me_list,
            taxon_proportion,
            mc.cores = detectCores()-2)
 )
-
-```
-
-
-## understand differences
-
-```{r}
-
-stradling_spp <- list.files(my_path("R","Straddling_realm_rfmo/"))
-stradling_spp <- str_replace(stradling_spp,"\\_.*","")
-
-# Species to ran
-proportion_spp <- list.files(my_path("R","Per_change_realm_rfmo"))
-proportion_spp <- str_sub(proportion_spp,1,6)
-
-# Run reminindg species
-missing_spp <- stradling_spp[!(stradling_spp %in% proportion_spp)]
-
-# Get straddling species
-straddling_df <- prop_data <- bind_rows(
-  lapply(stradling_spp,GetResults, type = "strad")
-  ) %>% 
-  rename(realm_name = realm
-         ) %>% 
-  filter(taxon_key %in% missing_spp) 
-
-# 134 records are under 10%
-tresh10_df <- straddling_df%>% 
-  mutate(
-    tresh10 = ifelse(round(area_rfmo) >= 90 | round(area_rfmo) <= 10, "10per",NA)
-  ) 
-
-
-rest <- tresh10_df %>% 
-  filter(
-    is.na(tresh10) 
-  )
-
-rest %>% pull(taxon_key) %>% unique()
-# 600107 600115 600143 600216 600223 600303 600319 600363 600467 600482 600751 600868 600875 600912 601072 601365 601664 601951 602535 603267 604239 614290 690124 690206
-
-# Some of them are in RCP 45
-
 
 ```
 
@@ -1131,7 +1085,9 @@ prop_data <- bind_rows(
   # Include area index info
   left_join(straddling_df,
             by = c("taxon_key","rfmo_name","realm_name")
-        )
+        ) %>% 
+  filter(area_rfmo > 10,
+         area_rfmo < 90) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
@@ -1157,38 +1113,38 @@ prop_data <- bind_rows(
 
 #### Catch data
 
-rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
-  my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
-  # my_path("D","SAU/catch/iccat",),
-  my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
-  my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
-  )
+# rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
+#   my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
+#   # my_path("D","SAU/catch/iccat",),
+#   my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
+#   my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
+  # )
 
-suppressMessages(
-rfmo_catch <- bind_rows(
-  lapply(rfmo_list, read_csv)) %>% 
-  filter(scientific_name %in% unique(prop_data$taxon_name)) %>% 
-  group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>% 
-  #adds up gear type, fishing sectors, catch type and reporting
-  summarise_at(.vars = c("tonnes","landed_value"),
-               .funs = sum) %>% 
-  # Average last 10 years of data
-  filter(year >= 2007) %>% 
-  group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>% 
-  summarise_at(.vars = c("tonnes","landed_value"),
-               .funs = mean,
-               na.rm = T) %>% 
-  filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
-         !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
-         !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
-         ) #remove wrong data as per personal communication with Deng P.
-) %>% 
-  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
-         commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
-                                   ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
-                                          commercial_group)
-         )
-  )
+# suppressMessages(
+# rfmo_catch <- bind_rows(
+#   lapply(rfmo_list, read_csv)) %>% 
+#   filter(scientific_name %in% unique(prop_data$taxon_name)) %>% 
+#   group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>% 
+#   #adds up gear type, fishing sectors, catch type and reporting
+#   summarise_at(.vars = c("tonnes","landed_value"),
+#                .funs = sum) %>% 
+#   # Average last 10 years of data
+#   filter(year >= 2007) %>% 
+#   group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>% 
+#   summarise_at(.vars = c("tonnes","landed_value"),
+#                .funs = mean,
+#                na.rm = T) %>% 
+#   filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
+#          !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
+#          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
+#          ) #remove wrong data as per personal communication with Deng P.
+# ) %>% 
+#   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
+#          commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
+#                                    ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
+#                                           commercial_group)
+#          )
+#   )
 
 
 ```
@@ -1200,15 +1156,15 @@ rfmo_catch <- bind_rows(
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key)) #98
-round(98/633 *100) #15
+length(unique(prop_data$taxon_key)) #76
+round(76/633 *100) #12
 
 # Number of straddling stocks
 prop_data %>% 
   group_by(rfmo_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 733
+  pull(x) %>% sum() # 379
 
 straddling_species <- prop_data %>% 
   left_join(rfmo_catch) %>% 
