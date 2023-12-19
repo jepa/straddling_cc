@@ -660,6 +660,22 @@ run_me <- transboundary_spp %>%
   unique()
 
 
+# Exx to region to Rfmo  DF
+
+eez_rfmo_region <- dbem_sf %>% 
+  left_join(sau_index_code) %>% 
+  filter(eez_id > 0) %>% 
+  st_join(sf_meow) %>% 
+  group_by(eez_name,region = realm) %>% 
+  tally() %>% 
+  as.data.frame() %>% 
+  left_join(rfmo_meow,
+            by = "region") %>% 
+  select(eez_name,region,adjacent_region) %>% 
+  na.omit()
+
+write(eez_rfmo_region, my_path("D","Spatial",name = "eez_rfmo_region.csv"))
+
 ```
 
 
@@ -1151,6 +1167,61 @@ prop_data <- bind_rows(
 
 ## Straddling identification
 
+### Straddling treshold supplements
+
+```{r}
+
+straddling_df %>% 
+  mutate(thresh_level = 
+           ifelse(area_rfmo > 30 & area_rfmo < 70, "30%",
+                         ifelse(area_rfmo > 20 & area_rfmo < 80, "20%",
+                                ifelse(area_rfmo > 10 & area_rfmo < 90, "10%","No threshold")
+                  )
+           ),
+         combo = paste(realm_name,rfmo_name, sep = "_")
+  ) %>% 
+  # View()
+  group_by(combo,thresh_level) %>%
+  # group_by(realm_name,rfmo_name,thresh_level) %>%
+  tally() %>%
+  ggplot() +
+  geom_bar(
+    aes(
+      x = reorder(combo,desc(combo)),
+      y = n,
+      fill = thresh_level
+    ),
+    stat = "identity",
+    position = position_stack(reverse = T)
+  ) +
+  labs(
+    x = "Region and RFMO combination",
+    y = "Number of straddling stocks"
+  ) +
+  coord_flip() +
+  # facet_wrap(~ realm_name) +
+  scale_fill_manual("Threshold level", values = wes_palette("Royal2")) +
+  scale_y_continuous(expand = c(0, 0)) +
+  my_ggtheme_p(
+    leg_pos = "right",
+    ax_tl_s = 14,
+    ax_tx_s = 11,
+    y_hjust = 1,
+    y_vjust = 0.5
+    # axx_tx_ang = 45
+  )
+  
+# Save plot 
+ggsave("./results/supplements/fig_S2.png",
+       last_plot(),
+       height = 8,
+       width = 8
+)
+  
+
+```
+
+
 ### Speices list for supplements
 
 ```{r}
@@ -1176,8 +1247,6 @@ straddling_species <- prop_data %>%
 
 write_csv(straddling_species, my_path("R", name = "straddling_species.csv"))
 
-
-  
 ```
 
 ### Straddling species map
