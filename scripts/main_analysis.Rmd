@@ -1134,27 +1134,27 @@ prop_data <- bind_rows(
 #   # my_path("D","SAU/catch/iccat",),
 #   my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
 #   my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
-  # )
+# )
 
 # suppressMessages(
 # rfmo_catch <- bind_rows(
-#   lapply(rfmo_list, read_csv)) %>% 
-#   filter(scientific_name %in% unique(prop_data$taxon_name)) %>% 
-#   group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>% 
+#   lapply(rfmo_list, read_csv)) %>%
+#   filter(scientific_name %in% unique(prop_data$taxon_name)) %>%
+#   group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>%
 #   #adds up gear type, fishing sectors, catch type and reporting
 #   summarise_at(.vars = c("tonnes","landed_value"),
-#                .funs = sum) %>% 
+#                .funs = sum) %>%
 #   # Average last 10 years of data
-#   filter(year >= 2007) %>% 
-#   group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>% 
+#   filter(year >= 2007) %>%
+#   group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>%
 #   summarise_at(.vars = c("tonnes","landed_value"),
 #                .funs = mean,
-#                na.rm = T) %>% 
+#                na.rm = T) %>%
 #   filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
 #          !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
 #          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
 #          ) #remove wrong data as per personal communication with Deng P.
-# ) %>% 
+# ) %>%
 #   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
 #          commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
 #                                    ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
@@ -1163,13 +1163,15 @@ prop_data <- bind_rows(
 #   )
 
 
+sau_groups <- my_path("D","SAU", name = "sau_commercial_groups.csv", read = T) 
+
 ```
 
 ## Straddling identification
 
 ### Straddling treshold supplements
 
-```{r}
+```{r threshold_sensitivity, eval = F}
 
 straddling_df %>% 
   mutate(thresh_level = 
@@ -1238,16 +1240,21 @@ prop_data %>%
   pull(x) %>% sum() # 379
 
 straddling_species <- prop_data %>% 
-  left_join(rfmo_catch) %>% 
+  left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   tally() %>% 
   select(-n)
 
+straddling_species %>% 
+  pull(commercial_group) %>% 
+  unique()
+
 
 write_csv(straddling_species, my_path("R", name = "straddling_species.csv"))
 
 ```
+
 
 ### Straddling species map
 
