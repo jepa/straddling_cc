@@ -2270,3 +2270,359 @@ ggsave("../results/figures/circular_test.png",
 
 
 ```
+
+
+## Catch and value
+
+Catch and value data from the Sea Around Us as an average from 2007 to 2016
+
+### By RFMO
+
+```{r}
+
+# total catch
+sum(rfmo_catch$tonnes)/1000000 #million tones
+sum(rfmo_catch$landed_value)/1000000000 #million tones
+
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(area_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### By commercial group
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>%
+  group_by(commercial_group) %>%
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>%
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>%
+  arrange(desc(value_billion))
+
+```
+
+### By country
+
+```{r}
+
+# Catch and value by RFMO
+rfmo_catch %>% 
+  group_by(fishing_entity) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  mutate(
+    value_billion = round(landed_value/1000000000),
+    tonnes_million = round(tonnes/1000000,1)
+  ) %>% 
+  arrange(desc(value_billion))
+
+```
+
+
+### Circular SAU catch and Revenue
+
+#### All species
+
+```{r}
+Species_Data <- rfmo_catch %>% 
+  group_by(common_name = fishing_entity,
+           rfmo_name = area_name) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>% 
+  select(common_name,rfmo_name,value = tonnes) %>% 
+  filter(!is.na(value)) %>% 
+  arrange(desc(value)) %>% 
+  group_by(rfmo_name) %>% 
+  top_n(25,value) %>% 
+  mutate(
+    # value = round(value/10000000000,4),
+    value = round(value/100000,4)
+  )
+
+# Species_Data <- shared_data %>%
+#   mutate(combo = paste0(realm,"_",rfmo_name)) %>%
+#   group_by(group = common_name,rfmo_name) %>%
+#   summarise(value = length(unique(combo))) %>%
+#   top_frac(.5)
+
+
+label_data <- Species_Data
+
+# Set a number of 'empty bar' to add at the end of each group
+Char <- as.factor(Species_Data$rfmo_name)
+empty_bar <- 5
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(Char), ncol(Species_Data)) )
+colnames(to_add) <- colnames(Species_Data)
+to_add$rfmo_name <- rep(levels(Char), each=empty_bar)
+Species_Data <- rbind(Species_Data, to_add)
+Species_Data <- Species_Data %>% arrange(rfmo_name,value)
+Species_Data$id <- seq(1, nrow(Species_Data))
+
+
+# Get the name and the y position of each label
+# Create labels for all but top 5
+label_data <- Species_Data
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+
+# prepare a data frame for base lines
+base_data <- Species_Data %>% 
+  group_by(rfmo_name) %>% 
+  summarize(start=min(id), 
+            end=max(id) - empty_bar, 
+            median = median(value, na.rm = T)
+  ) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)),
+         label = str_extract(rfmo_name, '\\b[^,]+$'))
+
+
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+# grid_data <- grid_data[-1,]
+grid_data[1,2] <- 5 # Manually include bathydemerssal
+grid_data[1,3] <- 1 
+
+# Median data
+median_data <- grid_data %>% 
+  mutate_at(vars(start,end),
+            .funs = as.numeric)
+
+# Seq_axis_spp <- seq(0,30,10)
+Seq_axis_spp <- seq(0,15,5)
+Plot_Limit <- max(Species_Data$value,na.rm=T)
+Ticks_Color <- "black"
+  
+
+
+Spp_circular <-
+ggplot(Species_Data, 
+       aes(x=as.factor(id), 
+           y=value,
+           fill=rfmo_name)
+) +       
+  # Note that id is a factor. If x is numeric, there is some space between the first bar
+  geom_bar(aes(x=as.factor(id),
+               y=value,
+               fill=rfmo_name),
+           stat="identity",
+           alpha=0.5) +
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  # geom_segment(data=grid_data,
+  #              aes(x = end, y = 30, xend = start, yend = 30),
+  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  # geom_segment(data=grid_data,
+  #              aes(x = end, y = 20, xend = start, yend = 20),
+  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data,
+               aes(x = end, y = 15, xend = start, yend = 15),
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data, 
+               aes(x = end, y = 10, xend = start, yend = 10),  
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  geom_segment(data=grid_data,
+               aes(x = end, y = 05, xend = start, yend = 05),
+               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
+  # Add median lines for each gropup
+  geom_segment(data=median_data,
+               aes(x = end, y = median, xend = start+5, yend = median, colour = rfmo_name),
+               alpha=1, size=0.5 , inherit.aes = FALSE) +
+  # Add text showing the value of each line
+  annotate("text", 
+           x = rep(max(Species_Data$id),4),
+           y = Seq_axis_spp,
+           label = Seq_axis_spp,
+           color=Ticks_Color, 
+           size=3, 
+           angle=0, 
+           fontface="bold",
+           hjust=1) +
+  geom_bar(aes(x=as.factor(id),
+               y=value,
+               fill=rfmo_name),
+           stat="identity",
+           alpha=0.5) +
+  # Species names
+  geom_text(data=label_data,
+            aes(x=id, 
+                # y= 30,
+                y= 16,
+                label = common_name,
+                hjust = hjust), 
+            color="black",
+            fontface="italic",
+            alpha=1,
+            size=3,
+            angle= label_data$angle,
+            inherit.aes = FALSE) +
+  # ylim(-10,40) +
+  ylim(-10,40) +
+  theme_bw() +
+  theme(
+    # legend.position = c(0.75,0.25),
+    # legend.position = c(0.50,0.50),
+    legend.position = "",
+    legend.text = element_text(size = 7),
+    legend.title.align = 0.5,
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.key = element_rect(colour = NA, fill = NA),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    panel.border   = element_blank(),
+    
+  ) +
+  coord_polar() +
+  scale_fill_viridis("RFMO",option= "D", discrete = T) +
+  scale_color_viridis("RFMO",option= "D", discrete = T) +
+  guides(fill=guide_legend(ncol=1))
+
+# save legend
+# legend <- cowplot::get_legend(Spp_circular)
+# ggsave("../results/figures/legend.png", legend, width = 2, height = 2, dpi = 150)
+# Spp_circular <- Spp_circular + theme(legend.position = "legend.position")
+
+
+# Save plot
+ggsave(filename = name_save,
+       plot = last_plot(),
+       width = 8,
+       height = 8,
+       units = "in")
+```
+
+
+#### Tunas 
+
+
+```{r}
+
+top_10_coiuntries <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes") %>% 
+  group_by(fishing_entity) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>%
+  # group_by(fishing_entity) %>%
+  arrange(landed_value) %>%
+  top_n(10,landed_value)
+
+totals <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes") %>% 
+  gather("category","value",tonnes,landed_value) %>% 
+  group_by(category) %>% 
+  summarise_if(is.numeric,c("tot"=sum))
+
+
+top_10_coiuntries %>% 
+  # filter(fishing_entity %in% c("Indonesia","Japan","Philippines")) %>% 
+  gather("category","value",tonnes,landed_value) %>% 
+  left_join(totals) %>% 
+  mutate(per = (value/tot)*100) %>% 
+  View()
+  group_by(category) %>% 
+  summarise_if(is.numeric,sum)
+
+round(563715940668/1000000000)
+3521510/1000000
+
+tunas <- c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")
+
+
+Species_Data <- rfmo_catch %>% 
+  filter(commercial_group == "Tuna & billfishes",
+         fishing_entity %in% top_10_coiuntries$fishing_entity) %>% 
+  mutate(common_name = ifelse(common_name %in% tunas, common_name,"Other billfishes")) %>% 
+  group_by(common_name,
+           fishing_entity#,
+           # rfmo_name = area_name
+           ) %>% 
+  summarise_at(
+    .vars = c("tonnes","landed_value"),
+    .funs = sum,
+    na.rm = T
+  ) %>%
+  # mutate(price_per_kilo = landed_value/tonnes) %>% 
+  gather("category","value",tonnes:landed_value) %>%
+  filter(!is.na(value)) %>%
+  mutate(
+  value = ifelse(category == "landed_value", round(value/1000000000,4),round(value/1000,4)),
+  category = ifelse(category == "tonnes","Catch (thousand tonnes)","Value (billion USD)")
+  )
+
+
+ggplot(Species_Data) +
+  geom_bar(
+    aes(
+      x = reorder(fishing_entity,-value),
+      y = value,
+      fill = reorder(common_name,value)
+    ),
+    stat = "identity"
+  ) +
+  coord_flip() +
+  facet_wrap(~category,
+             scales = "free_x") +
+  scale_fill_manual("Species ",values = c(wes_palette("Darjeeling1"),wes_palette("Darjeeling2"))) +
+  labs(x = "Country",
+       y = "Value") +
+  my_ggtheme_p(
+  leg_pos = "right",
+  leg_tl_s = 12,
+  leg_tx_s = 10,
+  facet_tx_s = 11,
+  ax_tx_s = 11,
+  ax_tl_s = 12
+  )
+
+
+# Save plot
+ggsave(filename = "./results/figures/top10_tuna.png",
+       plot = last_plot(),
+       width = 10,
+       height = 5,
+       units = "in")
+
+
+# Categories dominating 
+Species_Data %>% 
+  group_by(common_name,category) %>% 
+  summarise(sum(value)) %>% 
+  View()
+
+```
+
