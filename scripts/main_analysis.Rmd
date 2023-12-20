@@ -769,7 +769,7 @@ taxon_proportion <- function(taxon_key){
     pull(rfmo_name) %>% 
     unique()
   
-  files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)
+  files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)[-3] # remove GFDL45B
   
   to_read <- paste0(taxon_key,"Abd.RData")
   
@@ -900,8 +900,8 @@ taxon_proportion <- function(taxon_key){
       final_data <- prop_chng %>% 
         mutate(esm = str_to_lower(str_sub(files_path[m],80,83)),
                rcp = paste0("rcp",str_sub(files_path[m],84,85)),
-               esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)),
-               rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcp5F","rcp85",rcp)),
+               esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)), # Fix MPI
+               rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcpBF","rcp85",rcp)), # Fix MPS
         ) %>% 
         select(taxon_key,esm,rcp,period,rfmo_name,change,realm_name,low_tresh,mean,top_tresh, sd) 
       
@@ -1088,18 +1088,20 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 stradling_spp <- str_replace(spp_complete,"\\_.*","")
 
-straddling_df <- prop_data <- bind_rows(
+partial_straddling_df <- bind_rows(
   lapply(stradling_spp,GetResults, type = "strad")
   ) %>% 
   rename(realm_name = realm
          )
 
+length(unique(partial_straddling_df$taxon_key))# 103
+
 # Get straddling stocks
 prop_data <- bind_rows(
-  lapply(stradling_spp,GetResults, type = "prop")
+  lapply(straddling_spp,GetResults, type = "prop")
   ) %>% 
   # Include area index info
-  left_join(straddling_df,
+  left_join(partial_straddling_df,
             by = c("taxon_key","rfmo_name","realm_name")
         ) %>% 
   filter(area_rfmo > 10,
@@ -1125,7 +1127,7 @@ prop_data <- bind_rows(
         )
   )
   
-
+length(unique(prop_data$taxon_key))# 76
 
 #### Catch data
 
@@ -1173,14 +1175,25 @@ sau_groups <- my_path("D","SAU", name = "sau_commercial_groups.csv", read = T)
 
 ```{r threshold_sensitivity, eval = F}
 
-straddling_df %>% 
+ bind_rows(
+  lapply(straddling_spp,GetResults, type = "prop")
+  ) %>% 
+  filter(
+    rcp == "rcp26",
+    period == "ear",
+    esm == "gfdl"
+  ) %>% 
+  # Include area index info
+  left_join(partial_straddling_df,
+            by = c("taxon_key","rfmo_name","realm_name")
+        ) %>% 
   mutate(thresh_level = 
            ifelse(area_rfmo > 30 & area_rfmo < 70, "30%",
-                         ifelse(area_rfmo > 20 & area_rfmo < 80, "20%",
-                                ifelse(area_rfmo > 10 & area_rfmo < 90, "10%","No threshold")
+                  ifelse(area_rfmo > 20 & area_rfmo < 80, "20%",
+                         ifelse(area_rfmo > 10 & area_rfmo < 90, "10%","No threshold")
                   )
            ),
-         combo = paste(realm_name,rfmo_name, sep = "_")
+         combo = paste(realm_name,rfmo_name, sep = "-")
   ) %>% 
   # View()
   group_by(combo,thresh_level) %>%
@@ -1203,7 +1216,9 @@ straddling_df %>%
   coord_flip() +
   # facet_wrap(~ realm_name) +
   scale_fill_manual("Threshold level", values = wes_palette("Royal2")) +
-  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0),
+                     breaks = seq(0,60,10)
+                     ) +
   my_ggtheme_p(
     leg_pos = "right",
     ax_tl_s = 14,
@@ -1229,17 +1244,18 @@ ggsave("./results/supplements/fig_S2.png",
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key)) #76
-round(76/633 *100) #12
+length(unique(prop_data$taxon_key)) #77
+round(77/633 *100) #12
 
 # Number of straddling stocks
-prop_data %>% 
+straddling_df %>% 
   group_by(rfmo_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 379
+  pull(x) %>% sum() # 512
 
-straddling_species <- prop_data %>% 
+straddling_species <- straddling_df %>% 
+  left_join(exploited_spp) %>% 
   left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
