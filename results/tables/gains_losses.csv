@@ -1,0 +1,13 @@
+rcp,period,change,n_m,n_sd,per_m,per_sd
+rcp26,ear,gain,73,10,19,3
+rcp26,ear,lost,48,15,13,4
+rcp26,ear,same,255,18,68,4
+rcp26,mid,gain,126,13,33,4
+rcp26,mid,lost,68,17,18,5
+rcp26,mid,same,181,25,49,7
+rcp85,ear,gain,85,4,23,2
+rcp85,ear,lost,51,23,13,6
+rcp85,ear,same,238,22,64,6
+rcp85,mid,gain,143,7,38,2
+rcp85,mid,lost,76,16,20,4
+rcp85,mid,same,154,24,41,6

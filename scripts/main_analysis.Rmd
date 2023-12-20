@@ -1097,7 +1097,7 @@ partial_straddling_df <- bind_rows(
 length(unique(partial_straddling_df$taxon_key))# 103
 
 # Get straddling stocks
-prop_data <- bind_rows(
+prop_data_esm <- bind_rows(
   lapply(straddling_spp,GetResults, type = "prop")
   ) %>% 
   # Include area index info
@@ -1115,7 +1115,10 @@ prop_data <- bind_rows(
       mean != 100 &
       top_tresh != 100
            ) %>% 
-  left_join(exploited_spp) %>%
+  left_join(exploited_spp) 
+
+
+prop_data <- prop_data_esm %>%
   # Re- estimate change with average of all ESMs
   group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_name,realm_name) %>% 
   summarise_at(
@@ -1165,7 +1168,7 @@ length(unique(prop_data$taxon_key))# 76
 #   )
 
 
-sau_groups <- my_path("D","SAU", name = "sau_commercial_groups.csv", read = T) 
+sau_groups <- read.csv("./results/supplements/straddling_species.csv")
 
 ```
 
@@ -1244,17 +1247,17 @@ ggsave("./results/supplements/fig_S2.png",
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key)) #77
-round(77/633 *100) #12
+length(unique(prop_data$taxon_key)) #76
+round(76/633 *100) #12
 
 # Number of straddling stocks
-straddling_df %>% 
+prop_data %>% 
   group_by(rfmo_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
   pull(x) %>% sum() # 512
 
-straddling_species <- straddling_df %>% 
+straddling_species <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
@@ -1267,7 +1270,7 @@ straddling_species %>%
   unique()
 
 
-write_csv(straddling_species, my_path("R", name = "straddling_species.csv"))
+write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
 
 ```
 
@@ -1363,8 +1366,7 @@ ggsave("./results/figures/fig_1a.png",
 # Straddling stocks by RFMO
 stradd_commercial <- prop_data %>% 
   left_join(exploited_spp) %>% 
-  left_join(rfmo_catch) %>% 
-  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group)) %>% 
+  left_join(sau_groups) %>% 
   group_by(rfmo_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";"))
@@ -1393,7 +1395,11 @@ stradd_bar_plot <- stradd_commercial %>%
   facet_grid(rfmo_name~realm_name,
              scales = "free") +
   labs(x = "", y = "Number of straddling stocks") +
-  scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1"),wes_palette("Darjeeling2"))) +
+  scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1")[1:3],
+                                                  "grey",
+                                                  wes_palette("Darjeeling1")[4:5],
+                                                  wes_palette("Darjeeling2"))
+                    ) +
   scale_y_continuous(breaks = seq(0,30,5))+
   theme_bw() +
   theme(
@@ -1416,17 +1422,6 @@ ggsave("./results/figures/fig_1b.png",
 )
 
 
-# Number of Straddling stocks by RFMO
-prop_data %>% 
-  left_join(exploited_spp) %>% 
-  left_join(rfmo_catch) %>% 
-  group_by(commercial_group) %>% 
-  summarise(
-    n_spp = length(unique(scientific_name))
-  ) %>% 
-  arrange(n_spp)
-  
-
 ```
 
 
@@ -1435,30 +1430,20 @@ prop_data %>%
 ```{r}
 
 prop_data %>% 
+  left_join(sau_groups) %>% 
   mutate(combo = paste0(realm_name,"_",rfmo_name)) %>% 
-  group_by(common_name) %>% 
+  group_by(taxon_name,common_name,commercial_group) %>% 
   summarise(value = length(unique(combo))) %>%
   View()
   top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
 
-  straddling_df %>% 
-    left_join(exploited_spp) %>% 
-    left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
-    group_by(taxon_name,common_name,commercial_group) %>% 
-    tally() %>% 
-    View()
+  
   
 ```
 
 ## Proportion change
-
-### Circle diagram
-
-Resources:
- - https://r-charts.com/flow/chord-diagram/
- - https://www.data-to-viz.com/graph/chord.html
 
 ```{r}
 
@@ -1474,19 +1459,63 @@ sankey_df <- prop_data %>%
          realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
+
+
+
+```
+
+## proportion change table
+
+```{r}
+
+
 # Total changes
 
-# reg_total <- sankey_df %>% 
-  # group_by(rcp,period) %>% 
-  # summarise(total_changes = sum(n))
+reg_total <- prop_data_esm %>% 
+  mutate(change = ifelse(mean > top_tresh,"gain",
+                               ifelse(mean < low_tresh,"lost","same")
+        )
+  ) %>% 
+  group_by(period,rcp,rfmo_name,change,realm_name,esm) %>% 
+  tally() %>% 
+  group_by(rcp,period,esm) %>%
+  summarise(total_changes = sum(n))
 
-# sankey_df %>% 
-#   group_by(rcp,period,change) %>% 
-#   summarise(n = sum(n)) %>% 
-#   left_join(reg_total) %>% 
-#   mutate(per = round(n/total_changes*100)) %>% 
-#   select(-total_changes) %>% 
-  # write_csv(.,my_path("R", name = "gains_losses.csv"))
+prop_data_esm %>% 
+  mutate(change = ifelse(mean > top_tresh,"gain",
+                         ifelse(mean < low_tresh,"lost","same")
+  )
+  ) %>%
+  group_by(period,rcp,rfmo_name,change,realm_name,esm) %>% 
+  tally() %>% 
+  group_by(rcp,period,esm,change) %>%
+  summarise(n = sum(n)) %>%
+  left_join(reg_total) %>%
+  mutate(per = round(n/total_changes*100)) %>%
+  group_by(rcp,period,change) %>%
+  summarise_if(is.numeric, c("m" = mean,
+                            "sd" = sd)
+               ) %>% 
+  mutate_if(is.numeric,round) %>% 
+  select(1:3,n_m,n_sd,per_m,per_sd) %>% 
+  # View()
+write_csv("./results/tables/gains_losses.csv")
+
+## Proportion table
+
+  
+```
+
+### Circle diagram
+
+Resources:
+ - https://r-charts.com/flow/chord-diagram/
+ - https://www.data-to-viz.com/graph/chord.html
+
+
+```{r}
+
+
 
 # Gain Data
 circle_data <-
@@ -1578,7 +1607,7 @@ mutate(name = str_replace(realm_name," ", "\n"),
     per = value/(n_shifting),
     per_non = same/(gain+lost+same)*100
     ) %>% 
-  View()
+  # View()
   filter(period == "ear",
          rcp == "rcp85") %>% 
   select(rowname = rowname_b,
@@ -1609,6 +1638,7 @@ dev.off()
 
 
 ```
+
 ### For Tunas
 
 ```{r}
