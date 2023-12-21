@@ -1098,7 +1098,7 @@ length(unique(partial_straddling_df$taxon_key))# 103
 
 # Get straddling stocks
 prop_data_esm <- bind_rows(
-  lapply(straddling_spp,GetResults, type = "prop")
+  lapply(partial_straddling_df$taxon_key,GetResults, type = "prop")
   ) %>% 
   # Include area index info
   left_join(partial_straddling_df,
@@ -1464,7 +1464,7 @@ sankey_df <- prop_data %>%
 
 ```
 
-## proportion change table
+## Proportion change table
 
 ```{r}
 
@@ -1513,256 +1513,47 @@ Resources:
  - https://www.data-to-viz.com/graph/chord.html
 
 
-```{r}
+```{r circle_diagrams, eval = T, echo = T}
 
 
+  # Color pallet
+  mycolor_scale <- 
+    c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
+      "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
+      "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
+      "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
+      "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
+      "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+      "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
+      "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
+      "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
+      "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+      "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+      "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
+      "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
+      "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+      "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
+      "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
+      "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+    )
 
-# Gain Data
-circle_data <-
-  sankey_df %>% 
-  filter(
-    period == "ear",
-    # change == "same",
-    rcp == "rcp26",
-    change == "gain"
-    # change == "lost"
-         ) %>% 
-  mutate(name = str_replace(realm_name," ", "\n")) %>% 
-  ungroup() %>% 
-  select(rowname = name,
-         key = rfmo_name,
-         value = n)
+# Run plots
 
-missing_data <- sankey_df %>% 
-  select(realm_name) %>% 
-  mutate(rowname = str_replace(realm_name," ", "\n")) %>% 
-  filter(rowname %in% circle_data$rowname)
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "gain")
 
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "lost")
 
-# Color scale for gains
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "gain")
 
-# length(unique(circle_data$key)) #5
-# length(unique(circle_data$rowname)) #12
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "lost")
 
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "same")
 
-n_labels = length(c(unique(circle_data$key),unique(circle_data$rowname)))
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "same")
 
-if(n_labels == 17){
-  
-  # Total colors 17
-  mycolor_scale <- c(
-    viridis(8, alpha = 1, begin = 0, end = 1, option = "D"),
-    viridis(12, alpha = 1, begin = 0, end = 1, option = "D")[8:11],
-    viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-  )
-  
-}else{
-  
-  mycolor_scale <- c(viridis(11, alpha = 1, begin = 0, end = 1, option = "D"),
-                 viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-  )
-  
-}
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "net")
 
-# png("./results/figures/circular_loss.png", width = 1300, height = 1300, res = 150, units = "px")
-# png("./results/figures/circular_gain.png", width = 1300, height = 1300, res = 150, units = "px")
-# png("./results/figures/circular_same.png", width = 1300, height = 1300, res = 150, units = "px")
-chordDiagram(
-  x = circle_data %>% arrange(rowname), 
-  grid.col = mycolor_scale,
-  # directional = 1, #gains
-  # directional = -1, #lost
-  # direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = T,
-  link.auto = T,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = T,
-  symmetric = T,
-  big.gap = 5
-)
-dev.off()
-
-
-
-# Net Change Data
-net_change <-
-  sankey_df %>% 
-  pivot_wider(
-    names_from = change,
-    values_from = n) %>% 
-  mutate_at(.var = c("gain","lost"),
-            .funs = replace_na,0
-  ) %>% 
-mutate(name = str_replace(realm_name," ", "\n"),
-       value = gain - lost,
-       rowname_b = ifelse(value > 0,name,rfmo_name),
-       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-    # View()
-  ungroup() %>%
-  mutate(
-    n_shifting = gain+lost,
-    per = value/(n_shifting),
-    per_non = same/(gain+lost+same)*100
-    ) %>% 
-  # View()
-  filter(period == "ear",
-         rcp == "rcp85") %>% 
-  select(rowname = rowname_b,
-         key = key_b,
-         value) %>% 
-  filter(value != 0)
-
-mycolor_g <- c(viridis(12, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-             )
-
-
-png("./results/figures/circular_net.png", width = 1200, height = 1200, res = 150, units = "px")
-chordDiagram(
-  x = net_change, 
-  grid.col = mycolor_g,
-  directional = 1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-  )
-dev.off() 
-
-
-```
-
-### For Tunas
-
-```{r}
-
-# Prepare data
-sankey_df <- prop_data %>% 
-  filter(common_name %in% c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")) %>% 
-  group_by(period,rcp,rfmo_name,change,realm_name) %>% 
-  tally() %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-
-# Net Change Data
-net_change <-
-  sankey_df %>% 
-  pivot_wider(
-    names_from = change,
-    values_from = n) %>% 
-  mutate(gain = ifelse(is.na(gain),0,gain),
-         lost = ifelse(is.na(lost),0,lost)) %>% 
-mutate(name = str_replace(realm_name," ", "\n"),
-         value = gain - lost,
-       rowname_b = ifelse(value > 0,name,rfmo_name),
-       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-# Uncomment for overall numbers
-  # group_by(period,rcp) %>%
-  # summarise_at(c("gain","lost","same"),
-  #              .funs = sum,
-  #              na.rm = T) %>%
-  # mutate(per_change = 100-same/(gain+lost+same)*100)
-  ungroup() %>% 
-  select(rowname = rowname_b,
-         key = key_b,
-         value) %>% 
-  filter(value != 0,
-         period == "ear",
-         rcp == "rcp85") 
-
-length(unique(net_change$key))
-length(unique(net_change$rowname))
-
-mycolor_g <- c(viridis(10, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-             )
-
-
-png("./results/figures/circular_net_tuna.png", width = 1200, height = 1200, res = 150, units = "px")
-chordDiagram(
-  x = net_change, 
-  grid.col = mycolor_g,
-  directional = 1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-  )
-dev.off() 
-
-
-```
-
-
-### Intensity
-
-```{r}
-
-sankey_df <- prop_data %>% 
-  mutate(range = ifelse(change == "gain",mean-low_tresh,
-                        ifelse(change == "same",NA,mean-top_tresh)
-                        ) 
-         ) %>% 
-  filter(!is.na(range)) %>%
-  # View()
-  group_by(common_name,period,rcp,rfmo_name,realm_name) %>% 
-  summarise(range_m = mean(range, na.rm =T)) %>% 
-  group_by(period,rcp,rfmo_name,realm_name) %>% 
-  summarise(range_m = mean(range_m, na.rm =T)) %>% 
-  filter(rcp == "rcp85") %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-# Gain Data
-circle_data <-
-  sankey_df %>% 
-  filter(
-    period == "ear"
-    # change == "lost"
-         ) %>% 
-  mutate(name = str_replace(realm_name," ", "\n")) %>% 
-  ungroup() %>% 
-  select(rowname = name,
-         key = rfmo_name,
-         value = range_m)
-
-
-png("./results/figures/circular_range.png", width = 1200, height = 1200, res = 150, units = "px")
-chordDiagram(
-  x = circle_data, 
-  grid.col = mycolor_g,
-  directional = -1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-  )
-dev.off() 
-
+lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "net")
 ```
 
 
@@ -2672,3 +2463,246 @@ Species_Data %>%
 
 ```
 
+# Old code for cicrlce plots
+
+```{r}
+
+
+# Gain Data
+circle_data <-
+  sankey_df %>% 
+  filter(
+    period == period_val,
+    rcp == rcp_val,
+    change == change_val
+         ) %>% 
+  mutate(name = str_replace(realm_name," ", "\n")) %>% 
+  ungroup() %>% 
+  select(rowname = name,
+         key = rfmo_name,
+         value = n)
+
+# Color pallet
+mycolor_scale <- 
+  c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
+    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
+    "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
+    "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
+    "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
+    "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+    "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
+    "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
+    "S. Ocean" = wes_palette("Darjeeling2",n = 5)[3],
+    "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+    "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+    "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
+    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
+    "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+    "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
+    "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
+    "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+  )
+
+
+name <- paste0("./results/figures/circular_",change_val,"_",period_val,"_",rcp_val,".png")
+png(name,
+    width = 1300, height = 1300, res = 150, units = "px")
+
+chordDiagram(
+  x = circle_data %>% arrange(rowname), 
+  grid.col = mycolor_scale,
+  directional = ifelse(change_val == "gain",1, -1),
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
+  link.sort = T,
+  link.auto = T,
+  link.largest.ontop = TRUE,
+  transparency = 0.30,
+  scale = T,
+  symmetric = T,
+  big.gap = 5
+)
+dev.off()
+
+
+# Net Change Data
+net_change <-
+  sankey_df %>% 
+  pivot_wider(
+    names_from = change,
+    values_from = n) %>% 
+  mutate_at(.var = c("gain","lost"),
+            .funs = replace_na,0
+  ) %>% 
+mutate(name = str_replace(realm_name," ", "\n"),
+       value = gain - lost,
+       rowname_b = ifelse(value > 0,name,rfmo_name),
+       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+    # View()
+  ungroup() %>%
+  mutate(
+    n_shifting = gain+lost,
+    per = value/(n_shifting),
+    per_non = same/(gain+lost+same)*100
+    ) %>% 
+  # View()
+  filter(period == period_val,
+         rcp == rcp_val) %>% 
+  select(rowname = rowname_b,
+         key = key_b,
+         value) %>% 
+  filter(value != 0)
+
+
+
+name_net <- paste0("./results/figures/circular_net_",period_val,"_",rcp_val,".png")
+png(name_net,
+    width = 1300, height = 1300, res = 150, units = "px")
+
+chordDiagram(
+  x = net_change, 
+  grid.col = mycolor_scale,
+  directional = 1, 
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
+  link.sort = F,
+  link.largest.ontop = TRUE,
+  transparency = 0.30,
+  scale = F,
+  symmetric = F
+  )
+dev.off() 
+
+
+```
+
+
+
+### Circle For Tunas
+
+```{r}
+
+# Prepare data
+sankey_df <- prop_data %>% 
+  filter(common_name %in% c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")) %>% 
+  group_by(period,rcp,rfmo_name,change,realm_name) %>% 
+  tally() %>% 
+  mutate(
+    realm_name = str_replace(realm_name,"Southern","S."),
+         realm_name = str_replace(realm_name,"Northern","N."),
+         realm_name = str_replace(realm_name, "Western", "W."),
+         realm_name = str_replace(realm_name,"Eastern", "E.")
+  )
+
+
+# Net Change Data
+net_change <-
+  sankey_df %>% 
+  pivot_wider(
+    names_from = change,
+    values_from = n) %>% 
+  mutate(gain = ifelse(is.na(gain),0,gain),
+         lost = ifelse(is.na(lost),0,lost)) %>% 
+mutate(name = str_replace(realm_name," ", "\n"),
+         value = gain - lost,
+       rowname_b = ifelse(value > 0,name,rfmo_name),
+       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+# Uncomment for overall numbers
+  # group_by(period,rcp) %>%
+  # summarise_at(c("gain","lost","same"),
+  #              .funs = sum,
+  #              na.rm = T) %>%
+  # mutate(per_change = 100-same/(gain+lost+same)*100)
+  ungroup() %>% 
+  select(rowname = rowname_b,
+         key = key_b,
+         value) %>% 
+  filter(value != 0,
+         period == "ear",
+         rcp == "rcp85") 
+
+length(unique(net_change$key))
+length(unique(net_change$rowname))
+
+mycolor_g <- c(viridis(10, alpha = 1, begin = 0, end = 1, option = "D"),
+             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
+             )
+
+
+png("./results/figures/circular_net_tuna.png", width = 1200, height = 1200, res = 150, units = "px")
+chordDiagram(
+  x = net_change, 
+  grid.col = mycolor_g,
+  directional = 1, 
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
+  link.sort = F,
+  link.largest.ontop = TRUE,
+  transparency = 0.30,
+  scale = F,
+  symmetric = F
+  )
+dev.off() 
+
+
+```
+
+
+
+### Intensity
+
+```{r}
+
+sankey_df <- prop_data %>% 
+  mutate(range = ifelse(change == "gain",mean-low_tresh,
+                        ifelse(change == "same",NA,mean-top_tresh)
+                        ) 
+         ) %>% 
+  filter(!is.na(range)) %>%
+  # View()
+  group_by(common_name,period,rcp,rfmo_name,realm_name) %>% 
+  summarise(range_m = mean(range, na.rm =T)) %>% 
+  group_by(period,rcp,rfmo_name,realm_name) %>% 
+  summarise(range_m = mean(range_m, na.rm =T)) %>% 
+  filter(rcp == "rcp85") %>% 
+  mutate(
+    realm_name = str_replace(realm_name,"Southern","S."),
+         realm_name = str_replace(realm_name,"Northern","N."),
+         realm_name = str_replace(realm_name, "Western", "W."),
+         realm_name = str_replace(realm_name,"Eastern", "E.")
+  )
+
+# Gain Data
+circle_data <-
+  sankey_df %>% 
+  filter(
+    period == "ear"
+    # change == "lost"
+         ) %>% 
+  mutate(name = str_replace(realm_name," ", "\n")) %>% 
+  ungroup() %>% 
+  select(rowname = name,
+         key = rfmo_name,
+         value = range_m)
+
+
+png("./results/figures/circular_range.png", width = 1200, height = 1200, res = 150, units = "px")
+chordDiagram(
+  x = circle_data, 
+  grid.col = mycolor_g,
+  directional = -1, 
+  direction.type = c("diffHeight","arrows"),
+  link.arr.type = "big.arrow",
+  link.arr.length = 0.1,
+  link.sort = F,
+  link.largest.ontop = TRUE,
+  transparency = 0.30,
+  scale = F,
+  symmetric = F
+  )
+dev.off() 
+
+```
