@@ -1006,7 +1006,7 @@ rfmo_taxon_proportion <- function(taxon_key){
     pull(rfmo_name) %>% 
     unique()
   
-  files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)
+  files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)[-3] # remove RCP45B
   
   to_read <- paste0(taxon_key,"Abd.RData")
   
@@ -1020,13 +1020,20 @@ rfmo_taxon_proportion <- function(taxon_key){
       
       load(file_to_read)
       
-      # Transform it to df--
-      spp_data <- as.data.frame(sppabdfnl) %>% 
-        rowid_to_column("index")
-      colnames(spp_data) <- c("index",(seq(1951,2100,1)))
-      rm(sppabdfnl) # remove original load
       
+      if(exists("sppabdfnl")){
+        spp_data <- as.data.frame(sppabdfnl) %>% 
+          rowid_to_column("index")
+        colnames(spp_data) <- c("index", seq(1951, 2100, 1))
+        rm(sppabdfnl) 
+      }else{
+        spp_data <- as.data.frame(data) %>% 
+          rowid_to_column("index")
+        colnames(spp_data) <- c("index", seq(1951, 2100, 1))
+        rm(data) 
+      }
       
+
       # Get amount abundance per region
       spp_data_area <- spp_data %>%
         gather("year","value",`1951`:`2100`) %>%
@@ -1035,10 +1042,6 @@ rfmo_taxon_proportion <- function(taxon_key){
                   ),
                   relationship = "many-to-many"
         ) %>% 
-        # left_join(rfmo_index,
-        #           by = "index",
-        #           relationship = "many-to-many") %>% 
-        # mutate(name = ifelse(is.na(region),rfmo_name,region)) %>% 
         filter(rfmo_name %in% rfmo_areas) %>%
         group_by(year,rfmo_name) %>% 
         summarise(total_rfmo_abd = sum(value,na.rm = T),
@@ -1064,8 +1067,7 @@ rfmo_taxon_proportion <- function(taxon_key){
       neighbour_data <- spp_data_area %>% 
                     rename(neighbour = rfmo_name, neighbour_abd = total_rfmo_abd)
       
-      rfmo_values_neigh <-
-        spp_data_area %>% 
+      rfmo_values_neigh <- spp_data_area %>% 
         rename(territory = rfmo_name) %>% 
         left_join(rfmo_neighbour,
                   by = "territory",
@@ -1154,8 +1156,8 @@ rfmo_taxon_proportion <- function(taxon_key){
                esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)),
                rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcp5F","rcp85",rcp)),
         ) %>% 
-        select(taxon_key,esm,rcp,period,rfmo_t = territory, low_tresh_t,change_t,top_tresh_t,
-               rfmo_n = neighbour,low_tresh_n,change_n,top_tresh_n)
+        select(taxon_key,esm,rcp,period,rfmo_t = territory, low_tresh_t,mean_t = per_rfmo_t,top_tresh_t,change_t,
+               rfmo_n = neighbour,low_tresh_n,mean_n = per_rfmo_n,top_tresh_n,change_n)
       
       if(m == 1){
         final_output <- final_data
@@ -1276,8 +1278,12 @@ GetResults=function(Spp,type = "strad"){
   if(type == "strad"){
     # Set the path for each file
     Distpath <- paste(my_path("R","Straddling_realm_rfmo/"),Spp,"_straddling.csv",sep="")
-  }else{
+  }
+  if(type == "prop"){
     Distpath <- paste(my_path("R","Per_change_realm_rfmo/"),Spp,"_perchg.csv",sep="")
+  }
+  if(type == "rfmo"){
+    Distpath <- paste(my_path("R","Per_change_rfmo_rfmo/"),Spp,"_perchg.csv",sep="")
   }
   
   # Loads all files in a df
@@ -1390,6 +1396,36 @@ prop_data <- prop_data_esm %>%
   )
 
 length(unique(prop_data$taxon_key))# 76
+
+### RFMO to RFMO
+
+list_rfmo_spp <- str_sub(list.files(my_path("R","Per_change_rfmo_rfmo/")),1,6)
+
+rfmo_prop_data_esm <- bind_rows(
+  lapply(list_rfmo_spp,GetResults, type = "rfmo")
+  ) %>% 
+  # Remove species not present in high seas
+  filter(
+    low_tresh_t != 0 &
+      mean_t != 0 &
+      top_tresh_t != 0,
+    low_tresh_n != 1 &
+      mean_t != 1 &
+      top_tresh_n != 1
+           ) %>% 
+  left_join(exploited_spp) %>% 
+  # Re- estimate change with average of all ESMs
+  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
+  summarise_at(
+    .vars = c("low_tresh_t","mean_t","top_tresh_t"), # Using just the territory RFMO
+    .funs = mean,
+    na.rm = T) %>% 
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                               ifelse(mean_t < low_tresh_t,"lost","same")
+        )
+  )
+
+length(unique(rfmo_prop_data_esm$taxon_key))# 45
 
 
 #### Catch data
@@ -1714,9 +1750,10 @@ sankey_df <- prop_data %>%
   # filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E."),
+    name = str_replace(realm_name," ", "\n")
   )
 
 
@@ -1815,6 +1852,84 @@ lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",c
 
 lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "net")
 ```
+
+
+# RFMO to RFMO
+
+```{r}
+
+
+x <- rfmo_prop_data_esm %>% 
+  group_by(period,rcp,name = rfmo_t,change,rfmo_name = rfmo_n) %>% 
+  tally()
+
+
+rcp_vals <- c("rcp26", "rcp85")
+period_vals <- c("ear", "mid")
+change_vals <- c("gain", "lost", "same", "net")
+level_val <- "rfmo"  # Assuming this value remains constant
+
+# Use nested lapply to iterate over the combinations
+lapply(rcp_vals, function(rcp) {
+  lapply(period_vals, function(period) {
+    lapply(change_vals, function(change) {
+      circular_plot(data = x, period_val = period, change_val = change, level = level_val, rcp = rcp)
+    })
+  })
+})
+
+
+
+rfmo_net_change <- rfmo_prop_data_esm %>% 
+  group_by(period,rcp,name = rfmo_t,change,rfmo_name = rfmo_n) %>% 
+  tally() %>% 
+      pivot_wider(
+        names_from = change,
+        values_from = n) %>% 
+      mutate_at(.var = c("gain","lost"),
+                .funs = replace_na,0
+      ) %>% 
+      mutate(
+             value = gain - lost,
+             rowname_b = ifelse(value > 0,name,rfmo_name),
+             key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+      # View()
+      ungroup() %>%
+      mutate(
+        n_shifting = gain+lost,
+        per = value/(n_shifting),
+        per_non = same/(gain+lost+same)*100
+      ) %>% 
+      # View()
+      filter(period == "ear",
+             rcp == "rcp26") %>% 
+      select(rowname = rowname_b,
+             key = key_b,
+             value) %>% 
+      filter(value != 0)
+    
+    name_net <- paste0("./results/figures/rfmo_circular_net_","ear","_","rcp26",".png")
+    png(name_net,
+        width = 1300, height = 1300, res = 150, units = "px")
+    
+    chordDiagram(
+      x = rfmo_net_change, 
+      grid.col = mycolor_scale,
+      directional = 1, 
+      direction.type = c("diffHeight","arrows"),
+      link.arr.type = "big.arrow",
+      link.arr.length = 0.1,
+      link.sort = F,
+      link.largest.ontop = TRUE,
+      transparency = 0.30,
+      scale = F,
+      symmetric = F
+    )
+    
+    dev.off() 
+
+```
+
 
 
 # Supplement material
