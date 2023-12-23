@@ -1401,7 +1401,7 @@ length(unique(prop_data$taxon_key))# 76
 
 list_rfmo_spp <- str_sub(list.files(my_path("R","Per_change_rfmo_rfmo/")),1,6)
 
-rfmo_prop_data_esm <- bind_rows(
+rfmo_prop_data <- bind_rows(
   lapply(list_rfmo_spp,GetResults, type = "rfmo")
   ) %>% 
   # Remove species not present in high seas
@@ -1836,21 +1836,20 @@ Resources:
 
 # Run plots
 
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "gain")
+# Define the values for rcp, period_val, and change_val
+rcp_vals <- c("rcp26", "rcp85")
+period_vals <- c("ear", "mid")
+change_vals <- c("gain", "lost", "same", "net")
 
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "lost")
+# Use nested lapply to iterate over the combinations
+lapply(rcp_vals, function(rcp) {
+  lapply(period_vals, function(period) {
+    lapply(change_vals, function(change) {
+      circular_plot(data = sankey_df, period_val = period, change_val = change, rcp = rcp)
+    })
+  })
+})
 
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "gain")
-
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "lost")
-
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "same")
-
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "same")
-
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "ear",change_val = "net")
-
-lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",change_val = "net")
 ```
 
 
@@ -1859,8 +1858,8 @@ lapply(c("rcp26","rcp85"), circular_plot, data = sankey_df, period_val = "mid",c
 ```{r}
 
 
-x <- rfmo_prop_data_esm %>% 
-  group_by(period,rcp,name = rfmo_t,change,rfmo_name = rfmo_n) %>% 
+sankey_rfmo <- rfmo_prop_data %>% 
+  group_by(period,rcp,rfmo_name = rfmo_t,change,name = rfmo_n) %>% 
   tally()
 
 
@@ -1873,60 +1872,11 @@ level_val <- "rfmo"  # Assuming this value remains constant
 lapply(rcp_vals, function(rcp) {
   lapply(period_vals, function(period) {
     lapply(change_vals, function(change) {
-      circular_plot(data = x, period_val = period, change_val = change, level = level_val, rcp = rcp)
+      circular_plot(data = sankey_rfmo, period_val = period, change_val = change, level = level_val, rcp = rcp)
     })
   })
 })
 
-
-
-rfmo_net_change <- rfmo_prop_data_esm %>% 
-  group_by(period,rcp,name = rfmo_t,change,rfmo_name = rfmo_n) %>% 
-  tally() %>% 
-      pivot_wider(
-        names_from = change,
-        values_from = n) %>% 
-      mutate_at(.var = c("gain","lost"),
-                .funs = replace_na,0
-      ) %>% 
-      mutate(
-             value = gain - lost,
-             rowname_b = ifelse(value > 0,name,rfmo_name),
-             key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-      # View()
-      ungroup() %>%
-      mutate(
-        n_shifting = gain+lost,
-        per = value/(n_shifting),
-        per_non = same/(gain+lost+same)*100
-      ) %>% 
-      # View()
-      filter(period == "ear",
-             rcp == "rcp26") %>% 
-      select(rowname = rowname_b,
-             key = key_b,
-             value) %>% 
-      filter(value != 0)
-    
-    name_net <- paste0("./results/figures/rfmo_circular_net_","ear","_","rcp26",".png")
-    png(name_net,
-        width = 1300, height = 1300, res = 150, units = "px")
-    
-    chordDiagram(
-      x = rfmo_net_change, 
-      grid.col = mycolor_scale,
-      directional = 1, 
-      direction.type = c("diffHeight","arrows"),
-      link.arr.type = "big.arrow",
-      link.arr.length = 0.1,
-      link.sort = F,
-      link.largest.ontop = TRUE,
-      transparency = 0.30,
-      scale = F,
-      symmetric = F
-    )
-    
-    dev.off() 
 
 ```
 
