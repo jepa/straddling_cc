@@ -1425,7 +1425,7 @@ rfmo_prop_data <- bind_rows(
         )
   )
 
-length(unique(rfmo_prop_data_esm$taxon_key))# 45
+length(unique(rfmo_prop_data$taxon_key))# 45
 
 
 #### Catch data
@@ -1551,7 +1551,7 @@ prop_data %>%
   group_by(rfmo_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 512
+  pull(x) %>% sum() # 379
 
 straddling_species <- prop_data %>% 
   left_join(exploited_spp) %>% 
@@ -1796,7 +1796,7 @@ prop_data_esm %>%
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_m,n_sd,per_m,per_sd) %>% 
   # View()
-write_csv("./results/tables/gains_losses.csv")
+# write_csv("./results/tables/gains_losses.csv")
 
 ## Proportion table
 
@@ -1889,22 +1889,141 @@ lapply(rcp_vals, function(rcp) {
 ```{r regional_map, eval = T, echo = F}
 
 regional_map <- ggplot() + 
-  geom_sf(data = sf_rfmo, aes(), color = "black", fill = "transparent") +
+  geom_sf(data = sf_rfmo %>% left_join(stradd_rfmo), aes(),fill = "transparent") +
   geom_sf(data = sf_meow_map, aes(fill = realm_name)) +
-  geom_sf_label(data = sf_rfmo, aes(label = rfmo_name)) +
+  # geom_sf_label(data = sf_rfmo, aes(label = rfmo_name)) +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
   scale_fill_viridis("Region", discrete = T, option = "D") +
   # scale_color_viridis("Region", discrete = T, option = "E") +
-  my_ggtheme_m(leg_pos = "bottom")
+  my_ggtheme_m(leg_pos = "right") +
+  # Add RFMO labels
+  geom_label_repel(data = sf_rfmo,
+                   aes(label = rfmo_name,
+                       geometry = geometry),
+                   stat = "sf_coordinates",
+                   direction = "y",
+                   seed = 5,
+                   max.overlaps = 10,
+                   point.padding = 50,
+                   hjust = "right",
+                   nudge_x = 15,
+                   nudge_y = ifelse(sf_rfmo$rfmo_name == "CCSBT",-20,-30),
+                   alpha = 0.6,
+                   size = 3
+  )
 
 # Save plot 
-ggsave("../results/figures/supplements/regional_map.png",
+ggsave("./results/supplements/regional_map.png",
        regional_map,
        height = 5,
        width = 11
 )
 
 ```
+
+
+## Diversity map
+
+
+```{r}
+
+
+# Gabriel's coordinate system 
+CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
+  mutate(INDEX = seq(1,259200,1))
+
+# Load FishForVisa Results
+transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
+  # Set same filters as in FishForVisa
+  filter(
+    area_index >= 0.25,
+    area_index <= 1-0.25,
+    model_index >= 100
+  ) %>% 
+  pull(taxon_key) %>% 
+  unique()
+
+#Get DBEM coords 
+coords_dbem <- my_data("dbem_coords")
+
+
+
+for(s in 1:length(transboundary_spp)){
+  # for(s in 1:2){
+  # Get model data from spps
+  SppDist <- GetSppDist(transboundary_spp[s],Model = "All",Coord = coords_dbem)
+  
+  Trans_Spp <- SppDist %>%
+    filter(Model != "SAU_C") %>% 
+    mutate(Value = ifelse(Value > 0, 1,0)) %>%  
+    group_by(TaxonKey, INDEX) %>%
+    summarise(Model_Index = sum(Value,na.rm=T)/3,
+              .groups = "drop") %>%
+    # filter(Model_Index > 0.4) %>% # at least 2 sources agree
+    # ____________ ESTIMATING FUNDAMENTAL NICHE (TRESHOLD 2)_________ #
+    left_join(SppDist,
+              by = c("TaxonKey","INDEX")) %>%
+    filter(Model == "SAU_C", # Only keeping cells where SAU catch exists
+           Value > 0) %>%
+    select(index = INDEX) %>% 
+    mutate(n_spp = 1) %>% 
+    right_join(coords_dbem,
+               by = "index")
+  
+  
+  # ggplot(Trans_Spp) +
+  #   geom_tile(
+  #     aes(
+  #       x = lon,
+  #       y = lat,
+  #       fill = n_spp
+  #     )
+  #   )
+  
+  
+  if(s == 1){
+    final_data <-  Trans_Spp 
+  }else{
+    final_data <- final_data %>% 
+      left_join(Trans_Spp,
+                by = "index") %>% 
+      replace_na(list(n_spp.x = 0,n_spp.y = 0)) %>% 
+      mutate(n_spp = n_spp.x + n_spp.y) %>% 
+      select(index,n_spp)
+  }
+  
+}
+
+final_data %>% 
+  left_join(coords_dbem) %>% 
+  # filter(n_spp >0) %>% 
+  ggplot() +
+  # geom_contour_fill(aes(z = mean_tc, fill = stat(level)),
+                        # binwidth = 2)+
+  metR::geom_contour_fill(
+    aes(
+      x = lon,
+      y = lat,
+      z = n_spp,
+      fill = stat(level)
+      # fill = n_spp,
+      # color = n_spp
+    ),
+    binwidth = 20
+  ) +
+  my_ggtheme_m(leg_pos = "right") +
+  geom_sf(data = sf_land, aes(), fill = "black", color = "grey50") +
+  scale_fill_viridis_d("Number of species") 
+
+ggsave("./results/supplements/fig_S1.png",
+       last_plot(),
+       height = 4,
+       width = 9
+)
+
+
+```
+
 
 
 # Old code 
