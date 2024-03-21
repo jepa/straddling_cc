@@ -1,77 +1,77 @@
-taxon_name,common_name,commercial_group
-Acanthocybium solandri,Wahoo,Perch-likes
-Alepocephalus bairdii,Bairds slickhead,"Salmon, smelts, etc"
-Alopias superciliosus,Bigeye thresher,Sharks & rays
-Alopias vulpinus,Thresher,Sharks & rays
-Alosa pseudoharengus,Alewife,Herring-likes
-Auxis thazard,Frigate tuna,Tuna & billfishes
-Beryx splendens,Splendid alfonsino,Other fishes & inverts
-Boreogadus saida,Polar cod,Cod-likes
-Brama brama,Atlantic pomfret,Perch-likes
-Carcharhinus falciformis,Silky shark,Sharks & rays
-Carcharhinus longimanus,Oceanic whitetip shark,Sharks & rays
-Carcharhinus plumbeus,Sandbar shark,Sharks & rays
-Carcharodon carcharias,Great white shark,Sharks & rays
-Centrophorus squamosus,Leafscale gulper shark,Sharks & rays
-Centroscymnus coelolepis,Portuguese dogfish,Sharks & rays
-Centroscymnus crepidater,Longnose velvet dogfish,Sharks & rays
-Cetorhinus maximus,Basking shark,Sharks & rays
-Cololabis saira,Pacific saury,Small pellagics
-Coryphaena hippurus,Common dolphinfish,Perch-likes
-Dalatias licha,Kitefin shark,Sharks & rays
-Dissostichus eleginoides,Patagonian toothfish,Perch-likes
-Epigonus telescopus,Black cardinal fish,Perch-likes
-Euthynnus affinis,Kawakawa,Tuna & billfishes
-Gadus morhua,Atlantic cod,Cod-likes
-Galeorhinus galeus,Tope shark,Sharks & rays
-Genypterus blacodes,Pink cusk-eel,Other fishes & inverts
-Hippoglossoides platessoides,American plaice,Flatfishes
-Hoplostethus atlanticus,Orange roughy,Other fishes & inverts
-Hoplostethus mediterraneus mediterraneus,Mediterranean slimehead,Other fishes & inverts
-Illex illecebrosus,Northern shortfin squid,Squids
-Istiompax indica,Black marlin,Tuna & billfishes
-Istiophorus platypterus,Indo-Pacific sailfish,Tuna & billfishes
-Isurus oxyrinchus,Shortfin mako,Sharks & rays
-Isurus paucus,Longfin mako,Sharks & rays
-Kajikia albida,Atlantic white marlin,Tuna & billfishes
-Kajikia audax,Striped marlin,Tuna & billfishes
-Katsuwonus pelamis,Skipjack tuna,Tuna & billfishes
-Lamna nasus,Porbeagle,Sharks & rays
-Lampris guttatus,Opah,Other fishes & inverts
-Lepidocybium flavobrunneum,Escolar,Perch-likes
-Lobotes surinamensis,Tripletail,Perch-likes
-Makaira nigricans,Blue marlin,Tuna & billfishes
-Mallotus villosus,Capelin,"Salmon, smelts, etc"
-Martialia hyadesi,Sevenstar flying squid,Squids
-Merluccius australis,Southern hake,Cod-likes
-Micromesistius australis,Southern blue whiting,Cod-likes
-Mola mola,Ocean sunfish,Other fishes & inverts
-Molva dypterygia,Blue ling,Cod-likes
-Mustelus mustelus,Smooth-hound,Sharks & rays
-Odontesthes regia,Chilean silverside,Small pellagics
-Oncorhynchus nerka,Sockeye salmon,"Salmon, smelts, etc"
-Paralabrax humeralis,Peruvian rock seabass,Perch-likes
-Pomatomus saltatrix,Bluefish,Perch-likes
-Prionace glauca,Blue shark,Sharks & rays
-Regalecus glesne,King of herrings,Other fishes & inverts
-Ruvettus pretiosus,Oilfish,Perch-likes
-Sarda sarda,Atlantic bonito,Tuna & billfishes
-Scomber japonicus,Chub mackerel,Perch-likes
-Scomber scombrus,Atlantic mackerel,Perch-likes
-Scomberoides lysan,Doublespotted queenfish,Perch-likes
-Sebastes mentella,Beaked redfish,Scorpionfishes
-Sebastes norvegicus,Golden redfish,Scorpionfishes
-Sphyrna zygaena,Smooth hammerhead,Sharks & rays
-Squalus acanthias,Piked dogfish,Sharks & rays
-Tetrapturus angustirostris,Shortbill spearfish,Tuna & billfishes
-Thunnus alalunga,Albacore,Tuna & billfishes
-Thunnus albacares,Yellowfin tuna,Tuna & billfishes
-Thunnus maccoyii,Southern bluefin tuna,Tuna & billfishes
-Thunnus obesus,Bigeye tuna,Tuna & billfishes
-Thunnus orientalis,Pacific bluefin tuna,Tuna & billfishes
-Thunnus thynnus,Atlantic bluefin tuna,Tuna & billfishes
-Todarodes pacificus,Japanese flying squid,Squids
-Todarodes sagittatus,European flying squid,Squids
-Trachurus murphyi,Chilean jack mackerel,Perch-likes
-Trachurus trachurus,Atlantic horse mackerel,Perch-likes
-Xiphias gladius,Swordfish,Tuna & billfishes
+taxon_name,common_name,commercial_group,reporting,source
+Acanthocybium solandri,Wahoo,Perch-likes,FAO 495,
+Alepocephalus bairdii,Bairds slickhead,"Salmon, smelts, etc",,FishBase
+Alopias superciliosus,Bigeye thresher,Sharks & rays,UNCLOS,
+Alopias vulpinus,Thresher,Sharks & rays,UNCLOS,
+Alosa pseudoharengus,Alewife,Herring-likes,,
+Auxis thazard,Frigate tuna,Tuna & billfishes,UNCLOS,
+Beryx splendens,Splendid alfonsino,Other fishes & inverts,FAO 495,
+Boreogadus saida,Polar cod,Cod-likes,,FishBase
+Brama brama,Atlantic pomfret,Perch-likes,UNCLOS,
+Carcharhinus falciformis,Silky shark,Sharks & rays,UNCLOS,
+Carcharhinus longimanus,Oceanic whitetip shark,Sharks & rays,UNCLOS,
+Carcharhinus plumbeus,Sandbar shark,Sharks & rays,UNCLOS,
+Carcharodon carcharias,Great white shark,Sharks & rays,UNCLOS,
+Centrophorus squamosus,Leafscale gulper shark,Sharks & rays,FAO 495,
+Centroscymnus coelolepis,Portuguese dogfish,Sharks & rays,FAO 495,
+Centroscymnus crepidater,Longnose velvet dogfish,Sharks & rays,FAO 495,
+Cetorhinus maximus,Basking shark,Sharks & rays,UNCLOS,
+Cololabis saira,Pacific saury,Small pellagics,UNCLOS,
+Coryphaena hippurus,Common dolphinfish,Perch-likes,UNCLOS,
+Dalatias licha,Kitefin shark,Sharks & rays,FAO 495,
+Dissostichus eleginoides,Patagonian toothfish,Perch-likes,FAO 495,
+Epigonus telescopus,Black cardinal fish,Perch-likes,FAO 495,
+Euthynnus affinis,Kawakawa,Tuna & billfishes,UNCLOS,
+Gadus morhua,Atlantic cod,Cod-likes,FAO 495,
+Galeorhinus galeus,Tope shark,Sharks & rays,,FishBase
+Genypterus blacodes,Pink cusk-eel,Other fishes & inverts,FAO 495,
+Hippoglossoides platessoides,American plaice,Flatfishes,FAO 495,
+Hoplostethus atlanticus,Orange roughy,Other fishes & inverts,FAO 495,
+Hoplostethus mediterraneus mediterraneus,Mediterranean slimehead,Other fishes & inverts,FAO 495,
+Illex illecebrosus,Northern shortfin squid,Squids,FAO 495,
+Istiompax indica,Black marlin,Tuna & billfishes,UNCLOS,
+Istiophorus platypterus,Indo-Pacific sailfish,Tuna & billfishes,UNCLOS,
+Isurus oxyrinchus,Shortfin mako,Sharks & rays,UNCLOS,
+Isurus paucus,Longfin mako,Sharks & rays,UNCLOS,
+Kajikia albida,Atlantic white marlin,Tuna & billfishes,UNCLOS,
+Kajikia audax,Striped marlin,Tuna & billfishes,UNCLOS,
+Katsuwonus pelamis,Skipjack tuna,Tuna & billfishes,UNCLOS,
+Lamna nasus,Porbeagle,Sharks & rays,UNCLOS,
+Lampris guttatus,Opah,Other fishes & inverts,,FishBase
+Lepidocybium flavobrunneum,Escolar,Perch-likes,FAO 495,
+Lobotes surinamensis,Tripletail,Perch-likes,,FishBase
+Makaira nigricans,Blue marlin,Tuna & billfishes,UNCLOS,
+Mallotus villosus,Capelin,"Salmon, smelts, etc",FAO 495,
+Martialia hyadesi,Sevenstar flying squid,Squids,FAO 495,
+Merluccius australis,Southern hake,Cod-likes,,
+Micromesistius australis,Southern blue whiting,Cod-likes,FAO 495,
+Mola mola,Ocean sunfish,Other fishes & inverts,,FishBase
+Molva dypterygia,Blue ling,Cod-likes,FAO 495,
+Mustelus mustelus,Smooth-hound,Sharks & rays,,
+Odontesthes regia,Chilean silverside,Small pellagics,,
+Oncorhynchus nerka,Sockeye salmon,"Salmon, smelts, etc",,FishBase
+Paralabrax humeralis,Peruvian rock seabass,Perch-likes,,
+Pomatomus saltatrix,Bluefish,Perch-likes,,FishBase
+Prionace glauca,Blue shark,Sharks & rays,UNCLOS,
+Regalecus glesne,King of herrings,Other fishes & inverts,,FishBase
+Ruvettus pretiosus,Oilfish,Perch-likes,FAO 495,
+Sarda sarda,Atlantic bonito,Tuna & billfishes,,
+Scomber japonicus,Chub mackerel,Perch-likes,FAO 495,
+Scomber scombrus,Atlantic mackerel,Perch-likes,FAO 495,
+Scomberoides lysan,Doublespotted queenfish,Perch-likes,,
+Sebastes mentella,Beaked redfish,Scorpionfishes,FAO 495,
+Sebastes norvegicus,Golden redfish,Scorpionfishes,,FishBase
+Sphyrna zygaena,Smooth hammerhead,Sharks & rays,UNCLOS,
+Squalus acanthias,Piked dogfish,Sharks & rays,,FishBase
+Tetrapturus angustirostris,Shortbill spearfish,Tuna & billfishes,UNCLOS,
+Thunnus alalunga,Albacore,Tuna & billfishes,UNCLOS,
+Thunnus albacares,Yellowfin tuna,Tuna & billfishes,UNCLOS,
+Thunnus maccoyii,Southern bluefin tuna,Tuna & billfishes,UNCLOS,
+Thunnus obesus,Bigeye tuna,Tuna & billfishes,UNCLOS,
+Thunnus orientalis,Pacific bluefin tuna,Tuna & billfishes,,FishBase
+Thunnus thynnus,Atlantic bluefin tuna,Tuna & billfishes,UNCLOS,
+Todarodes pacificus,Japanese flying squid,Squids,FAO 495,
+Todarodes sagittatus,European flying squid,Squids,FAO 495,
+Trachurus murphyi,Chilean jack mackerel,Perch-likes,FAO 495,
+Trachurus trachurus,Atlantic horse mackerel,Perch-likes,FAO 495,
+Xiphias gladius,Swordfish,Tuna & billfishes,UNCLOS,
