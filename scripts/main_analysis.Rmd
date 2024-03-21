@@ -642,11 +642,14 @@ prop_data <- prop_data_esm %>%
 
 length(unique(prop_data$taxon_key))# 76
 
+
+
+
 ### RFMO to RFMO
 
 list_rfmo_spp <- str_sub(list.files(my_path("R","Per_change_rfmo_rfmo/")),1,6)
 
-rfmo_prop_data <- bind_rows(
+rfmo_prop_data_esm <- bind_rows(
   lapply(list_rfmo_spp,GetResults, type = "rfmo")
   ) %>% 
   # Remove species not present in high seas
@@ -658,9 +661,10 @@ rfmo_prop_data <- bind_rows(
       mean_t != 1 &
       top_tresh_n != 1
            ) %>% 
-  left_join(exploited_spp) %>% 
+  left_join(exploited_spp)
+
   # Re- estimate change with average of all ESMs
-  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
+rfmo_prop_data <- rfmo_prop_data_esm %>%   group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
   summarise_at(
     .vars = c("low_tresh_t","mean_t","top_tresh_t"), # Using just the territory RFMO
     .funs = mean,
@@ -1125,6 +1129,51 @@ lapply(rcp_vals, function(rcp) {
 
 ```
 
+### Numbers for RFMO - RFMO
+
+```{r}
+
+rfmo_prop_data %>% 
+  group_by(rfmo_t,rfmo_n,period,rcp,change) %>% 
+  tally() %>% 
+  group_by(period,rcp,change) %>% 
+  summarise(sum = sum(n)) %>% 
+  View()
+
+
+
+
+reg_total_rfmo <- rfmo_prop_data_esm %>% 
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                               ifelse(mean_t < low_tresh_t,"lost","same")
+        )
+  ) %>% 
+  group_by(period,rcp,rfmo_t,change_t,rfmo_n,esm) %>% 
+  tally() %>% 
+  group_by(rcp,period,esm) %>%
+  summarise(total_changes = sum(n))
+
+rfmo_prop_data_esm %>% 
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                               ifelse(mean_t < low_tresh_t,"lost","same")
+        )
+  ) %>% 
+  group_by(period,rcp,rfmo_t,change_t,rfmo_n,esm) %>% 
+  tally() %>% 
+  group_by(rcp,period,esm,change_t) %>%
+  summarise(n = sum(n)) %>%
+  left_join(reg_total_rfmo) %>%
+  mutate(per = round(n/total_changes*100)) %>%
+  group_by(rcp,period,change_t) %>%
+  summarise_if(is.numeric, c("m" = mean,
+                            "sd" = sd)
+               ) %>% 
+  mutate_if(is.numeric,round) %>% 
+  select(1:3,n_m,n_sd,per_m,per_sd) %>% 
+  View()
+
+
+```
 
 
 # Supplement material
@@ -1269,6 +1318,116 @@ ggsave("./results/supplements/fig_S1.png",
 
 ```
 
+# Unclos V.s. No-Unclos
+
+## The non-tunas
+
+```{r}
+
+
+commerica_group_total <- prop_data %>% 
+  left_join(sau_groups) %>% 
+  group_by(commercial_group,rfmo_name,realm_name) %>% 
+  summarise(n = length(unique(taxon_key))) %>% 
+  group_by(commercial_group) %>% 
+  summarise(tot = sum(n))
+
+
+prop_data %>% 
+  left_join(sau_groups) %>% 
+  # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
+  group_by(period,rcp,change,commercial_group) %>% 
+  tally() %>% 
+  left_join(commerica_group_total) %>% 
+  # Fix labels
+  mutate(
+    per = n/tot*100,
+    change = ifelse(change == "gain","RFMO",
+                         ifelse(change == "lost","EEZ","Same")),
+    period = ifelse(period == "ear","Early","Middle"),
+    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5"),
+    x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
+         ) %>% 
+  # filter(change != "Same") %>%
+  # View()
+  ggplot() +
+  geom_bar(
+    aes(
+      x = reorder(x_lab,n),
+      y = per,
+      fill = change
+    ),
+    stat = "identity"
+  ) +
+  facet_grid(period~rcp) +
+  scale_fill_viridis_d("Direction of Change",
+                       direction = -1) +
+  scale_x_discrete("Commercial group") +
+  scale_y_continuous("Percentage of stocks (%)") + 
+  my_ggtheme_p(
+    leg_pos = "right",
+    ax_tl_s = 16,
+    ax_tx_s = 12
+    
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) 
+  
+ggsave(filename = "./results/figures/straddling_status_barplot.png",
+       plot = last_plot(),
+       height = 7,
+       width = 10)
+
+```
+
+
+
+# Discussion
+
+## Exploring missing taxa
+
+
+From the three tuna species not identified by straddling in this paper, little tuna (Euthynnus alleteratus) was not present in the initial dataset (Palacios-Abrantes 2020) while blackfin tuna (Thunnus atlanticus) and bullet tuna (Auxis rochei) ... 
+
+Method: I re ran the `taxon_proportion` for these two species to explore why were they not selected in the final result.
+
+No catch data on RFMO in model but also on SAU. These are more coastal species
+
+600144 <- blackfin tuna (Thunnus atlanticus)
+600093 <- bullet tuna (Auxis rochei)
+
+Missing Marlins: 
+6 of 8 species <- 
+Tetrapturus belone, no high seas data
+Tetrapturus pfluegeri, double check, present in trans, no data from the model
+Tetrapturus albidus, wrong name. White marlin, we have it.
+Tetrapturus audax,  also wrong name. Kajika striped marlin
+Tetrapturus georgei, No catch data on SAU
+Makaira indica, wrong name, Istiompax indica, we have it.
+
+Sailfishes:
+1 of 2 speices <-
+Istiophorus albicans, double check, present in trans.
+
+Swordfish, all good! 
+
+## The tunas
+
+```{r}
+
+prop_data %>% 
+  filter(realm_name == "Eastern Indo-Pacific",
+         taxon_key %in% c(600107,600143,600146)) %>% 
+  View()
+
+rfmo_prop_data %>% 
+  filter(taxon_key %in% c(600107,600143,600146),
+         rfmo_t %in% c("WCPFC"),
+         rfmo_n %in% c("IATTC")) %>% 
+  View()
+
+```
 
 
 # Old code 
