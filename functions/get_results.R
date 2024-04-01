@@ -16,7 +16,8 @@ GetResults=function(Spp,type = "strad"){
   }
   
   # Loads all files in a df
-  Load_Data <- bind_rows(lapply(Distpath, FUN=fread))
+  # Load_Data <- bind_rows(lapply(Distpath, FUN=fread))
+  Load_Data <- fread(Distpath)
   
   if(nrow(Load_Data)>0){
     
