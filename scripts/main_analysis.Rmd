@@ -610,7 +610,7 @@ partial_straddling_df <- bind_rows(
   rename(realm_name = realm
          )
 
-length(unique(partial_straddling_df$taxon_key))# 103
+length(unique(partial_straddling_df$taxon_key))# 157
 
 # Get straddling stocks
 prop_data_esm <- bind_rows(
@@ -670,7 +670,8 @@ rfmo_prop_data_esm <- bind_rows(
   left_join(exploited_spp)
 
   # Re- estimate change with average of all ESMs
-rfmo_prop_data <- rfmo_prop_data_esm %>%   group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
+rfmo_prop_data <- rfmo_prop_data_esm %>%  
+  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
   summarise_at(
     .vars = c("low_tresh_t","mean_t","top_tresh_t"), # Using just the territory RFMO
     .funs = mean,
