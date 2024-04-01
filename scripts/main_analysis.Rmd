@@ -614,8 +614,9 @@ length(unique(partial_straddling_df$taxon_key))# 157
 
 # Get straddling stocks
 prop_data_esm <- bind_rows(
-  lapply(partial_straddling_df$taxon_key,GetResults, type = "prop")
-  ) %>% 
+  lapply(unique(partial_straddling_df$taxon_key),GetResults, type = "prop")
+  ) %>%
+  # View()
   # Include area index info
   left_join(partial_straddling_df,
             by = c("taxon_key","rfmo_name","realm_name")
@@ -822,7 +823,7 @@ straddling_species %>%
   unique()
 
 
-write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
+# write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
 
 ```
 
@@ -1012,7 +1013,11 @@ sankey_df <- prop_data %>%
     name = str_replace(realm_name," ", "\n")
   )
 
+# Numbers for manuscript
 
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  tally()
 
 
 ```
@@ -1021,14 +1026,15 @@ sankey_df <- prop_data %>%
 
 ```{r}
 
-
 # Total changes
 
-reg_total <- prop_data_esm %>% 
+reg_total <-
+  prop_data_esm %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
                                ifelse(mean < low_tresh,"lost","same")
         )
   ) %>% 
+  # View()
   group_by(period,rcp,rfmo_name,change,realm_name,esm) %>% 
   tally() %>% 
   group_by(rcp,period,esm) %>%
@@ -1042,7 +1048,7 @@ prop_data_esm %>%
   group_by(period,rcp,rfmo_name,change,realm_name,esm) %>% 
   tally() %>% 
   group_by(rcp,period,esm,change) %>%
-  summarise(n = sum(n)) %>%
+  summarise(n = sum(n,na.rm =T)) %>% 
   left_join(reg_total) %>%
   mutate(per = round(n/total_changes*100)) %>%
   group_by(rcp,period,change) %>%
@@ -1051,7 +1057,7 @@ prop_data_esm %>%
                ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_m,n_sd,per_m,per_sd) %>% 
-  # View()
+  View()
 # write_csv("./results/tables/gains_losses.csv")
 
 ## Proportion table
@@ -1344,7 +1350,7 @@ prop_data %>%
   left_join(sau_groups) %>% 
   # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
   group_by(period,rcp,change,commercial_group) %>% 
-  tally() %>% 
+  tally() %>%
   left_join(commerica_group_total) %>% 
   # Fix labels
   mutate(
@@ -1352,15 +1358,15 @@ prop_data %>%
     change = ifelse(change == "gain","RFMO",
                          ifelse(change == "lost","EEZ","Same")),
     period = ifelse(period == "ear","Early","Middle"),
-    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5"),
-    x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
+    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
+    # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
          ) %>% 
   # filter(change != "Same") %>%
   # View()
   ggplot() +
   geom_bar(
     aes(
-      x = reorder(x_lab,n),
+      x = reorder(commercial_group,n),
       y = per,
       fill = change
     ),
