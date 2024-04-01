@@ -1015,10 +1015,17 @@ sankey_df <- prop_data %>%
 
 # Numbers for manuscript
 
+# Number of regions 
 sankey_df %>% 
   group_by(period,rcp,change) %>% 
-  tally()
+  summarise(x = length(unique(realm_name))) %>% 
+  View()
 
+# Number of stocks
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  tally() %>% 
+  View()
 
 ```
 
@@ -1125,9 +1132,6 @@ ggsave(filename = "./results/figures/straddling_status_barplot.png",
        width = 10)
 
 ```
-
-
-
 
 ### Circle diagram
 
