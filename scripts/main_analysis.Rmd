@@ -1065,6 +1065,70 @@ prop_data_esm %>%
   
 ```
 
+### Shifts by commercial group
+
+```{r}
+
+
+commerica_group_total <- prop_data %>% 
+  left_join(sau_groups) %>% 
+  group_by(commercial_group,rfmo_name,realm_name) %>% 
+  summarise(n = length(unique(taxon_key))) %>% 
+  group_by(commercial_group) %>% 
+  summarise(tot = sum(n))
+
+
+prop_data %>% 
+  left_join(sau_groups) %>% 
+  # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
+  group_by(period,rcp,change,commercial_group) %>% 
+  tally() %>%
+  left_join(commerica_group_total) %>% 
+  # Fix labels
+  mutate(
+    per = n/tot*100,
+    change = ifelse(change == "gain","RFMO",
+                         ifelse(change == "lost","EEZ","Same")),
+    period = ifelse(period == "ear","Early","Middle"),
+    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
+    # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
+         ) %>% 
+  # filter(change != "Same") %>%
+  # View()
+  ggplot() +
+  geom_bar(
+    aes(
+      x = reorder(commercial_group,n),
+      y = per,
+      fill = change
+    ),
+    stat = "identity"
+  ) +
+  facet_grid(period~rcp) +
+  scale_fill_viridis_d("Direction of Change",
+                       direction = -1) +
+  scale_x_discrete("Commercial group") +
+  scale_y_continuous("Percentage of stocks (%)") + 
+  my_ggtheme_p(
+    leg_pos = "right",
+    ax_tl_s = 16,
+    ax_tx_s = 12
+    
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) 
+  
+ggsave(filename = "./results/figures/straddling_status_barplot.png",
+       plot = last_plot(),
+       height = 7,
+       width = 10)
+
+```
+
+
+
+
 ### Circle diagram
 
 Resources:
@@ -1330,71 +1394,6 @@ ggsave("./results/supplements/fig_S1.png",
 
 
 ```
-
-# Unclos V.s. No-Unclos
-
-## The non-tunas
-
-```{r}
-
-
-commerica_group_total <- prop_data %>% 
-  left_join(sau_groups) %>% 
-  group_by(commercial_group,rfmo_name,realm_name) %>% 
-  summarise(n = length(unique(taxon_key))) %>% 
-  group_by(commercial_group) %>% 
-  summarise(tot = sum(n))
-
-
-prop_data %>% 
-  left_join(sau_groups) %>% 
-  # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
-  group_by(period,rcp,change,commercial_group) %>% 
-  tally() %>%
-  left_join(commerica_group_total) %>% 
-  # Fix labels
-  mutate(
-    per = n/tot*100,
-    change = ifelse(change == "gain","RFMO",
-                         ifelse(change == "lost","EEZ","Same")),
-    period = ifelse(period == "ear","Early","Middle"),
-    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
-    # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
-         ) %>% 
-  # filter(change != "Same") %>%
-  # View()
-  ggplot() +
-  geom_bar(
-    aes(
-      x = reorder(commercial_group,n),
-      y = per,
-      fill = change
-    ),
-    stat = "identity"
-  ) +
-  facet_grid(period~rcp) +
-  scale_fill_viridis_d("Direction of Change",
-                       direction = -1) +
-  scale_x_discrete("Commercial group") +
-  scale_y_continuous("Percentage of stocks (%)") + 
-  my_ggtheme_p(
-    leg_pos = "right",
-    ax_tl_s = 16,
-    ax_tx_s = 12
-    
-  ) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) 
-  
-ggsave(filename = "./results/figures/straddling_status_barplot.png",
-       plot = last_plot(),
-       height = 7,
-       width = 10)
-
-```
-
-
 
 # Discussion
 
