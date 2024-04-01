@@ -50,6 +50,12 @@ my_lib(packages)
 
 # Fix new updates of sf package
 sf::sf_use_s2(use_s2 = FALSE)
+
+# Call functions
+
+# Needed for results 
+source("./functions/get_results.R")
+
 ```
 
 
@@ -408,19 +414,19 @@ rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
 
 # Spp list
 spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Species to ran
 ran_species <- list.files(my_path("R","Per_change_realm_rfmo"))
 ran_species <- str_sub(ran_species,1,6)
 
 # Run reminindg species
-run_me_list <- stradling_spp[!(stradling_spp %in% ran_species)]
+run_me_list <- straddling_spp[!(straddling_spp %in% ran_species)]
 
 
 
 # stradd_data <- bind_rows(
-#   lapply(stradling_spp,GetResults)
+#   lapply(straddling_spp,GetResults)
 # ) %>% 
 #   mutate(taxon_key = as.character(taxon_key))
 
@@ -445,7 +451,7 @@ run_me_list <- stradling_spp[!(stradling_spp %in% ran_species)]
 
 # Multiple speices in one
 # suppressMessages(
-#   lapply(stradling_spp[1:2],
+#   lapply(straddling_spp[1:2],
 #          taxon_proportion)
 # )
 
@@ -496,10 +502,10 @@ rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
 
 # Spp list
 spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
 stradd_data <- bind_rows(
-  lapply(stradling_spp,GetResults)
+  lapply(straddling_spp,GetResults)
 ) %>% 
   mutate(taxon_key = as.character(taxon_key))
 
@@ -523,7 +529,7 @@ stradd_data <- bind_rows(
 # taxon_proportion(taxon_key = 600069)
 
 # suppressMessages(
-#   lapply(stradling_spp[1:2],
+#   lapply(straddling_spp[1:2],
 #          taxon_proportion)
 # )
 
@@ -531,7 +537,7 @@ stradd_data <- bind_rows(
 
 
 suppressMessages(
-  mclapply(stradling_spp,
+  mclapply(straddling_spp,
            rfmo_taxon_proportion,
            mc.cores = detectCores()-2)
 )
@@ -585,21 +591,21 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 ## Straddling species ##
 # Spp list
 # spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
-# stradling_spp <- str_replace(spp_complete,"\\_.*","")
+# straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
 # Get straddling stocks
 # shared_data <- bind_rows(
-#   lapply(stradling_spp,GetResults, type = "strad")
+#   lapply(straddling_spp,GetResults, type = "strad")
 # ) %>% 
 #   left_join(exploited_spp) #%>% 
   # mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
 
 # Get proportion analysis
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
-stradling_spp <- str_replace(spp_complete,"\\_.*","")
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
 partial_straddling_df <- bind_rows(
-  lapply(stradling_spp,GetResults, type = "strad")
+  lapply(straddling_spp,GetResults, type = "strad")
   ) %>% 
   rename(realm_name = realm
          )
@@ -670,8 +676,8 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%   group_by(taxon_key,taxon_name,common_
     .funs = mean,
     na.rm = T) %>% 
   mutate(change = ifelse(mean_t > top_tresh_t,"gain",
-                               ifelse(mean_t < low_tresh_t,"lost","same")
-        )
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
   )
 
 length(unique(rfmo_prop_data$taxon_key))# 45
