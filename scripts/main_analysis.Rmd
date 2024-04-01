@@ -55,6 +55,7 @@ sf::sf_use_s2(use_s2 = FALSE)
 
 # Needed for results 
 source("./functions/get_results.R")
+source("./functions/circle_figures_fx.R")
 
 ```
 
@@ -670,7 +671,7 @@ rfmo_prop_data_esm <- bind_rows(
            ) %>% 
   left_join(exploited_spp)
 
-  # Re- estimate change with average of all ESMs
+  # Re-estimate change with average of all ESMs
 rfmo_prop_data <- rfmo_prop_data_esm %>%  
   group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
   summarise_at(
@@ -682,6 +683,7 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
   )
   )
 
+# Remove duplicates (it is a bi-lateral change)
 length(unique(rfmo_prop_data$taxon_key))# 45
 
 
@@ -1189,7 +1191,7 @@ lapply(rcp_vals, function(rcp) {
 
 
 sankey_rfmo <- rfmo_prop_data %>% 
-  group_by(period,rcp,rfmo_name = rfmo_t,change,name = rfmo_n) %>% 
+  group_by(period,rcp,rfmo_name = rfmo_t,change) %>% 
   tally()
 
 
