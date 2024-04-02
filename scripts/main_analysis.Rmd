@@ -117,17 +117,31 @@ dbem_meow_df <- meow_dbem %>%
   as.data.frame() %>% 
   select(-geometry) %>% 
   clean_names() %>% 
-  filter(!is.na(realm))
+  filter(!is.na(realm)) #Remove high seas
+
+dbem_meow_df_supp <- dbem_meow_df %>% 
+  group_by(index,realm,ecoregion) %>%
+  tally() %>%
+  left_join(sau_index_code) %>%
+  group_by(realm,eez_name) %>%
+  tally() %>% 
+  filter(eez_name !="High seas") %>% 
+  select(-n,
+         Realm = realm,
+         EEZ = eez_name)
+
+write_csv(dbem_meow_df_supp,"./results/supplements/realm_to_eez.csv")
 
 
-# dbem_meow_df %>%
+# dbem_meow_df_supp %>%
+#   filter(eez_name=="High seas") %>%
 #   left_join(coords_dbem) %>%
 #   ggplot() +
 #   geom_tile(
 #     aes(
 #       x = lon,
 #       y = lat,
-#       fill = realm
+#       fill = index
 #     )
 #   )
 
@@ -1205,7 +1219,7 @@ lapply(rcp_vals, function(rcp) {
   lapply(period_vals, function(period) {
     lapply(change_vals, function(change) {
       circular_plot(data = sankey_rfmo, period_val = period, change_val = change, level = level_val, rcp = rcp)
-    })
+    })1
   })
 })
 
