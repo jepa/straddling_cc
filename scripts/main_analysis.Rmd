@@ -758,28 +758,35 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
   # Include area index info
   left_join(partial_straddling_df,
             by = c("taxon_key","rfmo_name","realm_name")
-        ) %>% 
-  mutate(thresh_level = 
-           ifelse(area_rfmo > 30 & area_rfmo < 70, "30%",
-                  ifelse(area_rfmo > 20 & area_rfmo < 80, "20%",
-                         ifelse(area_rfmo > 10 & area_rfmo < 90, "10%","No threshold")
-                  )
-           ),
-         combo = paste(realm_name,rfmo_name, sep = "-")
-  ) %>% 
+        ) %>%
+  mutate(
+    tresh_30 = ifelse(area_rfmo > 30, "30%",NA),
+    tresh_20 = ifelse(area_rfmo > 20, "20%",NA),
+    tresh_0 = ifelse(area_rfmo > 0, "0%",NA),
+    tresh_10 = ifelse(area_rfmo > 10, "10%",NA),
+    combo = paste(realm_name,rfmo_name, sep = "-")
+  ) %>%
+  # View()
+  group_by(combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
+    tally() %>%
+  # View()
+  gather("value","thresh_level",tresh_30:tresh_0) %>%
+  filter(!is.na(thresh_level)) %>%
   # View()
   group_by(combo,thresh_level) %>%
-  # group_by(realm_name,rfmo_name,thresh_level) %>%
-  tally() %>%
+  summarise(n_thresh = sum(n,na.rm = T)) %>%
+  # filter(thresh_level !="0%") %>% 
+  # filter(combo == "Arctic-ICCAT") %>%
+  # View()
   ggplot() +
   geom_bar(
     aes(
       x = reorder(combo,desc(combo)),
-      y = n,
+      y = n_thresh,
       fill = thresh_level
     ),
     stat = "identity",
-    position = position_stack(reverse = T)
+    position = "dodge"
   ) +
   labs(
     x = "Region and RFMO combination",
@@ -787,9 +794,9 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
   ) +
   coord_flip() +
   # facet_wrap(~ realm_name) +
-  scale_fill_manual("Threshold level", values = wes_palette("Royal2")) +
+  scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
   scale_y_continuous(expand = c(0, 0),
-                     breaks = seq(0,60,10)
+                     breaks = seq(0,100,20)
                      ) +
   my_ggtheme_p(
     leg_pos = "right",
@@ -801,7 +808,7 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
   )
   
 # Save plot 
-ggsave("./results/supplements/fig_S2.png",
+ggsave("./results/supplements/fig_S3.png",
        last_plot(),
        height = 8,
        width = 8
