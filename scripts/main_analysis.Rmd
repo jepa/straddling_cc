@@ -1083,12 +1083,15 @@ prop_data_esm %>%
   mutate(per = round(n/total_changes*100)) %>%
   group_by(rcp,period,change) %>%
   summarise_if(is.numeric, c("m" = mean,
-                            "sd" = sd)
+                            "sd" = sd,
+                            "max" = max,
+                            "min" = min),
+               na.rm = T
                ) %>% 
   mutate_if(is.numeric,round) %>% 
-  select(1:3,n_m,n_sd,per_m,per_sd) %>% 
-  View()
-# write_csv("./results/tables/gains_losses.csv")
+  select(1:3,n_min,n_m,n_max,n_sd,per_min,per_m,per_max,n_sd) %>%
+  # View()
+write_csv("./results/tables/gains_losses.csv")
 
 ## Proportion table
 
