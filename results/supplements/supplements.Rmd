@@ -109,7 +109,49 @@ grid.raster(img)
 
 # Supplementary Tables
 
-```{r tableS1, eval = T, echo = F, message = FALSE}
+The global EEZ shapefile (updated 1 July 2015) and the RFMOs shapefiles were provided by SAU (Available from https ://www.seaaroundus.org). It is important to note that the data subdivides the EEZs of 198 coastal states into 280 regions (e.g., Mexico’s EEZ is divided in Mexico Pacificand Mexico Atlantic), including islands territories. Finally, the MEOW shapefile according to Spalding et al (2007) was provided by World Widlife Fund and The Nature Conservancy (Available from https://www.worldwildlife.org/publications/marine-ecoregions-of-the-world-a-bioregionalization-of-coastal-and-shelf-areas). 
+
+```{r table_realm_eez, eval = T, echo = F, message = FALSE}
+
+readr::read_csv(here::here('./results/supplements/realm_to_eez.csv')) %>% 
+  dplyr::rename(`Exclusive Economic Zone` = EEZ) %>% 
+  kable("latex",
+        caption = "List of Exclusive Economic Zones (EEZs) according to the Sea Around Us (www.searoundus.org) and their Realm according to Spalding et al (2006).",
+        booktabs = TRUE,
+        # col.names = NULL,
+        longtable = TRUE) %>% # needed if extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .) # removes bottom border
+  
+
+
+```
+
+
+```{r table_straddling, eval = T, echo = F, message = FALSE}
+
+readr::read_csv(here::here('./results/supplements/straddling_species.csv')) %>% 
+  dplyr::select(
+    `Scientific name` = taxon_name,
+    `Common name` = common_name,
+    `Commercial group` = commercial_group
+  ) %>% 
+  kable("latex",
+        caption = "List of straddling species identified in the present study grouped by “commercial group” based on the Sea Around Us classification.",
+        booktabs = TRUE,
+        # col.names = NULL,
+        longtable = TRUE) %>% # needed if glossary extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold 
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .)  # removes bottom border
+
+```
+
+
+```{r table_rpackages, eval = T, echo = F, message = FALSE}
 
 
 data.frame(
@@ -158,45 +200,5 @@ data.frame(
   column_spec(2, width = "14cm") %>%  # Size of first column
   sub("\\\\toprule", "", .) %>% # removes top border
   sub("\\\\bottomrule", "", .)  # removes bottom border
-
-```
-
-```{r tableS2, eval = T, echo = F, message = FALSE}
-
-readr::read_csv(here::here('./results/supplements/straddling_species.csv')) %>% 
-  dplyr::select(
-    `Scientific name` = taxon_name,
-    `Common name` = common_name,
-    `Commercial group` = commercial_group
-  ) %>% 
-  kable("latex",
-        caption = "List of straddling species identified in the present study grouped by “commercial group” based on the Sea Around Us classification.",
-        booktabs = TRUE,
-        # col.names = NULL,
-        longtable = TRUE) %>% # needed if glossary extends one page
-  column_spec(1, width = "2cm") %>%  # Size of first column
-  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold 
-  sub("\\\\toprule", "", .) %>% # removes top border
-  sub("\\\\bottomrule", "", .)  # removes bottom border
-
-```
-
-The global EEZ shapefile (updated 1 July 2015) and the RFMOs shapefiles were provided by SAU (Available from https ://www.seaaroundus.org). It is important to note that the data subdivides the EEZs of 198 coastal states into 280 regions (e.g., Mexico’s EEZ is divided in Mexico Pacificand Mexico Atlantic), including islands territories. Finally, the MEOW shapefile according to Spalding et al (2007) was provided by World Widlife Fund and The Nature Conservancy (Available from https://www.worldwildlife.org/publications/marine-ecoregions-of-the-world-a-bioregionalization-of-coastal-and-shelf-areas). 
-
-```{r tableS3, eval = T, echo = F, message = FALSE}
-
-readr::read_csv(here::here('./results/supplements/realm_to_eez.csv')) %>% 
-  dplyr::rename(`Exclusive Economic Zone` = EEZ) %>% 
-  kable("latex",
-        caption = "List of Exclusive Economic Zones (EEZs) according to the Sea Around Us (www.searoundus.org) and their Realm according to Spalding et al (2006).",
-        booktabs = TRUE,
-        # col.names = NULL,
-        longtable = TRUE) %>% # needed if extends one page
-  column_spec(1, width = "2cm") %>%  # Size of first column
-  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold
-  sub("\\\\toprule", "", .) %>% # removes top border
-  sub("\\\\bottomrule", "", .) # removes bottom border
-  
-
 
 ```
