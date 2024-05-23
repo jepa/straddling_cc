@@ -1,0 +1,202 @@
+---
+title: Supplement material for Climate change drives shifts in straddling fish stocks
+  in the world ocean
+subtitle: "Juliano Palacios-Abrantes*1, Thomas Frölicher2,3, Gabriel Reygondeau4, Bianca S. Santos5, U. Rashid Sumaila1,6, Colette C. C. Wabnitz1,6 & William W. L. Cheung1"
+output: 
+ pdf_document:
+   toc: yes
+---
+
+
+```{r setup, include=FALSE, eval = T}
+
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.duplicate.label = 'allow')
+
+
+# These libraries are only needed for examples in the introduction 
+library("png")
+library("grid")
+# These are needed in case you are having a glossary
+library("knitr")
+library("kableExtra")
+library("dplyr")
+library("tibble")
+library("readr")
+
+
+```
+
+
+
+\renewcommand{\thefigure}{S\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand{\thetable}{S\arabic{table}}
+\setcounter{table}{0}
+
+# Supplementary Figures
+
+```{r fig_s1, eval = T, echo = T, echo=FALSE, fig.height = 5, fig.width=9, fig.pos= "H", fig.cap="Map showing the number of transboundary species present in each cell of the world. Gridcell scale 0.5 latitude by 0.5 longitude. The original 633 species were then used to estimate the number of straddling stocks.", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S1.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s2, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009.The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC)", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S2.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s3b, eval = T, echo = T, echo=FALSE, fig.height = 4, fig.width = 4, fig.pos= "H", fig.align='center',fig.cap="Sensitivity analysis for spatial threshold. Each level represents a minimum percentage of occurrence between Region and RFMO. For example, the 10\\% threshold means that both the Region and the RFMO have at least 10\\% of the shared stock. For this study we used the 10\\% (red) threshold, the 0\\% (gray) represents no threshold. Analysis done with GFDL under SSP1-2.6 at the early time period (see methods)", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S3.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s4, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the early 21st century under SPP 126. A) Shifts from EEZ to RFMO (i.e., RFMO gain SSR), (B) shifts from RFMO to EEZ (i.e., EEZs gain SSR). Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West.", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S4.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s5, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the middle of the 21st century under both SPPs. A) Shifts from EEZ to RFMO under SSP1-2.6, B) Shifts from EEZ to RFMO under SSP5-8.5, C) shifts from RFMO to EEZ under SSP1-2.6, D) shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S5.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s6, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Net changes in SSR for each region and neighboring RFMO. A) Early shifts from EEZ to RFMO under SSP1-2.6, B) Early shifts from EEZ to RFMO under SSP5-8.5, C) Mid shifts from RFMO to EEZ under SSP1-2.6, D) Mid shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S6.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r fig_s7, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos = "H", fig.cap="Net changes in SSR by neighboring RFMOs. A) Net shifts by the early 21st century under SSP8-.8.5, B) net shifts by the middle of the 21st century under SSP1-2.6, C) net shifts by the middle of the 21st century under SSP5-8.5. Values represent the number of stocks shifting and the arrow shows the direction of the shift. Numbers on the axis represent the number of stocks shifting. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
+
+# Call the image
+img <- readPNG("../results/supplements/fig_S7.png")
+
+# Print the image
+grid.raster(img)
+```
+
+\clearpage
+
+# Supplementary Tables
+
+```{r tableS1, eval = T, echo = F, message = FALSE}
+
+
+data.frame(
+  "Package" = c(
+    "readxl", # Read dataframe
+    "data.table", # Read dataframe (Fast!)
+    "wesanderson",
+    "tidyverse", # for all data wrangling and ggplot
+    "janitor", # for data cleaning
+    "tidytext", # to order the facet wrap https://juliasilge.com/blog/reorder-within/
+    "ggrepel", # for nice plot labels
+    "sf", #Spatial analysis 
+    "sp", #Spatial analysis 
+    "doParallel", # for parallelization
+    "rfishbase", # for species ecosystem affinity
+    "zoo", #for runing mean
+    "rnaturalearth", # For maps
+    "R.matlab", # For Gabs distributions
+    "viridis",
+    "circlize"
+  ),
+  "Source" = c(
+   "Wickham, H. and Bryan, J., 2022. Package readxl; Read Excel Files. CRAN.",
+   "Dowle, M. and Srinivasan, A., 2022. Package data.table; Extension of “data.frame.” CRAN.",
+   "Ram, K., Wickham, H., Richards, C. and Baggett, A., 2018. Package wesanderson; A Wes Anderson Palette Generator. CRAN.",
+   "Wickham, H., 2022. Pakcage tidyverse; Easily Install and Load the “Tidyverse.” CRAN.",
+   "Firke, S., Haid, C., Knight, R. and Denney, B., 2018. Package janitor; Simple tools for examining and cleaning dirty data. CRAN.",
+   "Queiroz, G. D., Hvitfeldt, E., Keyes, O., Misra, K., Mastny, T., Erickson, J., Robinson, D. and Silge, J., 2019. Package tidytext; Text Mining using “dplyr”, “ggplot2”, and Other Tidy Tools. CRAN.",
+   "Slowikowski, K., 2020. Package ggrepel: Automatically Position Non-Overlapping Text Labels with “ggplot2.” CRAN.",
+   "Pebesma, E., 2022. Package sf; Simple Features for R. CRAN.",
+   "Pebesma, E. and Bivand, R., 2023. Package sp; Classes and methods for Spatial Data. CRAN.",
+   "Daniel, F. and Weston, S., 2022. doParallel: Foreach Parallel Adaptor for the “parallel” Package. CRAN.",
+   "Boettiger, C., Chamberlain, S., Lang, D. T. and Wainwright, P., 2019. Package rfishbase; R Interface to “FishBase”. CRAN.",
+   "Zeileis, A., Grothendieck, G., Ryan, J. A., Ulrich, J. M. and Andrews, F., 2019. Package zoo; S3 Infrastructure for Regular and Irregular Time Series (Z’s Ordered Observations). CRAN.",
+   "Massicott, P. and South, A., 2023. Package rnaturalearth; World Map Data from Natural Earth. CRAN.",
+   "Bengtsson, H., Jacobson, A. and Riedy, J., 2018. Package R.matlab: Read and Write MAT Files and Call MATLAB from Within R. CRAN.",
+   "Garnier, S., 2018. Package viridis; Colorblind-Friendly Color Maps for R. CRAN.",
+   "circlize"
+    )
+) %>% kable("latex",
+        caption = "List of straddling species identified in the present study grouped by “commercial group” based on the Sea Around Us classification.",
+        booktabs = TRUE,
+        # col.names = FA,
+        longtable = TRUE) %>% # needed if glossary extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(2, width = "14cm") %>%  # Size of first column
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .)  # removes bottom border
+
+```
+
+```{r tableS2, eval = T, echo = F, message = FALSE}
+
+readr::read_csv(here::here('./results/supplements/straddling_species.csv')) %>% 
+  dplyr::select(
+    `Scientific name` = taxon_name,
+    `Common name` = common_name,
+    `Commercial group` = commercial_group
+  ) %>% 
+  kable("latex",
+        caption = "List of straddling species identified in the present study grouped by “commercial group” based on the Sea Around Us classification.",
+        booktabs = TRUE,
+        # col.names = NULL,
+        longtable = TRUE) %>% # needed if glossary extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold 
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .)  # removes bottom border
+
+```
+
+The global EEZ shapefile (updated 1 July 2015) and the RFMOs shapefiles were provided by SAU (Available from https ://www.seaaroundus.org). It is important to note that the data subdivides the EEZs of 198 coastal states into 280 regions (e.g., Mexico’s EEZ is divided in Mexico Pacificand Mexico Atlantic), including islands territories. Finally, the MEOW shapefile according to Spalding et al (2007) was provided by World Widlife Fund and The Nature Conservancy (Available from https://www.worldwildlife.org/publications/marine-ecoregions-of-the-world-a-bioregionalization-of-coastal-and-shelf-areas). 
+
+```{r tableS3, eval = T, echo = F, message = FALSE}
+
+readr::read_csv(here::here('./results/supplements/realm_to_eez.csv')) %>% 
+  dplyr::rename(`Exclusive Economic Zone` = EEZ) %>% 
+  kable("latex",
+        caption = "List of Exclusive Economic Zones (EEZs) according to the Sea Around Us (www.searoundus.org) and their Realm according to Spalding et al (2006).",
+        booktabs = TRUE,
+        # col.names = NULL,
+        longtable = TRUE) %>% # needed if extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .) # removes bottom border
+  
+
+
+```
