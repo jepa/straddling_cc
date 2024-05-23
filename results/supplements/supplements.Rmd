@@ -1,7 +1,7 @@
 ---
 title: Supplement material for Climate change drives shifts in straddling fish stocks
   in the world ocean
-subtitle: "Juliano Palacios-Abrantes*1, Thomas Frölicher2,3, Gabriel Reygondeau4, Bianca S. Santos5, U. Rashid Sumaila1,6, Colette C. C. Wabnitz1,6 & William W. L. Cheung1"
+subtitle: "Juliano Palacios-Abrantes, Thomas Frölicher, Gabriel Reygondeau, Bianca S. Santos, U. Rashid Sumaila, Colette C. C. Wabnitz & William W. L. Cheung"
 output: 
  pdf_document:
    toc: yes
@@ -39,7 +39,7 @@ library("readr")
 ```{r fig_s1, eval = T, echo = T, echo=FALSE, fig.height = 5, fig.width=9, fig.pos= "H", fig.cap="Map showing the number of transboundary species present in each cell of the world. Gridcell scale 0.5 latitude by 0.5 longitude. The original 633 species were then used to estimate the number of straddling stocks.", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S1.png")
+img <- readPNG("fig_S1.png")
 
 # Print the image
 grid.raster(img)
@@ -49,7 +49,7 @@ grid.raster(img)
 ```{r fig_s2, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009.The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC)", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S2.png")
+img <- readPNG("fig_S2.png")
 
 # Print the image
 grid.raster(img)
@@ -59,7 +59,7 @@ grid.raster(img)
 ```{r fig_s3b, eval = T, echo = T, echo=FALSE, fig.height = 4, fig.width = 4, fig.pos= "H", fig.align='center',fig.cap="Sensitivity analysis for spatial threshold. Each level represents a minimum percentage of occurrence between Region and RFMO. For example, the 10\\% threshold means that both the Region and the RFMO have at least 10\\% of the shared stock. For this study we used the 10\\% (red) threshold, the 0\\% (gray) represents no threshold. Analysis done with GFDL under SSP1-2.6 at the early time period (see methods)", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S3.png")
+img <- readPNG("fig_S3.png")
 
 # Print the image
 grid.raster(img)
@@ -69,7 +69,7 @@ grid.raster(img)
 ```{r fig_s4, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the early 21st century under SPP 126. A) Shifts from EEZ to RFMO (i.e., RFMO gain SSR), (B) shifts from RFMO to EEZ (i.e., EEZs gain SSR). Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West.", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S4.png")
+img <- readPNG("fig_S4.png")
 
 # Print the image
 grid.raster(img)
@@ -79,7 +79,7 @@ grid.raster(img)
 ```{r fig_s5, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the middle of the 21st century under both SPPs. A) Shifts from EEZ to RFMO under SSP1-2.6, B) Shifts from EEZ to RFMO under SSP5-8.5, C) shifts from RFMO to EEZ under SSP1-2.6, D) shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S5.png")
+img <- readPNG("fig_S5.png")
 
 # Print the image
 grid.raster(img)
@@ -89,7 +89,7 @@ grid.raster(img)
 ```{r fig_s6, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Net changes in SSR for each region and neighboring RFMO. A) Early shifts from EEZ to RFMO under SSP1-2.6, B) Early shifts from EEZ to RFMO under SSP5-8.5, C) Mid shifts from RFMO to EEZ under SSP1-2.6, D) Mid shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S6.png")
+img <- readPNG("fig_S6.png")
 
 # Print the image
 grid.raster(img)
@@ -99,7 +99,7 @@ grid.raster(img)
 ```{r fig_s7, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos = "H", fig.cap="Net changes in SSR by neighboring RFMOs. A) Net shifts by the early 21st century under SSP8-.8.5, B) net shifts by the middle of the 21st century under SSP1-2.6, C) net shifts by the middle of the 21st century under SSP5-8.5. Values represent the number of stocks shifting and the arrow shows the direction of the shift. Numbers on the axis represent the number of stocks shifting. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
 
 # Call the image
-img <- readPNG("../results/supplements/fig_S7.png")
+img <- readPNG("fig_S7.png")
 
 # Print the image
 grid.raster(img)
