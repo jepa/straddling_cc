@@ -1,6 +1,5 @@
 ---
-title: Supplement material for Climate change drives shifts in straddling fish stocks
-  in the world ocean
+title: Supplement material for Climate change drives shifts in straddling fish stocks in the world's ocean
 subtitle: "Juliano Palacios-Abrantes, Thomas Frölicher, Gabriel Reygondeau, Bianca S. Santos, U. Rashid Sumaila, Colette C. C. Wabnitz & William W. L. Cheung"
 output: 
  pdf_document:
@@ -46,7 +45,7 @@ grid.raster(img)
 ```
 
 
-```{r fig_s2, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009.The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC)", out.extra=''}
+```{r fig_s2, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009.The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S2.png")
@@ -66,7 +65,7 @@ grid.raster(img)
 ```
 
 
-```{r fig_s4, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the early 21st century under SPP 126. A) Shifts from EEZ to RFMO (i.e., RFMO gain SSR), (B) shifts from RFMO to EEZ (i.e., EEZs gain SSR). Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West.", out.extra=''}
+```{r fig_s4, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the early 21st century under SPP 126. A) Shifts from EEZ to RFMO (i.e., RFMO gain SSR), (B) shifts from RFMO to EEZ (i.e., EEZs gain SSR). Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West.", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S4.png")
@@ -76,7 +75,7 @@ grid.raster(img)
 ```
 
 
-```{r fig_s5, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the middle of the 21st century under both SPPs. A) Shifts from EEZ to RFMO under SSP1-2.6, B) Shifts from EEZ to RFMO under SSP5-8.5, C) shifts from RFMO to EEZ under SSP1-2.6, D) shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
+```{r fig_s5, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the middle of the 21st century under both SPPs. A) Shifts from EEZ to RFMO under SSP1-2.6, B) Shifts from EEZ to RFMO under SSP5-8.5, C) shifts from RFMO to EEZ under SSP1-2.6, D) shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone (EEZ/RFMO). Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S5.png")
@@ -86,7 +85,7 @@ grid.raster(img)
 ```
 
 
-```{r fig_s6, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Net changes in SSR for each region and neighboring RFMO. A) Early shifts from EEZ to RFMO under SSP1-2.6, B) Early shifts from EEZ to RFMO under SSP5-8.5, C) Mid shifts from RFMO to EEZ under SSP1-2.6, D) Mid shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
+```{r fig_s6, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Net changes in SSR for each region and neighboring RFMO. A) Early shifts from EEZ to RFMO under SSP1-2.6, B) Early shifts from EEZ to RFMO under SSP5-8.5, C) Mid shifts from RFMO to EEZ under SSP1-2.6, D) Mid shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone (EEZ/RFMO). Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S6.png")
