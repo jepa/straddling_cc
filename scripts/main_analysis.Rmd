@@ -1250,7 +1250,7 @@ lapply(rcp_vals, function(rcp) {
   lapply(period_vals, function(period) {
     lapply(change_vals, function(change) {
       circular_plot(data = sankey_rfmo, period_val = period, change_val = change, level = level_val, rcp = rcp)
-    })1
+    })
   })
 })
 
