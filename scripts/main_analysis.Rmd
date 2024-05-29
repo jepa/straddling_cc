@@ -936,19 +936,15 @@ ggsave("./results/figures/fig_1a.png",
 
 ### Straddling species bar plot
 
-```{r}
+```{r fig_1b_colette}
 
-
-# Straddling stocks by RFMO
-stradd_commercial <- prop_data %>% 
+stradd_commercial_df <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(sau_groups) %>% 
   group_by(rfmo_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
-            species = paste(unique(common_name), collapse = ";"))
-
-
-stradd_bar_plot <- stradd_commercial %>% 
+            species = paste(unique(common_name), collapse = ";")) %>% 
+  mutate(realm_or = realm_name) %>% 
   filter(n >0,
          !is.na(commercial_group)) %>% 
   mutate(
@@ -958,47 +954,72 @@ stradd_bar_plot <- stradd_commercial %>%
     realm_name = str_replace(realm_name,"Northern","N."),
     realm_name = str_replace(realm_name, "Western", "W."),
     realm_name = str_replace(realm_name,"Eastern", "E.")
-  ) %>% 
-  ggplot() +
-  geom_bar(
-    aes(
-      x = commercial_group,
-      y = n,
-      fill = commercial_group
-    ),
-    stat = "identity"
-  ) +
-  facet_grid(rfmo_name~realm_name,
-             scales = "free") +
-  labs(x = "", y = "Number of straddling stocks") +
-  scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1")[1:3],
-                                                  "grey",
-                                                  wes_palette("Darjeeling1")[4:5],
-                                                  wes_palette("Darjeeling2"))
-                    ) +
-  scale_y_continuous(breaks = seq(0,30,5))+
-  theme_bw() +
-  theme(
-    panel.grid.minor = element_blank(), 
-    panel.grid.major = element_blank(),
-    strip.background = element_blank(),
-    legend.position = "bottom",
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 16),
-    strip.text = element_text(size = 12),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-    );stradd_bar_plot
+  )
 
-# Save plot 
-ggsave("./results/figures/fig_1b.png",
-       stradd_bar_plot,
-       height = 6,
-       width = 12
+commercial_scale <- c(
+  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
+  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
+  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
+  "Other fishes & inverts" = "grey",
+  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
+  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
+  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
+  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
+  "Small pelagic" = wes_palette("Darjeeling2",n =5)[3],
+  "Squids" = wes_palette("Darjeeling2",n =5)[4],
+  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
 )
 
 
+for(i in 1:length(unique(stradd_commercial_df$realm_name))){
+  
+  realm <- unique(stradd_commercial_df$realm_name)[i]
+  realm_or_name <- unique(stradd_commercial_df$realm_or)[i]
+  
+  plot <- stradd_commercial_df %>% 
+    filter(realm_name %in% realm) %>% 
+    ggplot() +
+    geom_bar(
+      aes(
+        x = commercial_group,
+        y = round(n),
+        fill = commercial_group
+      ),
+      stat = "identity"
+    ) +
+    facet_grid(rfmo_name~realm_name, switch = "x",
+               scales = "free") +
+    labs(x = "", y = "") +
+      scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
+    # scale_y_continuous(breaks = seq(0,30,5))+
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(), 
+      panel.grid.major = element_blank(),
+      panel.spacing = unit(1.5, "lines"),
+      strip.background = element_blank(),
+      legend.position = "",
+      strip.text.x = element_text(size = 40),
+      strip.text.y = element_text(size = 30),
+      axis.text.y = element_text(size = 28),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank()
+    )
+  
+  plot_name <- paste0("./results/figures/fig_1_singles/",realm_or_name,".png")
+  
+  ggsave(plot_name,
+         plot,
+         height = 7,
+         width = 7
+  )
+  
+}
+
+
 ```
+
+
 
 
 ### Paper numbers on top shared species
@@ -2594,5 +2615,72 @@ chordDiagram(
   symmetric = F
   )
 dev.off() 
+
+```
+
+
+## Figure 1 b
+
+```{r fig_1b}
+
+
+# Straddling stocks by RFMO
+stradd_commercial <- prop_data %>% 
+  left_join(exploited_spp) %>% 
+  left_join(sau_groups) %>% 
+  group_by(rfmo_name,realm_name,commercial_group) %>% 
+  summarise(n = length(unique(taxon_key)),
+            species = paste(unique(common_name), collapse = ";"))
+
+
+stradd_bar_plot <- stradd_commercial %>% 
+  filter(n >0,
+         !is.na(commercial_group)) %>% 
+  mutate(
+    realm_name = str_replace(realm_name," ", "\n"),
+    realm_name = str_replace(realm_name,"Southern","S."),
+    realm_name = str_replace(realm_name,"South","S."),
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E.")
+  ) %>% 
+  ggplot() +
+  geom_bar(
+    aes(
+      x = commercial_group,
+      y = n,
+      fill = commercial_group
+    ),
+    stat = "identity"
+  ) +
+  facet_grid(rfmo_name~realm_name,
+             scales = "free") +
+  labs(x = "", y = "Number of straddling stocks") +
+  scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1")[1:3],
+                                                  "grey",
+                                                  wes_palette("Darjeeling1")[4:5],
+                                                  wes_palette("Darjeeling2"))
+                    ) +
+  scale_y_continuous(breaks = seq(0,30,5))+
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    strip.background = element_blank(),
+    legend.position = "bottom",
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 16),
+    strip.text = element_text(size = 12),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+    );stradd_bar_plot
+
+# Save plot 
+ggsave("./results/figures/fig_1b.png",
+       stradd_bar_plot,
+       height = 6,
+       width = 12
+)
+
 
 ```
