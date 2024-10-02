@@ -1,0 +1,424 @@
+---
+title: "Addressing shifts in the distribution of internationally shared marine fish stocks for achieving a sustainable deep-sea blue economy"
+author: "Juliano Palacios-Abrantes"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(MyFunctions)
+
+packages <- c(
+  "readxl", # Read dataframe
+  "data.table", # Read dataframe (Fast!)
+  "tidyverse"
+)
+
+my_lib(packages)
+
+# Fix new updates of sf package
+sf::sf_use_s2(use_s2 = FALSE)
+
+source("./functions/get_results.R")
+```
+
+# Global data
+
+```{r}
+
+dbem_spp <- my_data("dbem_species")
+
+fb_species <- read_excel("~/Library/CloudStorage/OneDrive-UBC/Data/Species/updated_data/sau_updated_data/FB_Species.xlsx")
+
+
+slb_species <- read_excel("~/Library/CloudStorage/OneDrive-UBC/Data/Species/updated_data/sau_updated_data/SLB_Species.xlsx")
+
+# Join data
+suppressWarnings(
+  spp_deep <- bind_rows(fb_species,
+                        slb_species) %>% 
+    mutate(taxon_name = paste(Genus,Species)) %>% 
+    select(taxon_name,DepthRangeShallow,DepthRangeDeep) %>% 
+    right_join(dbem_spp) %>% 
+    filter(is.na(DepthRangeDeep) | DepthRangeDeep> 200)
+)
+
+```
+
+
+# Transboundary stocks data
+
+```{r}
+
+# Transboundary species and their sharing EEZs (see Palacios-Abrantes et al; FishForVisa)
+deep_transboundary_spp <- my_path("G", extra_path = "EmergingFish/Data/Species/", name="Transboundary_spp.csv", read = TRUE) %>% 
+  clean_names() %>% 
+  group_by(taxon_key) %>% 
+  tally() %>% 
+  left_join(spp_deep) %>% 
+  filter(!is.na(taxon_name))
+
+# Complete missing
+# Get species where Updated FishBase data is not available
+missing_trans <- deep_transboundary_spp %>% 
+  filter(is.na(DepthRangeDeep))
+
+# List my species
+lh_data <- bind_rows(
+  lapply(list.files(my_path("Spp","TaxonDataC"),full.names = T), read.delim)
+)
+
+# Get data from personal dataset
+missing_spp_data <- lh_data %>% 
+  gather("name","value",2:944) %>% 
+  mutate(
+    taxon_key = as.numeric(str_sub(name,2,7))
+         ) %>% 
+  # left_join(missing_trans) %>% 
+  filter(
+    taxon_key %in% missing_trans$taxon_key,
+         Taxonkey %in% c("MaxDepth","MinDepth"),
+         !is.na(value)
+         ) %>% 
+  mutate(value = as.numeric(value)) %>% 
+  spread(Taxonkey,value) %>% 
+  select(taxon_key, DepthRangeShallow = MinDepth, DepthRangeDeep = MaxDepth)
+
+
+# Final deep_species
+deep_transboundary_spp_clean <- deep_transboundary_spp %>% 
+  bind_rows(missing_spp_data) %>% 
+  filter(!is.na(DepthRangeDeep),
+         DepthRangeDeep >= 200,
+         DepthRangeDeep != 9999,
+         ) %>% 
+  select(taxon_key,max_depth = DepthRangeDeep, min_depth = DepthRangeShallow) %>% 
+  left_join(dbem_spp)
+
+
+Transboundary_spp <- my_path("G", extra_path = "EmergingFish/Data/Species/", name="Transboundary_spp.csv", read = TRUE) %>% 
+  filter(taxon_key %in% deep_transboundary_spp_clean$taxon_key)
+
+```
+
+
+
+```{r}
+
+
+# Neighbour list and their respective id (see chunk 3)
+Neighbours <- my_path("G", extra_path = "EmergingFish/Data/Spatial/", name="Neighbours_eez_id.csv", read = TRUE)
+
+
+all_results <- list()
+
+# List of taxon to run 
+taxon_list <- deep_transboundary_spp_clean %>% 
+  pull(taxon_name) %>% 
+  unique()
+
+
+# alphaid
+# ------------------------------------------- #
+### Estimate number of transboundary stocks ###
+# ------------------------------------------- #
+
+n_stock <-
+  Transboundary_spp %>% 
+  left_join(Neighbours,
+            by = c("eez_name", "eez_neighbour")) %>% 
+  group_by(neighbour_id) %>%
+  summarise(n_stock = length(unique(taxon_key))) %>%
+  # View()
+  group_by() %>% 
+  summarise(t_trans_stocks = sum(n_stock)) %>% 
+  pull(t_trans_stocks) # 373
+
+
+ssr_data <- read_csv("~/Library/CloudStorage/OneDrive-UBC/Data/EmergingFish/Results/ssr_data.csv") 
+
+# Clean names to match data
+Matching_names <- my_path("G","Spatial/SAU", "sau_matching_names.csv", read = T) %>% 
+  rename(eezid = eez_id)
+
+Taxon_list_emer <- list.files(my_path("G",extra_path = "/EmergingFish/Results/Emergence_2005"))
+
+# clean names for function
+Taxon_list_emer <- gsub("_.*","",Taxon_list_emer) 
+
+# Filter out fish
+# Filter paths that have distributions
+Taxon_list_emer <- Taxon_list_emer[grepl(paste(deep_transboundary_spp_clean$taxon_key, collapse = "|"), Taxon_list_emer)]
+
+
+Paths <- paste(my_path("G",extra_path = "/EmergingFish/Results/Emergence_2005"),Taxon_list_emer,"_emergence.txt",sep="")
+
+# Load all sp in one table
+Eme_Res <- bind_rows(lapply(Paths, fread)) %>% 
+  filter(
+    n_ens == 10
+  ) %>% 
+  left_join(Neighbours,
+            by = c("eez_name","eez_neighbour")
+  ) %>% 
+  rename(sf_eez_name=eez_name) %>% 
+  left_join(Matching_names,
+            by=  "sf_eez_name") %>% 
+  clean_names() %>% 
+  mutate(tresh = str_to_lower(tresh)) %>% 
+  filter(tresh == "tresh_two")
+
+```
+
+
+```{r}
+# Global estimates
+Eme_Res %>% 
+  filter(emerging_yr >= 2030) %>% 
+  group_by(tresh,neighbour_id) %>% 
+  summarise(
+    emerging_stocks = length(unique(taxon_key))
+  ) %>% 
+  group_by(tresh) %>% 
+  summarise(
+    emerging_stocks = sum(emerging_stocks),
+    prop_total = (emerging_stocks/n_stock)*100,
+  )
+
+```
+```{r}
+# Per EEZs
+Eme_Res %>% 
+  # group_by() %>% 
+  # summarise(meann_y = mean(emerging_yr,na_rm = T))
+  group_by(sf_eez_name,eez_neighbour) %>% 
+  summarise(
+    n_total = n(),
+    min_y = min(emerging_yr,na_rm = T),
+    meann_y = mean(emerging_yr,na_rm = T)
+  ) %>% 
+  arrange(desc(n_total)) 
+
+```
+
+
+
+# Straddling stocks data
+
+```{r}
+
+spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
+
+partial_straddling_df <- bind_rows(
+  lapply(straddling_spp,GetResults, type = "strad")
+  ) %>% 
+  rename(realm_name = realm
+         ) %>% 
+  # Filter only deep species 
+  filter(taxon_key %in% deep_transboundary_spp_clean$taxon_key)
+
+length(unique(partial_straddling_df$taxon_key))# 86 
+
+# Get straddling stocks
+prop_data_esm <- bind_rows(
+  lapply(unique(partial_straddling_df$taxon_key),GetResults, type = "prop")
+  ) %>%
+  # View()
+  # Include area index info
+  left_join(partial_straddling_df,
+            by = c("taxon_key","rfmo_name","realm_name")
+        ) %>% 
+  filter(area_rfmo > 10,
+         area_rfmo < 90) %>% 
+  # Remove species not present in high seas
+  filter(
+    low_tresh != 0 &
+      mean != 0 &
+      top_tresh != 0,
+    low_tresh != 100 &
+      mean != 100 &
+      top_tresh != 100
+           ) %>% 
+  left_join(deep_transboundary_spp_clean) 
+
+
+prop_data <- prop_data_esm %>%
+  # Re- estimate change with average of all ESMs
+  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_name,realm_name) %>% 
+  summarise_at(
+    .vars = c("low_tresh","mean","top_tresh"),
+    .funs = mean,
+    na.rm = T) %>% 
+  mutate(change = ifelse(mean > top_tresh,"gain",
+                               ifelse(mean < low_tresh,"lost","same")
+        )
+  )
+
+```
+
+# Results
+
+```{r}
+prop_data %>% 
+  group_by(rcp,period,change) %>%
+  tally() %>% 
+  mutate(
+    change_b = ifelse(change == "same","same","change")
+  ) %>% 
+  group_by(rcp,period,change_b) %>%
+  summarise(
+    n_change = sum(n)
+  )
+```
+
+## Accumulative figure
+
+```{r}
+
+n_eez <- length(unique(Eme_Res$sf_eez_name))
+selected_tresh <- "tresh_two"
+
+stock_d <-  
+  Eme_Res %>% 
+  left_join(Neighbours) %>% 
+  # distinct(taxon_key,neighbour_id, .keep_all = TRUE) %>% 
+  group_by(taxon_key,neighbour_id,tresh) %>% 
+  summarise(
+    taxon_emer = min(emerging_yr)
+  ) %>% 
+  group_by(taxon_emer,tresh) %>% 
+  summarise(
+    n_tax = n()
+  ) %>% 
+  group_by(tresh) %>% 
+  mutate(
+    com_sum = cumsum(n_tax),
+    level = "stock"
+  )
+
+eez_d <-  Eme_Res %>% 
+  left_join(Neighbours) %>% 
+  filter(n_ens == 10) %>% 
+  # distinct(eez_name,neighbour_id, .keep_all = TRUE) %>% 
+  group_by(sf_eez_name,tresh) %>% 
+  summarise(
+    taxon_emer = min(emerging_yr)
+  ) %>% 
+  group_by(taxon_emer,tresh) %>% 
+  summarise(
+    n_tax = n()
+  ) %>% 
+  group_by(tresh) %>% 
+  mutate(
+    com_sum = cumsum(n_tax),
+    level = "eez"
+  )
+
+# max(eez_d$com_sum)
+
+# Plot Data
+plot_data <- stock_d %>% 
+  bind_rows(eez_d) %>% 
+  filter(tresh != "NA") %>% 
+  mutate(
+    # total = ifelse(level == "stock",length(unique(Eme_Res$taxon_key)),length(unique(Eme_Res$sf_eez_name))),
+    total = ifelse(level == "stock",n_stock,n_eez),
+    per = com_sum/total*100
+  ) %>% 
+  gather("metric","value",com_sum,per) #%>% 
+
+
+# Manually include rest of data until 2100
+cont_eez <- plot_data %>% 
+  filter(level == "eez") %>% 
+  arrange(taxon_emer) %>% 
+  slice(1:24) %>%
+  select(-1) %>% 
+  arrange(metric) %>% 
+  mutate(
+    value = ifelse(metric == "per",81,228),
+    taxon_emer = c(seq(2088,2099,1),seq(2088,2099,1))
+  )
+
+plot_data <- plot_data %>% 
+  bind_rows(cont_eez) %>% 
+  mutate(
+    my_facet = ifelse(metric == "per","Percentage (%)","Cumulative sum (n stocks)"),
+    label = ifelse(total == max(stock_d$com_sum),"Total number of emerging stocks","Total number of EEZs")
+  )
+
+
+dashed_lines <- tibble(
+  x = c(2030
+        # ,2050,2070),
+  ),
+  label = c("UN 2030 Agenda"
+            # ,"Mid range shift   ","Late range shift   "
+  )
+)
+
+
+
+
+# Percentage plot
+ggplot() +
+  geom_area(data = subset(plot_data, level == "eez" & my_facet == "Percentage (%)"),
+            aes(
+              x = as.numeric(taxon_emer),
+              y = value,
+              fill = level
+            ),
+            size=0.5,
+            colour="black"
+  ) + 
+  geom_area(data = subset(plot_data, level == "stock" & my_facet == "Percentage (%)"),
+            aes(
+              x = as.numeric(taxon_emer),
+              y = value,
+              fill = level
+            ),
+            size=0.5,
+            colour="black"
+  ) + 
+  # Add dashed lines and labels
+  geom_vline(
+    data = dashed_lines,
+    aes(
+      xintercept = x
+    ),
+    linetype="dashed",
+    color = "grey"
+  ) +
+  geom_text(data = dashed_lines,
+            aes(
+              x = x-4,
+              y = 14,
+              label = label
+            ),
+            size = 4,
+            color = "white",
+            angle = 90
+  ) +
+  scale_y_continuous("Cumulative proportion of the total (%)",
+                     expand = c(0,0)
+  ) +
+  scale_x_continuous("",
+                     breaks = seq(2000,2100,20),
+                     limits = c(2005,2100),
+                     label = seq(2000,2100,20)
+  ) +
+  my_ggtheme_p(leg_pos = "right") +
+  scale_fill_viridis(discrete = T,
+                     begin = 0.1,
+                     end = 0.7,
+                     labels = c("EEZs","Stocks")
+  )+theme(
+    axis.ticks.x = element_line()
+  ) 
+
+
+```
+
