@@ -8,6 +8,11 @@ GetResults=function(Spp,type = "strad"){
     # Set the path for each file
     Distpath <- paste(my_path("R","Straddling_realm_rfmo/"),Spp,"_straddling.csv",sep="")
   }
+  
+  if(type == "ob"){
+    # Set the path for each file
+    Distpath <- paste(my_path("R","Straddling_realm_ob/"),Spp,"_straddling.csv",sep="")
+  }
   if(type == "prop"){
     Distpath <- paste(my_path("R","Per_change_realm_rfmo/"),Spp,"_perchg.csv",sep="")
   }
