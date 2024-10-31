@@ -298,7 +298,8 @@ ob_index <- rfmo_index%>%
                           ifelse(rfmo_name == "IATTC","pacific",
                                  ifelse(rfmo_name == "IOTC","indian",
                                         ifelse(rfmo_name == "CCSBT","southern","NA")))
-  )))
+  ))) %>% 
+select(index,basin)
 
 # DBEM to MEOW grid
 meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
@@ -308,7 +309,7 @@ meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>%
 rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
 
 # This data now substitutes rfmo_meow
-basin_data <- rfmo_meow %>%
+ob_meow <- rfmo_meow %>%
   mutate_at(vars(region, adjacent_region),
             ~ ifelse(. == "ICCAT","atlantic",
                      ifelse(. == "WCPFC","pacific",
@@ -371,29 +372,35 @@ write(eez_rfmo_region, my_path("D","Spatial",name = "eez_rfmo_region.csv"))
 Methodological points to consider
 
 - RFMOs neighboring realms from the MEOW. This has now changed for Ocean Basins
-- The straddling index accounts for how much of the population is present (as a %) in the RFMO. So if it says 80%, it means that 80% of the population is present in the RFMO and 20% in the realm.
-- A straddling stock is herein defined as a stock that is shared between a REALM (and its EEZs) and a RFMO.
+- The straddling index accounts for how much of the population is present (as a %) in the ocean basin. So if it says 80%, it means that 80% of the population is present in the high seas and 20% in the realm.
+- A straddling stock is herein defined as a stock that is shared between a REALM (and its EEZs) and the high sea's ocean basin
 
 
 ```{r run_me, eval = F}
 
+source("./functions/stradd_index.R")
+source("./functions/get_spp_dist.R")
+
 # One species
-# StraddIndex(Spp = 600069,
-#             Model = "All",
-#             Coord = coords_dbem, 
-#             Index_Code = sau_index_code,
-#             Neighbours = rfmo_meow,
-#             treshold = T
-#             )
+stradd_index(spp = 600006, # Taxon key for species
+            model = "All", # datasets to include (see transboundary work)
+            coord = coords_dbem, # dbem coordinate system
+            index_code = sau_index_code, # SAU index for eez to grid
+            neighbours = ob_meow, # Headdings must be region and neighbouring_region
+            hs_index = ob_index, # First headding should be index, second will be re-named
+            folder_name = "straddling_realm_ob" # folder to save result
+            )
 
 # All species lapply
-# lapply(run_me, 
-#        StraddIndex, 
-#        Model = "All", 
-#        Coord = coords_dbem, 
-#        Index_Code = sau_index_code, 
-#        Neighbours = rfmo_meow,
-#        treshold = T)
+lapply(run_me,
+       stradd_index,
+       model = "All",
+       coord = coords_dbem,
+       index_code = sau_index_code, # SAU index for eez to grid
+            neighbours = ob_meow, # Headdings must be region and neighbouring_region
+            hs_index = ob_index, # First headding should be index, second will be re-named
+            folder_name = "straddling_realm_ob" # folder to save result
+            )
 
 
 
