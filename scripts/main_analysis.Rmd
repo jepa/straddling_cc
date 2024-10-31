@@ -1236,7 +1236,7 @@ lapply(rcp_vals, function(rcp) {
 
 
 sankey_rfmo <- rfmo_prop_data %>% 
-  group_by(period,rcp,rfmo_name = rfmo_t,change) %>% 
+  group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n,change) %>% 
   tally()
 
 
@@ -1254,6 +1254,7 @@ lapply(rcp_vals, function(rcp) {
   })
 })
 
+circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
 
 ```
 
