@@ -3,7 +3,7 @@
 
 # This function determines which transboundary stocks are straddling
 
-stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_index){
+stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_index,folder_name){
   
   colnames(hs_index)[2] <- "hs_region"
   
@@ -13,7 +13,7 @@ stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_in
     clean_names()
   
   
-  # ggplot(SppDist %>% filter(Value >0)) +
+  # ggplot(sppDist %>% filter(Value >0)) +
   #   geom_tile(
   #     aes(
   #       x = longitude,
@@ -74,7 +74,7 @@ stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_in
     clean_names()
   
   ### ----------  Distributional test  ---------- ###
-  # test <- Trans_Spp %>%
+  # test <- Trans_spp %>%
   # left_join(coords_dbem) #%>% 
   # filter(is.na(territory))
   
@@ -184,17 +184,17 @@ stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_in
            area_hs,
            area_realm)
   
-  File_Name <- paste(Spp,"_straddling.csv",sep = "")
-  Save_Path <- my_path("R","straddling_realm_hs", File_Name)
+  File_Name <- paste(spp,"_straddling.csv",sep = "")
+  Save_Path <- my_path("R",folder_name, File_Name)
   
   if(nrow(output) >0){
     
     write_csv(output,
               Save_Path)
     
-    return(print(paste("Completed analysis for taxon key",Spp)))
+    return(print(paste("Completed analysis for taxon key",spp)))
   }else{
-    return(print(paste("Taxon key",Spp,"is not a straddling stock")))
+    return(print(paste("Taxon key",spp,"is not a straddling stock")))
   }
   
 } # closes function
