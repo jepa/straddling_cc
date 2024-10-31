@@ -281,17 +281,15 @@ int = suppressMessages(st_intersects(Shapefile))
 
 ## Control pannel
 
-```{r control_pannel, eva = F}
+## Ocean Basin data
 
-# Gabriel's coordinate system 
-CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
-  mutate(INDEX = seq(1,259200,1))
+```{r}
 
 # Do analysis by ocean basin
 rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T) 
 
 # This data now substitutes rfmo_index in the analysis
-ob_index <- rfmo_index%>% 
+ob_index <- rfmo_index %>% 
   mutate(
     basin = ifelse(rfmo_name == "ICCAT","atlantic",
                    ifelse(rfmo_name == "WCPFC","pacific",
@@ -322,7 +320,33 @@ ob_meow <- rfmo_meow %>%
 
 # Remove them to make sure analysis is correct
 rm(rfmo_meow,rfmo_index)
-  
+
+```
+
+## RFMO data
+
+```{r}
+
+# Do analysis by ocean basin
+rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T) 
+# Neighboring RFMOs and MEOWs created in previous chunk on July 20
+rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
+
+
+```
+
+
+```{r control_pannel, eva = F}
+
+# Gabriel's coordinate system 
+CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
+  mutate(INDEX = seq(1,259200,1))
+
+# DBEM to MEOW grid
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  clean_names()
+
+
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
   # Set same filters as in FishForVisa
@@ -777,6 +801,65 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
 ```
 
 ## Straddling identification
+
+### RFMO vs Ocean basin
+
+```{r}
+
+## RFMO species ##
+straddling_rfmo <- list.files(my_path("R","Straddling_realm_rfmo/"))
+straddling_spp_rfmo <- str_replace(spp_complete,"\\_.*","")
+
+# Get straddling stocks
+shared_data_rfmo <- bind_rows(
+  lapply(straddling_spp_rfmo,GetResults, type = "strad")
+) %>%
+  left_join(exploited_spp) %>%
+  mutate(
+    category = "rfmo"
+  ) %>% 
+  rename(hs_name =rfmo_name,
+         area_hs = area_rfmo)
+# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+
+## Ocean Basin species ##
+straddling_ob <- list.files(my_path("R","straddling_realm_ob/"))
+straddling_spp_ob <- str_replace(straddling_ob,"\\_.*","")
+
+# Get straddling stocks
+shared_data_ob <- bind_rows(
+  lapply(straddling_spp_ob,GetResults, type = "ob")
+) %>%
+  left_join(exploited_spp) %>%
+  mutate(
+    category = "ocean_basin"
+  )
+# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+
+
+bind_rows(shared_data_rfmo,
+          shared_data_ob
+          ) %>% 
+  group_by(realm,category) %>% 
+  tally() %>% 
+  spread(category,n) %>% 
+  mutate(
+    difference = abs(ocean_basin-rfmo)
+  ) 
+
+bind_rows(shared_data_rfmo,
+          shared_data_ob
+          ) %>% 
+  group_by(hs_name,category) %>% 
+  tally() %>% 
+  spread(category,n) %>% 
+  mutate(
+    difference = abs(ocean_basin-rfmo)
+  ) 
+
+```
+
+
 
 ### Straddling treshold supplements
 
