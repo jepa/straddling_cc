@@ -287,16 +287,41 @@ int = suppressMessages(st_intersects(Shapefile))
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
   mutate(INDEX = seq(1,259200,1))
 
-# RFMO data
-rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
+# Do analysis by ocean basin
+rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T) 
+
+# This data now substitutes rfmo_index in the analysis
+ob_index <- rfmo_index%>% 
+  mutate(
+    basin = ifelse(rfmo_name == "ICCAT","atlantic",
+                   ifelse(rfmo_name == "WCPFC","pacific",
+                          ifelse(rfmo_name == "IATTC","pacific",
+                                 ifelse(rfmo_name == "IOTC","indian",
+                                        ifelse(rfmo_name == "CCSBT","southern","NA")))
+  )))
 
 # DBEM to MEOW grid
 meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
   clean_names()
 
 # Neighboring RFMOs and MEOWs created in previous chunk on July 20
-rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T) # Neighbours
+rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
 
+# This data now substitutes rfmo_meow
+basin_data <- rfmo_meow %>%
+  mutate_at(vars(region, adjacent_region),
+            ~ ifelse(. == "ICCAT","atlantic",
+                     ifelse(. == "WCPFC","pacific",
+                            ifelse(. == "IATTC","pacific",
+                                   ifelse(. == "IOTC","indian",
+                                          ifelse(. == "CCSBT","southern",.)))
+                     )
+            )
+  )
+
+# Remove them to make sure analysis is correct
+rm(rfmo_meow,rfmo_index)
+  
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
   # Set same filters as in FishForVisa
@@ -313,7 +338,9 @@ length(unique(transboundary_spp$taxon_key)) # 633
 coords_dbem <- my_data("dbem_coords")
 
 # Species to ran
-run_species <- list.files(my_path("R","Straddling_realm_rfmo"))
+# Check runs already made
+# run_species <- list.files(my_path("R","Straddling_realm_rfmo"))
+run_species <- list.files(my_path("R","straddling_realm_ob"))
 run_species <- str_sub(run_species,1,6)
 
 run_me <- transboundary_spp %>% 
@@ -343,7 +370,7 @@ write(eez_rfmo_region, my_path("D","Spatial",name = "eez_rfmo_region.csv"))
 
 Methodological points to consider
 
-- RFMOs neighboring realms from the MEOW
+- RFMOs neighboring realms from the MEOW. This has now changed for Ocean Basins
 - The straddling index accounts for how much of the population is present (as a %) in the RFMO. So if it says 80%, it means that 80% of the population is present in the RFMO and 20% in the realm.
 - A straddling stock is herein defined as a stock that is shared between a REALM (and its EEZs) and a RFMO.
 
