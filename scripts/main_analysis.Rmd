@@ -419,13 +419,14 @@ foreach(i=1:repetitions,
         .packages = "tidyverse",
         .options.snow = opts,
         .verbose = T) %dopar% 
-  StraddIndex(
+  stradd_index(
     run_me[i],
-    Model = "All",
-    Coord = coords,
-    Index_Code = sau_index_code,
-    Neighbours = rfmo_meow,
-    tresh = T
+    model = "All",
+    coord = coords_dbem,
+    index_code = sau_index_code, # SAU index for eez to grid
+    neighbours = ob_meow, # Headdings must be region and neighbouring_region
+    hs_index = ob_index, # First headding should be index, second will be re-named
+    folder_name = "straddling_realm_ob" # folder to save result
   )
 
 close(pb)
