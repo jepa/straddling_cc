@@ -796,6 +796,42 @@ suppressMessages(
 ```
 
 
+### Highly migratory speices
+
+List of Highly migratory speices according to Annex I Highly migratory species of UNCLOS. Note that we only included those at the species level https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
+
+```{r un_highly_mig_spp, eval = F}
+
+# CANCELLED CHUNK
+
+# List of SAU species
+exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
+
+
+un_species <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
+                                         "Auxis thazard", "Auxis rochei", 
+                                         "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                         
+                                         "Istiophorus platypterus","Istiophorus albicans",
+                                         "Xiphias gladius",
+                                         "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                         "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                     reffered_as = c(
+                       rep("Tuna",9),
+                       "Frigate mackerel","Frigate mackerel",
+                       rep("Marlin",9),
+                       "Sail-fish","Sail-fish",
+                       "Sword-fish",
+                       rep("Saury",4),
+                       rep("Shark",3)
+                     )) %>% 
+  mutate(shared = "high_migra") %>% 
+  left_join(exploited_spp) %>% 
+  filter(!is.na(taxon_key))
+
+```
+
+
 # Results
 
 ## Data needed
@@ -839,42 +875,33 @@ sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial
 # List of SAU species
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
-## Straddling species ##
-# Spp list
-# spp_complete <- list.files(my_path("R","Straddling_realm_rfmo/"))
-# straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
-# Get straddling stocks
-# shared_data <- bind_rows(
-#   lapply(straddling_spp,GetResults, type = "strad")
-# ) %>% 
-#   left_join(exploited_spp) #%>% 
-# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
-
-# Get proportion analysis
+# Get proportion analysis for Highly migratory species
 ### RFMO ANALYSIS ####
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
-partial_straddling_df <- bind_rows(
+straddling_hm <- bind_rows(
   lapply(straddling_spp,GetResults, type = "strad")
 ) %>% 
   rename(realm_name = realm,
          hs_name = rfmo_name,
          area_hs = area_rfmo
   ) %>% 
-  mutate(approach = "rfmo")
+  mutate(approach = "rfmo",
+         category = "highly migratory") %>% 
+  filter(taxon_key %in% un_species$taxon_key)
 
-length(unique(partial_straddling_df$taxon_key))# 157
+length(unique(highly_migratory_spp$taxon_key))# 18 species that are highly migratory
 
-# Get straddling stocks
-prop_data_esm <- bind_rows(
-  lapply(unique(partial_straddling_df$taxon_key),GetResults, type = "prop")
+# Get Highly migratory straddling stocks
+prop_data_esm_hm <- bind_rows(
+  lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
 ) %>% 
   rename(hs_name = rfmo_name) %>% 
   # View()
   # Include area index info
-  left_join(partial_straddling_df,
+  left_join(straddling_hm,
             by = c("taxon_key","hs_name","realm_name")
   ) %>% 
   filter(area_hs > 10,
@@ -891,7 +918,7 @@ prop_data_esm <- bind_rows(
   left_join(exploited_spp) 
 
 
-prop_data <- prop_data_esm %>%
+prop_data_hm <- prop_data_esm_hm %>%
   # Re- estimate change with average of all ESMs
   group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach) %>% 
   summarise_at(
@@ -900,35 +927,32 @@ prop_data <- prop_data_esm %>%
     na.rm = T) %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
                          ifelse(mean < low_tresh,"lost","same")
+  ),
+  category = "highly migratory"
   )
-  )
 
-length(unique(prop_data$taxon_key))# 76
+length(unique(prop_data_hm$taxon_key))# 14
 
-
-
-# Get proportion analysis
+# Get proportion analysis for non-highly migratory species
 ### Ocean basin ANALYSIS ####
 spp_complete <- list.files(my_path("R","Per_change_realm_ob/"))
 straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
-partial_straddling_df_ob <- bind_rows(
+
+straddling_nhm <- bind_rows(
   lapply(straddling_spp,GetResults, type = "ob")
 ) %>% 
-  mutate(approach = "ocean_basin") %>% 
-  rename(realm_name = realm)
+  mutate(approach = "ocean_basin",
+         category = "straddling") %>% 
+  rename(realm_name = realm) %>% 
+  filter(!taxon_key %in% un_species$taxon_key)
 
-length(unique(partial_straddling_df$taxon_key))# 27
+length(unique(straddling_nhm$taxon_key))# 131
 
 # Get straddling stocks
-prop_data_esm_ob <- bind_rows(
-  lapply(unique(partial_straddling_df_ob$taxon_key),GetResults, type = "prop_ob")
+prop_data_esm_nhm <- bind_rows(
+  lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
 ) %>% 
-  # View()
-  # Include area index info
-  # left_join(partial_straddling_df_ob,
-  #           by = c("taxon_key","hs_name","realm_name")
-  #       ) %>% 
   filter(area_hs > 10,
          area_hs < 90) %>% 
   # Remove species not present in high seas
@@ -941,12 +965,13 @@ prop_data_esm_ob <- bind_rows(
       top_tresh != 100
   ) %>% 
   left_join(exploited_spp)  %>% 
-  mutate(approach = "ocean_basin")
+  mutate(approach = "ocean_basin",
+         category = "straddling")
 
 
-prop_data_ob <- prop_data_esm_ob %>%
+prop_data_nhm <- prop_data_esm_nhm %>%
   # Re- estimate change with average of all ESMs
-  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach) %>% 
+  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
   summarise_at(
     .vars = c("low_tresh","mean","top_tresh"),
     .funs = mean,
@@ -957,10 +982,6 @@ prop_data_ob <- prop_data_esm_ob %>%
   )
 
 length(unique(prop_data$taxon_key))# 76
-
-
-
-
 
 ### RFMO to RFMO
 
@@ -1038,15 +1059,6 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
 
 
 
-```{r}
-bind_rows(prop_data_ob,
-          prop_data %>% filter(taxon_key %in% prop_data_ob$taxon_key)) %>% 
-  group_by()
-
-```
-
-
-
 ## Straddling identification
 
 ### RFMO vs Ocean basin
@@ -1104,7 +1116,22 @@ bind_rows(shared_data_rfmo,
     difference = abs(ocean_basin-rfmo)
   ) 
 
+
+#### Non Higly migratory ### 
+
+bind_rows(shared_data_rfmo,
+          shared_data_ob
+) %>% 
+  filter(taxon_key %in% non_high_mig) %>% 
+  group_by(realm,category) %>% 
+  tally() %>% 
+  spread(category,n) %>% 
+  mutate(
+    difference = abs(ocean_basin-rfmo)
+  ) 
+
 ```
+
 
 
 
@@ -1112,33 +1139,39 @@ bind_rows(shared_data_rfmo,
 
 ```{r threshold_sensitivity, eval = F}
 
+
 bind_rows(
-  lapply(straddling_spp,GetResults, type = "prop")
+  prop_data_esm_hm,
+  prop_data_esm_nhm
 ) %>% 
+# bind_rows(
+#   lapply(straddling_spp,GetResults, type = "prop")
+# ) %>% 
   filter(
     rcp == "rcp26",
     period == "ear",
     esm == "gfdl"
   ) %>% 
+  # View()
   # Include area index info
-  left_join(partial_straddling_df,
-            by = c("taxon_key","rfmo_name","realm_name")
-  ) %>%
+  # left_join(straddling_hm,
+            # by = c("taxon_key","rfmo_name","realm_name")
+  # ) %>%
   mutate(
-    tresh_30 = ifelse(area_rfmo > 30, "30%",NA),
-    tresh_20 = ifelse(area_rfmo > 20, "20%",NA),
-    tresh_0 = ifelse(area_rfmo > 0, "0%",NA),
-    tresh_10 = ifelse(area_rfmo > 10, "10%",NA),
-    combo = paste(realm_name,rfmo_name, sep = "-")
+    tresh_30 = ifelse(area_hs > 30, "30%",NA),
+    tresh_20 = ifelse(area_hs > 20, "20%",NA),
+    tresh_0 = ifelse(area_hs > 0, "0%",NA),
+    tresh_10 = ifelse(area_hs > 10, "10%",NA),
+    combo = paste(realm_name,hs_name, sep = "-")
   ) %>%
   # View()
-  group_by(combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
+  group_by(category,combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
   tally() %>%
   # View()
   gather("value","thresh_level",tresh_30:tresh_0) %>%
   filter(!is.na(thresh_level)) %>%
   # View()
-  group_by(combo,thresh_level) %>%
+  group_by(category,combo,thresh_level) %>%
   summarise(n_thresh = sum(n,na.rm = T)) %>%
   # filter(thresh_level !="0%") %>% 
   # filter(combo == "Arctic-ICCAT") %>%
@@ -1146,7 +1179,8 @@ bind_rows(
   ggplot() +
   geom_bar(
     aes(
-      x = reorder(combo,desc(combo)),
+      # x = reorder(combo,desc(combo)),
+      x = reorder(combo,desc(n_thresh)),
       y = n_thresh,
       fill = thresh_level
     ),
@@ -1161,7 +1195,8 @@ bind_rows(
   # facet_wrap(~ realm_name) +
   scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
   scale_y_continuous(expand = c(0, 0),
-                     breaks = seq(0,100,20)
+                     breaks = seq(0,25,5),
+                     limits = c(0,25)
   ) +
   my_ggtheme_p(
     leg_pos = "right",
@@ -1170,7 +1205,9 @@ bind_rows(
     y_hjust = 1,
     y_vjust = 0.5
     # axx_tx_ang = 45
-  )
+  ) +
+  facet_wrap(~category,
+             scales = "free")
 
 # Save plot 
 ggsave("./results/supplements/fig_S3.png",
@@ -1861,39 +1898,7 @@ rfmo_prop_data %>%
 
 # Old code 
 
-```{r}
-
-
-
-ggplot() +
-  geom_sf(data = sf_fao, aes(), fill ="#3B9AB2" ) +
-  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
-  geom_sf(data = sf_land, aes(), fill ="grey" ) +
-  ggrepel::geom_label_repel(data = sf_fao_lab,
-                            aes(label = f_code,
-                                geometry = the_geom),
-                            stat = "sf_coordinates",
-                            direction = "y",
-                            seed = 10,
-                            point.padding	 = 1,
-                            alpha = 0.8,
-                            size = 4)
-
-
-sf_fao_lab <-
-  sf_fao %>% 
-  group_by(fao_name,f_code) %>% 
-  tally() %>% 
-  mutate(fao_name_lab = gsub(",","\n",fao_name))
-
-```
-
-
-
-
-### Highly migratpry speices
-
-Annex I Highly migratory species https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
+## Higly migratory species
 
 ```{r un_highly_mig_spp, eval = F}
 
@@ -1951,6 +1956,37 @@ h_migratory_spp <- bind_rows(output,
   mutate(cat = "high_mig")
 
 ```
+
+```{r}
+
+
+
+ggplot() +
+  geom_sf(data = sf_fao, aes(), fill ="#3B9AB2" ) +
+  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
+  geom_sf(data = sf_land, aes(), fill ="grey" ) +
+  ggrepel::geom_label_repel(data = sf_fao_lab,
+                            aes(label = f_code,
+                                geometry = the_geom),
+                            stat = "sf_coordinates",
+                            direction = "y",
+                            seed = 10,
+                            point.padding	 = 1,
+                            alpha = 0.8,
+                            size = 4)
+
+
+sf_fao_lab <-
+  sf_fao %>% 
+  group_by(fao_name,f_code) %>% 
+  tally() %>% 
+  mutate(fao_name_lab = gsub(",","\n",fao_name))
+
+```
+
+
+
+
 
 ### Proportion change map
 
