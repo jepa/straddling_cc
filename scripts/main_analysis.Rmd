@@ -207,20 +207,21 @@ sf_meow_rfmo <- rbind(sf_rfmo_to_combine,
 
 basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
   mutate(
-    basin_name = ifelse(basin2 == 0, "w_atlantic",
-                     ifelse(basin2 == 1 ,"e_atlantic",
-                            ifelse(basin2 == 2, "e_pacific",
-                                   ifelse(basin2 == 3, "w_pacific",
-                                          ifelse(basin2 == 4, "w_indian",
-                                                 ifelse(basin2 == 5,"e_indian",
-                                                        ifelse(basin2 == 6,"antarctic",
-                                                               ifelse(basin2 == 7,"actic",
-                                                 NA))))))))
+    basin = ifelse(basin2 == 0, "w_atlantic",
+                   ifelse(basin2 == 1 ,"e_atlantic",
+                          ifelse(basin2 == 2, "e_pacific",
+                                 ifelse(basin2 == 3, "w_pacific",
+                                        ifelse(basin2 == 4, "w_indian",
+                                               ifelse(basin2 == 5,"e_indian",
+                                                      ifelse(basin2 == 6,"antarctic",
+                                                             ifelse(basin2 == 7,"actic",
+                                                                    NA))))))))
   ) %>% 
   select(lon = longitude,
          lat = latitude,
-         basin_name) %>% 
-  left_join(coords_dbem) 
+         basin) %>% 
+  left_join(my_data("dbem_coords")) %>% 
+  filter(!is.na(basin))
 
 # Create index only of high seas
 ob_index <- basin_data %>% 
@@ -233,13 +234,13 @@ ob_index <- basin_data %>%
 #       y = lat,
 #       fill = basin_name
 #     )
-  # )
+# )
 
 
 # Join both SF to run neighbours on
 
 basin_sf <-st_as_sf(basin_data,
-                   coords = c("lon", "lat")
+                    coords = c("lon", "lat")
 ) %>% 
   st_set_crs(4326) #%>%
 
@@ -256,7 +257,7 @@ st_crs(sf_basin_to_combine) = 4326
 
 # Join them
 sf_meow_basin <- rbind(sf_basin_to_combine, 
-                      sf_meow_to_combine)
+                       sf_meow_to_combine)
 
 unique(sf_meow_basin$region)
 
@@ -307,7 +308,7 @@ rfmo_partial <- Result_table %>%
   distinct() %>% 
   # rename(rfmo_name = region) %>% # for RFMO to MEOW analysis
   # left_join(rfmo_index, 
-            # by = "rfmo_name")%>%  # for RFMO to MEOW analysis
+  # by = "rfmo_name")%>%  # for RFMO to MEOW analysis
   rename(basin_name = region) %>% 
   left_join(ob_index, 
             by = "basin_name")%>% 
@@ -356,25 +357,25 @@ write_csv(ob_meow_final, my_path("G","Spatial/SAU/","ob_meow_neighbours.csv"))
 basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
   mutate(
     basin_name = ifelse(basin2 == 0, "w_atlantic",
-                     ifelse(basin2 == 1 ,"e_atlantic",
-                            ifelse(basin2 == 2, "e_pacific",
-                                   ifelse(basin2 == 3, "w_pacific",
-                                          ifelse(basin2 == 4, "w_indian",
-                                                 ifelse(basin2 == 5,"e_indian",
-                                                        ifelse(basin2 == 6,"antarctic",
-                                                               ifelse(basin2 == 7,"actic",
-                                                 NA))))))))
+                        ifelse(basin2 == 1 ,"e_atlantic",
+                               ifelse(basin2 == 2, "e_pacific",
+                                      ifelse(basin2 == 3, "w_pacific",
+                                             ifelse(basin2 == 4, "w_indian",
+                                                    ifelse(basin2 == 5,"e_indian",
+                                                           ifelse(basin2 == 6,"antarctic",
+                                                                  ifelse(basin2 == 7,"actic",
+                                                                         NA))))))))
   ) %>% 
   select(lon = longitude,
          lat = latitude,
          basin_name) %>% 
-  left_join(coords_dbem)
+  left_join(my_data("dbem_coords"))
 
 
 # For supplemental material 
 
 basin_sf <- st_as_sf(basin_data,
-                      coords = c("lon", "lat"), crs = 4326)  # WGS84
+                     coords = c("lon", "lat"), crs = 4326)  # WGS84
 
 # meow_sf <- my_sf("MEOW")
 
@@ -677,17 +678,17 @@ taxon_proportion(taxon_key = 600069,
                  hs_index = ob_index,
                  high_mig = F,
                  folder_name = "per_change_realm_ob"
-                 )
+)
 
 # Multiple speices in one
 suppressMessages(
   lapply(run_me_list,
          taxon_proportion,
-           dbem_grid = meow_dbem_grid,
-           hs_index = ob_index,
-           high_mig = F,
-           folder_name = "per_change_realm_ob"
-         )
+         dbem_grid = meow_dbem_grid,
+         hs_index = ob_index,
+         high_mig = F,
+         folder_name = "per_change_realm_ob"
+  )
 )
 
 #Multiple species in parallel
@@ -809,13 +810,13 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 
 un_species <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
-                                         "Auxis thazard", "Auxis rochei", 
-                                         "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
-                                         
-                                         "Istiophorus platypterus","Istiophorus albicans",
-                                         "Xiphias gladius",
-                                         "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
-                                         "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                                    "Auxis thazard", "Auxis rochei", 
+                                    "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                    
+                                    "Istiophorus platypterus","Istiophorus albicans",
+                                    "Xiphias gladius",
+                                    "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                    "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
                      reffered_as = c(
                        rep("Tuna",9),
                        "Frigate mackerel","Frigate mackerel",
@@ -1017,6 +1018,15 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
 length(unique(rfmo_prop_data$taxon_key))# 45
 
 
+#### Combine both data ###
+
+prop_data <- bind_rows(
+  prop_data_esm_hm,
+  prop_data_esm_nhm
+)
+
+
+
 #### Catch data
 
 # rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
@@ -1144,9 +1154,9 @@ bind_rows(
   prop_data_esm_hm,
   prop_data_esm_nhm
 ) %>% 
-# bind_rows(
-#   lapply(straddling_spp,GetResults, type = "prop")
-# ) %>% 
+  # bind_rows(
+  #   lapply(straddling_spp,GetResults, type = "prop")
+  # ) %>% 
   filter(
     rcp == "rcp26",
     period == "ear",
@@ -1155,7 +1165,7 @@ bind_rows(
   # View()
   # Include area index info
   # left_join(straddling_hm,
-            # by = c("taxon_key","rfmo_name","realm_name")
+  # by = c("taxon_key","rfmo_name","realm_name")
   # ) %>%
   mutate(
     tresh_30 = ifelse(area_hs > 30, "30%",NA),
@@ -1261,27 +1271,38 @@ straddling_species %>%
 # Scaling function for plot
 scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
+
+rfmo_to_ob <- data_frame(
+  hs_name = c("ICCAT","ICCAT","WCPFC","IATTC","IOTC","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT"),
+  basin = c("w_atlantic","e_atlantic","w_pacific","e_pacific","e_indian","w_indian","w_atlantic","e_atlantic","w_pacific","e_pacific","e_indian","w_indian")
+)
+
+
+
 # Get MEOW and EEZs (REMOVE)
-# meow_dbem_eez <- meow_dbem_grid %>% 
-#   group_by(realm,eez_name) %>% 
-#   tally() %>% 
-#   select(-n)
+prop_data_map <- prop_data %>% 
+  left_join(rfmo_to_ob) %>%
+  mutate(
+    basin = ifelse(is.na(basin),hs_name,basin)
+  )
+
+
 
 # Number of straddling stocks by MEOW
-strad_meow <- prop_data %>% 
+strad_meow <- prop_data_map %>% 
   group_by(realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by RFMO
-stradd_rfmo <- prop_data %>% 
-  group_by(rfmo_name) %>%
+stradd_rfmo <- prop_data_map %>% 
+  group_by(basin) %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
 # Number of straddling stocks by RFMO and Realm
-rfmo_realm <- prop_data %>% 
-  group_by(rfmo_name,realm_name) %>% 
+rfmo_realm <- prop_data_map %>% 
+  group_by(basin,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
@@ -1291,9 +1312,16 @@ sf_meow_map <- sf_meow %>%
   tally() %>% 
   select(-n)
 
-map_rfmo_stradd <- ggplot() + 
-  geom_sf(data = sf_rfmo %>% left_join(stradd_rfmo), aes(fill = n)) +
+
+map_high_seas_stradd <- ggplot() + 
+  geom_tile(data = basin_data %>%  left_join(stradd_rfmo), 
+            aes(
+              x = lon,
+              y = lat,
+              fill = n)
+  ) +
   geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
+  geom_sf(data = sf_rfmo, aes(), fill = "transparent", color = "black") +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
   # Add RFMO labels
   geom_label_repel(data = sf_rfmo,
@@ -1305,32 +1333,25 @@ map_rfmo_stradd <- ggplot() +
                    max.overlaps = 10,
                    point.padding = 50,
                    hjust = "right",
-                   nudge_x = 15,
-                   nudge_y = ifelse(sf_rfmo$rfmo_name == "CCSBT",-20,-30),
+                   nudge_x = ifelse(sf_rfmo$rfmo_name == "ICCAT",-13,
+                                    ifelse(sf_rfmo$rfmo_name == "WCPFC",10,-5)),
+                   nudge_y = ifelse(sf_rfmo$rfmo_name == "CCSBT",-20,
+                                    ifelse(sf_rfmo$rfmo_name == "ICCAT",10,
+                                           ifelse(sf_rfmo$rfmo_name == "WCPFC",10,1))),
                    alpha = 0.6,
                    size = 4
   ) +
-  # geom_label_repel(data = sf_meow_map,
-  #                  aes(label = rlm_code,
-  #                      geometry = geometry),
-  #                  stat = "sf_coordinates",
-  #                  alpha = 0.6,
-  #                  nudge_x = .15,
-  #                  box.padding = 0.5,
-  #                  nudge_y = 10,
-  #                  segment.ncp = 10,
-  #                  segment.angle = 20
-  # ) +
 scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
                      limits = c(0,50)) +
+  scale_color_manual(values = wes_palette("Darjeeling1", n = 5)) +
   my_ggtheme_m(leg_pos = "bottom",
                leg_width = 2) +
   theme(legend.text = element_text(size = 14),
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1a.png",
-       map_rfmo_stradd,
+ggsave("./results/figures/fig_1ab.png",
+       map_high_seas_stradd,
        height = 7,
        width = 12
 )
@@ -1422,9 +1443,6 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
 
 ```
 
-
-
-
 ### Paper numbers on top shared species
 
 ```{r}
@@ -1438,8 +1456,6 @@ prop_data %>%
 top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
-
-
 
 ```
 
