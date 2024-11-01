@@ -403,7 +403,6 @@ meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>%
 
 # Neighboring RFMOs and MEOWs created in previous chunk on July 20
 ob_meow <- my_path("G","Spatial/SAU/","ob_meow_neighbours.csv", read = T)
-colnames(ob_meow)[2] <- "neighbouring_region"
 
 ```
 
@@ -494,7 +493,7 @@ stradd_index(spp = 600006, # Taxon key for species
              model = "All", # datasets to include (see transboundary work)
              coord = coords_dbem, # dbem coordinate system
              index_code = sau_index_code, # SAU index for eez to grid
-             neighbours = ob_meow, # Headdings must be region and neighbouring_region
+             neighbours = ob_meow, # Headdings must be region and adjacent_region
              hs_index = ob_index, # First headding should be index, second will be re-named
              folder_name = "straddling_realm_ob" # folder to save result
 )
@@ -619,7 +618,7 @@ taxon_proportion(taxon_key = 600069,
 
 #Multiple species in parallel
 suppressMessages(
-  mclapply(non_high_mig,
+  mclapply(run_me_list,
            taxon_proportion,
            dbem_grid = meow_dbem_grid,
            hs_index = rfmo_index,
@@ -687,7 +686,7 @@ non_high_mig <- read_csv("results/supplements/straddling_species.csv") %>%
 
 #Multiple species in parallel
 suppressMessages(
-  mclapply(non_high_mig,
+  mclapply(run_me_list,
            taxon_proportion,
            dbem_grid = meow_dbem_grid,
            hs_index = ob_index,
