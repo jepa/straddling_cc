@@ -489,25 +489,25 @@ source("./functions/stradd_index.R")
 source("./functions/get_spp_dist.R")
 
 # One species
-stradd_index(spp = 600006, # Taxon key for species
-             model = "All", # datasets to include (see transboundary work)
-             coord = coords_dbem, # dbem coordinate system
-             index_code = sau_index_code, # SAU index for eez to grid
-             neighbours = ob_meow, # Headdings must be region and adjacent_region
-             hs_index = ob_index, # First headding should be index, second will be re-named
-             folder_name = "straddling_realm_ob" # folder to save result
-)
+# stradd_index(spp = 600006, # Taxon key for species
+#              model = "All", # datasets to include (see transboundary work)
+#              coord = coords_dbem, # dbem coordinate system
+#              index_code = sau_index_code, # SAU index for eez to grid
+#              neighbours = ob_meow, # Headdings must be region and adjacent_region
+#              hs_index = ob_index, # First headding should be index, second will be re-named
+#              folder_name = "straddling_realm_ob" # folder to save result
+# )
 
 # All species lapply
-lapply(run_me,
-       stradd_index,
-       model = "All",
-       coord = coords_dbem,
-       index_code = sau_index_code, # SAU index for eez to grid
-       neighbours = ob_meow, # Headdings must be region and neighbouring_region
-       hs_index = ob_index, # First headding should be index, second will be re-named
-       folder_name = "straddling_realm_ob" # folder to save result
-)
+# lapply(run_me,
+#        stradd_index,
+#        model = "All", # datasets to include (see transboundary work)
+#              coord = coords_dbem, # dbem coordinate system
+#              index_code = sau_index_code, # SAU index for eez to grid
+#              neighbours = ob_meow, # Headdings must be region and adjacent_region
+#              hs_index = ob_index, # First headding should be index, second will be re-named
+#              folder_name = "straddling_realm_ob" # folder to save result
+# )
 
 
 

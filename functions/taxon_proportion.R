@@ -57,7 +57,6 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
       }
       
       
-      
       # Get area of analysis
       taxon_region_dbem_area <- stradd_data %>%
         pivot_longer(c(realm,hs_name)) %>% 
