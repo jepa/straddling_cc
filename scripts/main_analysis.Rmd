@@ -672,17 +672,23 @@ non_high_mig <- read_csv("results/supplements/straddling_species.csv") %>%
 ```{r proportion_call, eval = F}
 
 # Single species
-# taxon_proportion(taxon_key = 600069,
-#                  dbem_grid = meow_dbem_grid,
-#                  hs_index = ob_index,
-#                  folder_name = "per_change_realm_ob"
-#                  )
+taxon_proportion(taxon_key = 600069,
+                 dbem_grid = meow_dbem_grid,
+                 hs_index = ob_index,
+                 high_mig = F,
+                 folder_name = "per_change_realm_ob"
+                 )
 
 # Multiple speices in one
-# suppressMessages(
-#   lapply(straddling_spp[1:2],
-#          taxon_proportion)
-# )
+suppressMessages(
+  lapply(run_me_list,
+         taxon_proportion,
+           dbem_grid = meow_dbem_grid,
+           hs_index = ob_index,
+           high_mig = F,
+           folder_name = "per_change_realm_ob"
+         )
+)
 
 #Multiple species in parallel
 suppressMessages(
