@@ -1188,8 +1188,8 @@ bind_rows(
     position = "dodge"
   ) +
   labs(
-    x = "Region and RFMO combination",
-    y = "Number of straddling stocks"
+    x = "Region and high seas combination",
+    y = "Number of stocks"
   ) +
   coord_flip() +
   # facet_wrap(~ realm_name) +
@@ -1207,7 +1207,8 @@ bind_rows(
     # axx_tx_ang = 45
   ) +
   facet_wrap(~category,
-             scales = "free")
+             scales = "free",
+             ncol = 2)
 
 # Save plot 
 ggsave("./results/supplements/fig_S3.png",
