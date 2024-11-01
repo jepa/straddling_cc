@@ -103,7 +103,6 @@ st_crs(dbem_sf) = 4326
 sau_index_code <- my_data("sau_index")
 
 ### Get MEO to DBEM
-
 meow_regions <- my_sf("MEOW")
 st_crs(meow_regions) = 4326
 
@@ -130,7 +129,7 @@ dbem_meow_df_supp <- dbem_meow_df %>%
          Realm = realm,
          EEZ = eez_name)
 
-write_csv(dbem_meow_df_supp,"./results/supplements/realm_to_eez.csv")
+# write_csv(dbem_meow_df_supp,"./results/supplements/realm_to_eez.csv")
 
 
 # dbem_meow_df_supp %>%
@@ -171,7 +170,7 @@ rfmo_dbem_hs <- rfmo_dbem %>%
 # Finalize data
 dbem_rfmo_index <- rfmo_dbem_hs %>% 
   filter(!index %in% dbem_meow_df$index)
-  
+
 
 # dbem_rfmo_index %>%
 #   left_join(coords_dbem) %>%
@@ -193,24 +192,73 @@ dbem_rfmo_index <- rfmo_dbem_hs %>%
 
 write_csv(dbem_rfmo_index, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
 
-
-
-
-
 ## Coombine rfmo and MEOW shapefiles in one
-
-
 sf_rfmo_to_combine <- sf_rfmo %>% 
   select(region = rfmo_name, geometry)
 
 sf_meow_to_combine <- meow_regions %>% 
-  select(region = REALM, geometry)
-  
+  select(region = realm, geometry)
+
 sf_meow_rfmo <- rbind(sf_rfmo_to_combine, 
                       sf_meow_to_combine)
 
+### Basins data ####
 
 
+basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
+  mutate(
+    basin_name = ifelse(basin2 == 0, "w_atlantic",
+                     ifelse(basin2 == 1 ,"e_atlantic",
+                            ifelse(basin2 == 2, "e_pacific",
+                                   ifelse(basin2 == 3, "w_pacific",
+                                          ifelse(basin2 == 4, "w_indian",
+                                                 ifelse(basin2 == 5,"e_indian",
+                                                        ifelse(basin2 == 6,"antarctic",
+                                                               ifelse(basin2 == 7,"actic",
+                                                 NA))))))))
+  ) %>% 
+  select(lon = longitude,
+         lat = latitude,
+         basin_name) %>% 
+  left_join(coords_dbem) 
+
+# Create index only of high seas
+ob_index <- basin_data %>% 
+  filter(!index %in% dbem_meow_df$index)
+
+# ggplot(basin_data) +
+#   geom_tile(
+#     aes(
+#       x = lon,
+#       y = lat,
+#       fill = basin_name
+#     )
+  # )
+
+
+# Join both SF to run neighbours on
+
+basin_sf <-st_as_sf(basin_data,
+                   coords = c("lon", "lat")
+) %>% 
+  st_set_crs(4326) #%>%
+
+
+# Select the MEOW SF
+sf_meow_to_combine <- meow_regions %>% 
+  select(region = realm, geometry)
+st_crs(sf_meow_to_combine) = 4326
+
+# Select the basin SF
+sf_basin_to_combine <- basin_sf %>% 
+  select(region = basin_name, geometry)
+st_crs(sf_basin_to_combine) = 4326
+
+# Join them
+sf_meow_basin <- rbind(sf_basin_to_combine, 
+                      sf_meow_to_combine)
+
+unique(sf_meow_basin$region)
 
 ```
 
@@ -221,60 +269,70 @@ Code modified from FishForVisa
 
 ```{r funEstNeighbours, eval = F, echo=T}
 
-Shapefile = sf_meow_rfmo
+Shapefile = sf_meow_basin
 
-  # Get sparse matrix
+# Get sparse matrix
 int = suppressMessages(st_intersects(Shapefile))
-  # Warnning message
-  # although coordinates are longitude/latitude, st_intersects assumes that they are planar
+# Warnning message
+# although coordinates are longitude/latitude, st_intersects assumes that they are planar
+
+
+# Intitalize new object
+mat = NULL
+
+# Fill
+for(i in 1:NROW(int)){
+  #Create matrix with ID and intersecting IDs
+  tmp = cbind(i, int[[i]])
   
-  
-  # Intitalize new object
-  mat = NULL
-  
-  # Fill
-  for(i in 1:NROW(int)){
-    #Create matrix with ID and intersecting IDs
-    tmp = cbind(i, int[[i]])
-    
-    # Join to Initalized object
-    mat  = rbind(mat, tmp)
-  }
-  
-  # Build final data.frame substituting ID for name (in this case nc$name)
-  Result_table = data.frame(region = Shapefile$region[mat[,1]], 
-                            adjacent_region = Shapefile$region[mat[,2]]
-                            )
-  
-  # Remove duplicates... eg of course an object intersects with itself...
-  Result_table = Result_table[Result_table$region != Result_table$adjacent_region,]
-  
- # Get index cells within those RFMOs
-  rfmo_partial <- Result_table %>% 
-        rename(rfmo_name = region) %>% 
-    left_join(rfmo_dbem, 
-                  by = "rfmo_name")%>% 
-    filter(!is.na(index)) %>% 
-    rename(region = rfmo_name)
-  
-  # Get index cells within those MEOWS
-  meow_partial <- Result_table %>% 
-        rename(realm = region) %>% 
-    left_join(meow_dbem_grid, 
-                  by = "realm") %>% 
-    filter(!is.na(index)) %>% 
-    rename(region = realm)
-  
-  rfmo_meow_final <- bind_rows(rfmo_partial,meow_partial) %>% 
-    group_by(region,adjacent_region) %>% 
-    tally() %>% 
-    select(-n)
-  
-  
-  write_csv(rfmo_meow_final, my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv"))
-  
-  
-  
+  # Join to Initalized object
+  mat  = rbind(mat, tmp)
+}
+
+# Build final data.frame substituting ID for name (in this case nc$name)
+Result_table = data.frame(region = Shapefile$region[mat[,1]], 
+                          adjacent_region = Shapefile$region[mat[,2]]
+)
+
+Result_table %>% group_by(region,adjacent_region) %>% tally() %>% View()
+
+unique(Result_table$region)
+unique(Result_table$adjacent_region)
+
+# Remove duplicates... eg of course an object intersects with itself...
+Result_table = Result_table[Result_table$region != Result_table$adjacent_region,]
+
+# Get index cells within those RFMOs
+rfmo_partial <- Result_table %>% 
+  distinct() %>% 
+  # rename(rfmo_name = region) %>% # for RFMO to MEOW analysis
+  # left_join(rfmo_index, 
+            # by = "rfmo_name")%>%  # for RFMO to MEOW analysis
+  rename(basin_name = region) %>% 
+  left_join(ob_index, 
+            by = "basin_name")%>% 
+  filter(!is.na(index),
+         !is.na(basin_name)) %>% 
+  rename(region = basin_name)
+
+# Get index cells within those MEOWS
+meow_partial <- Result_table %>% 
+  distinct() %>%
+  rename(realm = region) %>% 
+  left_join(meow_dbem_grid, 
+            by = "realm") %>% 
+  filter(!is.na(index)) %>% 
+  rename(region = realm)
+
+ob_meow_final <- bind_rows(rfmo_partial,meow_partial) %>% 
+  group_by(region,adjacent_region) %>% 
+  tally() %>% 
+  select(-n)
+
+
+write_csv(ob_meow_final, my_path("G","Spatial/SAU/","ob_meow_neighbours.csv"))
+# write_csv(ob_meow_final, my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv"))
+
 ```
 
 # Determining straddling stocks
@@ -286,40 +344,66 @@ int = suppressMessages(st_intersects(Shapefile))
 ```{r}
 
 # Do analysis by ocean basin
-rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T) 
+
+# Bioms data from Gabs (Reygondea et al 2019)
+# biome2 1 = Coastal tropical 
+# biome2 2 = Coastal sub-tropical
+# biome2 3 = Coastal polar
+# biome2 4 = Oceanic tropical
+# biome2 5 = Oceanic sub-tropical
+# biome2 6 = Oceanic polar
+
+basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
+  mutate(
+    basin_name = ifelse(basin2 == 0, "w_atlantic",
+                     ifelse(basin2 == 1 ,"e_atlantic",
+                            ifelse(basin2 == 2, "e_pacific",
+                                   ifelse(basin2 == 3, "w_pacific",
+                                          ifelse(basin2 == 4, "w_indian",
+                                                 ifelse(basin2 == 5,"e_indian",
+                                                        ifelse(basin2 == 6,"antarctic",
+                                                               ifelse(basin2 == 7,"actic",
+                                                 NA))))))))
+  ) %>% 
+  select(lon = longitude,
+         lat = latitude,
+         basin_name) %>% 
+  left_join(coords_dbem)
+
+
+# For supplemental material 
+
+basin_sf <- st_as_sf(basin_data,
+                      coords = c("lon", "lat"), crs = 4326)  # WGS84
+
+# meow_sf <- my_sf("MEOW")
+
+ggplot() +
+  geom_sf(data = basin_sf %>% filter(!is.na(basin_name)),
+          aes(
+            color = as.character(basin_name)
+          )
+  ) +
+  geom_sf(data = meow_sf %>% filter(realm == "Central Indo-Pacific"), aes(fill = realm)) +
+  scale_fill_viridis_d() +
+  scale_color_brewer(palette = "Set3") + 
+  my_land_map(fill = "black") +
+  theme(legend.background = element_blank())
+
+
 
 # This data now substitutes rfmo_index in the analysis
-ob_index <- rfmo_index %>% 
-  mutate(
-    basin = ifelse(rfmo_name == "ICCAT","atlantic",
-                   ifelse(rfmo_name == "WCPFC","pacific",
-                          ifelse(rfmo_name == "IATTC","pacific",
-                                 ifelse(rfmo_name == "IOTC","indian",
-                                        ifelse(rfmo_name == "CCSBT","southern","NA")))
-  ))) %>% 
-select(index,basin)
+ob_index <- basin_data %>% 
+  filter(!index %in% dbem_meow_df$index) %>% 
+  select(index,basin_name)
 
 # DBEM to MEOW grid
 meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
   clean_names()
 
 # Neighboring RFMOs and MEOWs created in previous chunk on July 20
-rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
-
-# This data now substitutes rfmo_meow
-ob_meow <- rfmo_meow %>%
-  mutate_at(vars(region, adjacent_region),
-            ~ ifelse(. == "ICCAT","atlantic",
-                     ifelse(. == "WCPFC","pacific",
-                            ifelse(. == "IATTC","pacific",
-                                   ifelse(. == "IOTC","indian",
-                                          ifelse(. == "CCSBT","southern",.)))
-                     )
-            )
-  )
-
-# Remove them to make sure analysis is correct
-rm(rfmo_meow,rfmo_index)
+ob_meow <- my_path("G","Spatial/SAU/","ob_meow_neighbours.csv", read = T)
+colnames(ob_meow)[2] <- "neighbouring_region"
 
 ```
 
@@ -407,13 +491,13 @@ source("./functions/get_spp_dist.R")
 
 # One species
 stradd_index(spp = 600006, # Taxon key for species
-            model = "All", # datasets to include (see transboundary work)
-            coord = coords_dbem, # dbem coordinate system
-            index_code = sau_index_code, # SAU index for eez to grid
-            neighbours = ob_meow, # Headdings must be region and neighbouring_region
-            hs_index = ob_index, # First headding should be index, second will be re-named
-            folder_name = "straddling_realm_ob" # folder to save result
-            )
+             model = "All", # datasets to include (see transboundary work)
+             coord = coords_dbem, # dbem coordinate system
+             index_code = sau_index_code, # SAU index for eez to grid
+             neighbours = ob_meow, # Headdings must be region and neighbouring_region
+             hs_index = ob_index, # First headding should be index, second will be re-named
+             folder_name = "straddling_realm_ob" # folder to save result
+)
 
 # All species lapply
 lapply(run_me,
@@ -421,10 +505,10 @@ lapply(run_me,
        model = "All",
        coord = coords_dbem,
        index_code = sau_index_code, # SAU index for eez to grid
-            neighbours = ob_meow, # Headdings must be region and neighbouring_region
-            hs_index = ob_index, # First headding should be index, second will be re-named
-            folder_name = "straddling_realm_ob" # folder to save result
-            )
+       neighbours = ob_meow, # Headdings must be region and neighbouring_region
+       hs_index = ob_index, # First headding should be index, second will be re-named
+       folder_name = "straddling_realm_ob" # folder to save result
+)
 
 
 
@@ -521,7 +605,11 @@ run_me_list <- straddling_spp[!(straddling_spp %in% ran_species)]
 ```{r proportion_call, eval = F}
 
 # Single species
-# taxon_proportion(taxon_key = 600069)
+taxon_proportion(taxon_key = 600069,
+                 dbem_grid = meow_dbem_grid,
+                 hs_index = ob_index,
+                 folder_name = "per_change_realm_ob"
+)
 
 # Multiple speices in one
 # suppressMessages(
@@ -531,14 +619,86 @@ run_me_list <- straddling_spp[!(straddling_spp %in% ran_species)]
 
 #Multiple species in parallel
 suppressMessages(
-  mclapply(run_me_list,
+  mclapply(non_high_mig,
            taxon_proportion,
            dbem_grid = meow_dbem_grid,
+           hs_index = rfmo_index,
+           high_mig = T,
+           folder_name = "per_change_realm_rfmo",
            mc.cores = detectCores()-2)
 )
 
 
 ```
+
+
+### Control pannel for Ocean Basin to realm
+
+```{r get_straddling, eval = F}
+
+# Get fao areas on DBEM grid
+# fao_area_grid <- my_path("Spa", "DBEM","fao_to_dbem_grid.csv", read = T) 
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  clean_names() %>% 
+  select(index,realm)
+
+# Spp list
+
+# Straddling and highseas data 
+non_high_mig <- read_csv("results/supplements/straddling_species.csv") %>% 
+  filter(reporting != "UNCLOS") %>% 
+  left_join(my_data("dbem_species")) %>% 
+  pull(taxon_key)
+
+
+# stradd_data <- bind_rows(
+#   lapply(straddling_spp,GetResults)
+# ) %>% 
+#   mutate(taxon_key = as.character(taxon_key))
+
+
+# For Lauren
+# dbem_index <- my_data("sau_index") %>% 
+#   left_join(meow_dbem_grid) %>% 
+#   group_by(eez_name,realm) %>% 
+#   tally() %>% 
+#   filter(!is.na(realm))
+
+# write.csv(dbem_index, "eez_to_realm.csv")
+
+```
+
+### Proportion estimate
+
+```{r proportion_call, eval = F}
+
+# Single species
+# taxon_proportion(taxon_key = 600069,
+#                  dbem_grid = meow_dbem_grid,
+#                  hs_index = ob_index,
+#                  folder_name = "per_change_realm_ob"
+#                  )
+
+# Multiple speices in one
+# suppressMessages(
+#   lapply(straddling_spp[1:2],
+#          taxon_proportion)
+# )
+
+#Multiple species in parallel
+suppressMessages(
+  mclapply(non_high_mig,
+           taxon_proportion,
+           dbem_grid = meow_dbem_grid,
+           hs_index = ob_index,
+           high_mig = F,
+           folder_name = "per_change_realm_ob",
+           mc.cores = detectCores()-2)
+)
+
+
+```
+
 
 ### Control pannel for RFMO to RFMO
 
@@ -581,7 +741,19 @@ straddling_spp <- str_replace(spp_complete,"\\_.*","")
 stradd_data <- bind_rows(
   lapply(straddling_spp,GetResults)
 ) %>% 
-  mutate(taxon_key = as.character(taxon_key))
+  mutate(taxon_key = as.character(taxon_key),
+         approach = "rfmo")
+
+# Ocean Biome data
+# Spp list
+spp_complete <- list.files(my_path("R","Straddling_realm_ob/"))
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
+
+stradd_data_ob <- bind_rows(
+  lapply(straddling_spp,GetResults, type = "ob")
+) %>% 
+  mutate(taxon_key = as.character(taxon_key),
+         approach = "ocean_basin")
 
 
 # For Lauren
@@ -672,31 +844,36 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 #   lapply(straddling_spp,GetResults, type = "strad")
 # ) %>% 
 #   left_join(exploited_spp) #%>% 
-  # mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
 
 # Get proportion analysis
+### RFMO ANALYSIS ####
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
 partial_straddling_df <- bind_rows(
   lapply(straddling_spp,GetResults, type = "strad")
+) %>% 
+  rename(realm_name = realm,
+         hs_name = rfmo_name,
+         area_hs = area_rfmo
   ) %>% 
-  rename(realm_name = realm
-         )
+  mutate(approach = "rfmo")
 
 length(unique(partial_straddling_df$taxon_key))# 157
 
 # Get straddling stocks
 prop_data_esm <- bind_rows(
   lapply(unique(partial_straddling_df$taxon_key),GetResults, type = "prop")
-  ) %>%
+) %>% 
+  rename(hs_name = rfmo_name) %>% 
   # View()
   # Include area index info
   left_join(partial_straddling_df,
-            by = c("taxon_key","rfmo_name","realm_name")
-        ) %>% 
-  filter(area_rfmo > 10,
-         area_rfmo < 90) %>% 
+            by = c("taxon_key","hs_name","realm_name")
+  ) %>% 
+  filter(area_hs > 10,
+         area_hs < 90) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
@@ -705,23 +882,77 @@ prop_data_esm <- bind_rows(
     low_tresh != 100 &
       mean != 100 &
       top_tresh != 100
-           ) %>% 
+  ) %>% 
   left_join(exploited_spp) 
 
 
 prop_data <- prop_data_esm %>%
   # Re- estimate change with average of all ESMs
-  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_name,realm_name) %>% 
+  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach) %>% 
   summarise_at(
     .vars = c("low_tresh","mean","top_tresh"),
     .funs = mean,
     na.rm = T) %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
-                               ifelse(mean < low_tresh,"lost","same")
-        )
+                         ifelse(mean < low_tresh,"lost","same")
+  )
   )
 
 length(unique(prop_data$taxon_key))# 76
+
+
+
+# Get proportion analysis
+### Ocean basin ANALYSIS ####
+spp_complete <- list.files(my_path("R","Per_change_realm_ob/"))
+straddling_spp <- str_replace(spp_complete,"\\_.*","")
+
+partial_straddling_df_ob <- bind_rows(
+  lapply(straddling_spp,GetResults, type = "ob")
+) %>% 
+  mutate(approach = "ocean_basin") %>% 
+  rename(realm_name = realm)
+
+length(unique(partial_straddling_df$taxon_key))# 27
+
+# Get straddling stocks
+prop_data_esm_ob <- bind_rows(
+  lapply(unique(partial_straddling_df_ob$taxon_key),GetResults, type = "prop_ob")
+) %>% 
+  # View()
+  # Include area index info
+  # left_join(partial_straddling_df_ob,
+  #           by = c("taxon_key","hs_name","realm_name")
+  #       ) %>% 
+  filter(area_hs > 10,
+         area_hs < 90) %>% 
+  # Remove species not present in high seas
+  filter(
+    low_tresh != 0 &
+      mean != 0 &
+      top_tresh != 0,
+    low_tresh != 100 &
+      mean != 100 &
+      top_tresh != 100
+  ) %>% 
+  left_join(exploited_spp)  %>% 
+  mutate(approach = "ocean_basin")
+
+
+prop_data_ob <- prop_data_esm_ob %>%
+  # Re- estimate change with average of all ESMs
+  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach) %>% 
+  summarise_at(
+    .vars = c("low_tresh","mean","top_tresh"),
+    .funs = mean,
+    na.rm = T) %>% 
+  mutate(change = ifelse(mean > top_tresh,"gain",
+                         ifelse(mean < low_tresh,"lost","same")
+  )
+  )
+
+length(unique(prop_data$taxon_key))# 76
+
 
 
 
@@ -732,7 +963,7 @@ list_rfmo_spp <- str_sub(list.files(my_path("R","Per_change_rfmo_rfmo/")),1,6)
 
 rfmo_prop_data_esm <- bind_rows(
   lapply(list_rfmo_spp,GetResults, type = "rfmo")
-  ) %>% 
+) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh_t != 0 &
@@ -741,10 +972,10 @@ rfmo_prop_data_esm <- bind_rows(
     low_tresh_n != 1 &
       mean_t != 1 &
       top_tresh_n != 1
-           ) %>% 
+  ) %>% 
   left_join(exploited_spp)
 
-  # Re-estimate change with average of all ESMs
+# Re-estimate change with average of all ESMs
 rfmo_prop_data <- rfmo_prop_data_esm %>%  
   group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_t,rfmo_n) %>% 
   summarise_at(
@@ -800,6 +1031,17 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
 
 ```
 
+
+
+```{r}
+bind_rows(prop_data_ob,
+          prop_data %>% filter(taxon_key %in% prop_data_ob$taxon_key)) %>% 
+  group_by()
+
+```
+
+
+
 ## Straddling identification
 
 ### RFMO vs Ocean basin
@@ -839,7 +1081,7 @@ shared_data_ob <- bind_rows(
 
 bind_rows(shared_data_rfmo,
           shared_data_ob
-          ) %>% 
+) %>% 
   group_by(realm,category) %>% 
   tally() %>% 
   spread(category,n) %>% 
@@ -849,7 +1091,7 @@ bind_rows(shared_data_rfmo,
 
 bind_rows(shared_data_rfmo,
           shared_data_ob
-          ) %>% 
+) %>% 
   group_by(hs_name,category) %>% 
   tally() %>% 
   spread(category,n) %>% 
@@ -865,9 +1107,9 @@ bind_rows(shared_data_rfmo,
 
 ```{r threshold_sensitivity, eval = F}
 
- bind_rows(
+bind_rows(
   lapply(straddling_spp,GetResults, type = "prop")
-  ) %>% 
+) %>% 
   filter(
     rcp == "rcp26",
     period == "ear",
@@ -876,7 +1118,7 @@ bind_rows(shared_data_rfmo,
   # Include area index info
   left_join(partial_straddling_df,
             by = c("taxon_key","rfmo_name","realm_name")
-        ) %>%
+  ) %>%
   mutate(
     tresh_30 = ifelse(area_rfmo > 30, "30%",NA),
     tresh_20 = ifelse(area_rfmo > 20, "20%",NA),
@@ -886,7 +1128,7 @@ bind_rows(shared_data_rfmo,
   ) %>%
   # View()
   group_by(combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
-    tally() %>%
+  tally() %>%
   # View()
   gather("value","thresh_level",tresh_30:tresh_0) %>%
   filter(!is.na(thresh_level)) %>%
@@ -915,7 +1157,7 @@ bind_rows(shared_data_rfmo,
   scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
   scale_y_continuous(expand = c(0, 0),
                      breaks = seq(0,100,20)
-                     ) +
+  ) +
   my_ggtheme_p(
     leg_pos = "right",
     ax_tl_s = 14,
@@ -924,14 +1166,14 @@ bind_rows(shared_data_rfmo,
     y_vjust = 0.5
     # axx_tx_ang = 45
   )
-  
+
 # Save plot 
 ggsave("./results/supplements/fig_S3.png",
        last_plot(),
        height = 8,
        width = 8
 )
-  
+
 
 ```
 
@@ -1036,8 +1278,8 @@ map_rfmo_stradd <- ggplot() +
   #                  segment.ncp = 10,
   #                  segment.angle = 20
   # ) +
-  scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
-                       limits = c(0,50)) +
+scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
+                     limits = c(0,50)) +
   my_ggtheme_m(leg_pos = "bottom",
                leg_width = 2) +
   theme(legend.text = element_text(size = 14),
@@ -1108,7 +1350,7 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
     facet_grid(rfmo_name~realm_name, switch = "x",
                scales = "free") +
     labs(x = "", y = "") +
-      scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
+    scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
     # scale_y_continuous(breaks = seq(0,30,5))+
     theme_bw() +
     theme(
@@ -1150,12 +1392,12 @@ prop_data %>%
   group_by(taxon_name,common_name,commercial_group) %>% 
   summarise(value = length(unique(combo))) %>%
   View()
-  top_n(5,value) %>% 
+top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
 
-  
-  
+
+
 ```
 
 ## Proportion change
@@ -1200,8 +1442,8 @@ sankey_df %>%
 reg_total <-
   prop_data_esm %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
-                               ifelse(mean < low_tresh,"lost","same")
-        )
+                         ifelse(mean < low_tresh,"lost","same")
+  )
   ) %>% 
   # View()
   group_by(period,rcp,rfmo_name,change,realm_name,esm) %>% 
@@ -1222,19 +1464,19 @@ prop_data_esm %>%
   mutate(per = round(n/total_changes*100)) %>%
   group_by(rcp,period,change) %>%
   summarise_if(is.numeric, c("m" = mean,
-                            "sd" = sd,
-                            "max" = max,
-                            "min" = min),
+                             "sd" = sd,
+                             "max" = max,
+                             "min" = min),
                na.rm = T
-               ) %>% 
+  ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_min,n_m,n_max,n_sd,per_min,per_m,per_max,n_sd) %>%
   # View()
-write_csv("./results/tables/gains_losses.csv")
+  write_csv("./results/tables/gains_losses.csv")
 
 ## Proportion table
 
-  
+
 ```
 
 ### Shifts by commercial group
@@ -1260,11 +1502,11 @@ prop_data %>%
   mutate(
     per = n/tot*100,
     change = ifelse(change == "gain","RFMO",
-                         ifelse(change == "lost","EEZ","Same")),
+                    ifelse(change == "lost","EEZ","Same")),
     period = ifelse(period == "ear","Early","Middle"),
     rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
     # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
-         ) %>% 
+  ) %>% 
   # filter(change != "Same") %>%
   # View()
   ggplot() +
@@ -1290,7 +1532,7 @@ prop_data %>%
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1)
   ) 
-  
+
 ggsave(filename = "./results/figures/straddling_status_barplot.png",
        plot = last_plot(),
        height = 7,
@@ -1301,33 +1543,33 @@ ggsave(filename = "./results/figures/straddling_status_barplot.png",
 ### Circle diagram
 
 Resources:
- - https://r-charts.com/flow/chord-diagram/
- - https://www.data-to-viz.com/graph/chord.html
+- https://r-charts.com/flow/chord-diagram/
+- https://www.data-to-viz.com/graph/chord.html
 
 
 ```{r circle_diagrams, eval = T, echo = T}
 
 
-  # Color pallet
-  mycolor_scale <- 
-    c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
-      "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
-      "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
-      "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
-      "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
-      "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
-      "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
-      "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
-      "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
-      "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
-      "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-      "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
-      "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
-      "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
-      "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
-      "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
-      "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
-    )
+# Color pallet
+mycolor_scale <- 
+  c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
+    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
+    "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
+    "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
+    "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
+    "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+    "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
+    "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
+    "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
+    "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+    "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+    "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
+    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
+    "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+    "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
+    "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
+    "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+  )
 
 # Run plots
 
@@ -1392,8 +1634,8 @@ rfmo_prop_data %>%
 
 reg_total_rfmo <- rfmo_prop_data_esm %>% 
   mutate(change = ifelse(mean_t > top_tresh_t,"gain",
-                               ifelse(mean_t < low_tresh_t,"lost","same")
-        )
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
   ) %>% 
   group_by(period,rcp,rfmo_t,change_t,rfmo_n,esm) %>% 
   tally() %>% 
@@ -1402,8 +1644,8 @@ reg_total_rfmo <- rfmo_prop_data_esm %>%
 
 rfmo_prop_data_esm %>% 
   mutate(change = ifelse(mean_t > top_tresh_t,"gain",
-                               ifelse(mean_t < low_tresh_t,"lost","same")
-        )
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
   ) %>% 
   group_by(period,rcp,rfmo_t,change_t,rfmo_n,esm) %>% 
   tally() %>% 
@@ -1413,8 +1655,8 @@ rfmo_prop_data_esm %>%
   mutate(per = round(n/total_changes*100)) %>%
   group_by(rcp,period,change_t) %>%
   summarise_if(is.numeric, c("m" = mean,
-                            "sd" = sd)
-               ) %>% 
+                             "sd" = sd)
+  ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_m,n_sd,per_m,per_sd) %>% 
   View()
@@ -1540,7 +1782,7 @@ final_data %>%
   # filter(n_spp >0) %>% 
   ggplot() +
   # geom_contour_fill(aes(z = mean_tc, fill = stat(level)),
-                        # binwidth = 2)+
+  # binwidth = 2)+
   metR::geom_contour_fill(
     aes(
       x = lon,
@@ -1677,22 +1919,22 @@ for(i in 1:length(un_families)){
 
 
 un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
-                                             "Auxis thazard", "Auxis rochei", 
-                                             "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
-                                             
-                                             "Istiophorus platypterus","Istiophorus albicans",
-                                             "Xiphias gladius",
-                                             "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
-                                             "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
-                         reffered_as = c(
-                           rep("Tuna",9),
-                           "Frigate mackerel","Frigate mackerel",
-                           rep("Marlin",9),
-                           "Sail-fish","Sail-fish",
-                           "Sword-fish",
-                           rep("Saury",4),
-                           rep("Shark",3)
-                         )) %>% 
+                                         "Auxis thazard", "Auxis rochei", 
+                                         "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                         
+                                         "Istiophorus platypterus","Istiophorus albicans",
+                                         "Xiphias gladius",
+                                         "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                         "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                     reffered_as = c(
+                       rep("Tuna",9),
+                       "Frigate mackerel","Frigate mackerel",
+                       rep("Marlin",9),
+                       "Sail-fish","Sail-fish",
+                       "Sword-fish",
+                       rep("Saury",4),
+                       rep("Shark",3)
+                     )) %>% 
   mutate(source = "species")
 
 
@@ -1782,21 +2024,21 @@ meow_centroids <- meow_centroids %>%
 meow_centroids <- meow_centroids %>% 
   mutate(
     lat = ifelse(realm_name == "Temperate Northern Atlantic",72,
-               ifelse(realm_name == "Western Indo-Pacific",-9,
-                      ifelse(realm_name == "Eastern Indo-Pacific",-4,
-                             ifelse(realm_name == "Southern Ocean",-65,
-                                    ifelse(realm_name == "Temperate South America",-55,lat
-               ))))),
+                 ifelse(realm_name == "Western Indo-Pacific",-9,
+                        ifelse(realm_name == "Eastern Indo-Pacific",-4,
+                               ifelse(realm_name == "Southern Ocean",-65,
+                                      ifelse(realm_name == "Temperate South America",-55,lat
+                                      ))))),
     lon = ifelse(realm_name == "Arctic",-55,
                  ifelse(realm_name == "Temperate Northern Pacific",-130,
-                 ifelse(realm_name == "Tropical Eastern Pacific",-90,
-                        ifelse(realm_name == "Eastern Indo-Pacific",95,
-                               ifelse(realm_name == "Temperate South America",-60,
-                                      ifelse(realm_name == "Tropical Atlantic",-55,
-                                             ifelse(realm_name == "Temperate North",42,
-                                                    ifelse(realm_name == "Temperate Northern Atlantic",42,
-                                                           ifelse(realm_name == "Western Indo-Pacific",47,lon
-                        )))))))))
+                        ifelse(realm_name == "Tropical Eastern Pacific",-90,
+                               ifelse(realm_name == "Eastern Indo-Pacific",95,
+                                      ifelse(realm_name == "Temperate South America",-60,
+                                             ifelse(realm_name == "Tropical Atlantic",-55,
+                                                    ifelse(realm_name == "Temperate North",42,
+                                                           ifelse(realm_name == "Temperate Northern Atlantic",42,
+                                                                  ifelse(realm_name == "Western Indo-Pacific",47,lon
+                                                                  )))))))))
   )
 
 
@@ -1833,8 +2075,8 @@ Data <-
   rename(
     source = rfmo_name,
     target = realm_name,
-         end_lon = lon,
-         end_lat = lat) %>% 
+    end_lon = lon,
+    end_lat = lat) %>% 
   ungroup() %>% 
   drop_na() %>% 
   mutate_at(vars(end_lon,end_lat),as.numeric)
@@ -1845,7 +2087,7 @@ path_data <- Data
 data_ready_plot=data.frame()
 
 for(i in c(1:nrow(path_data))){
-# for(i in 1:4){
+  # for(i in 1:4){
   tmp=data_for_connection(path_data$start_lon[i], path_data$start_lat[i], path_data$end_lon[i], path_data$end_lat[i] , i)
   tmp$rcp=path_data$rcp[i]
   tmp$change=path_data$change[i]
@@ -1904,9 +2146,9 @@ sankey_df <- prop_data %>%
   filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
 # Get nodes (name of zones)
@@ -1952,7 +2194,7 @@ links <- sankey_df %>%
 # gain 
 # Check this for color transparency https://stackoverflow.com/questions/46616321/modify-networkd3-sankey-plot-with-user-defined-colors
 
- 
+
 
 my_color <- 'd3.scaleOrdinal() .domain(["Arctic","Central Indo-Pacific","Eastern Indo-Pacific","Southern Ocean","Temperate Australasia", "Temperate Northern Atlantic", "Temperate Northern Pacific" , "Temperate South America","Temperate Southern Africa","Tropical Atlantic","Tropical Eastern Pacific","Western Indo-Pacific","Atlantic, Northeast","Atlantic, Northwest","Pacific, Northwest", "Pacific Northeast","Indian Ocean, Eastern","Pacific, Eastern Central","Pacific, Southwest","Pacific, Western Central", "Pacific, Southeast","Indian Ocean, Antarctic","Indian Ocean, Western","Atlantic, Eastern Central","Atlantic, Western Central" ,"Atlantic, Southeast","Atlantic, Southwest"]) .range(["#F98400","#78B7C5","#0B775E"])'
 
@@ -2011,7 +2253,7 @@ rfmo_catch_country <- rfmo_catch %>%
   summarise_at(.vars = c("tonnes_million","value_billion"),
                .funs = mean,
                na.rm = T
-               )
+  )
 
 
 # Make sure everyone is included
@@ -2101,15 +2343,15 @@ grid_data <- grid_data[-1,]
 # The plot
 ggplot(c_data %>% filter(!is.na(individual)), 
        aes(x = as.factor(id), 
-                   y = value, 
-                   fill = group)
-       ) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+           y = value, 
+           fill = group)
+) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
   geom_bar(stat="identity", alpha=0.5) +
-   # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
   geom_segment(data=grid_data, aes(x = end, y = 600, xend = start, yend = 600), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
   geom_segment(data=grid_data, aes(x = end, y = 400, xend = start, yend = 400), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
   geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-    geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
   annotate("text", x = rep(max(c_data$id),4), 
            y = c(0, 200, 400, 600), 
            label = c("0", "200", "400", "600") ,
@@ -2290,15 +2532,15 @@ median_data <- grid_data %>%
 Seq_axis_spp <- seq(0,15,5)
 Plot_Limit <- max(Species_Data$value,na.rm=T)
 Ticks_Color <- "black"
-  
+
 
 
 Spp_circular <-
-ggplot(Species_Data, 
-       aes(x=as.factor(id), 
-           y=value,
-           fill=rfmo_name)
-) +       
+  ggplot(Species_Data, 
+         aes(x=as.factor(id), 
+             y=value,
+             fill=rfmo_name)
+  ) +       
   # Note that id is a factor. If x is numeric, there is some space between the first bar
   geom_bar(aes(x=as.factor(id),
                y=value,
@@ -2421,7 +2663,7 @@ top_10_coiuntries %>%
   left_join(totals) %>% 
   mutate(per = (value/tot)*100) %>% 
   View()
-  group_by(category) %>% 
+group_by(category) %>% 
   summarise_if(is.numeric,sum)
 
 round(563715940668/1000000000)
@@ -2437,7 +2679,7 @@ Species_Data <- rfmo_catch %>%
   group_by(common_name,
            fishing_entity#,
            # rfmo_name = area_name
-           ) %>% 
+  ) %>% 
   summarise_at(
     .vars = c("tonnes","landed_value"),
     .funs = sum,
@@ -2447,8 +2689,8 @@ Species_Data <- rfmo_catch %>%
   gather("category","value",tonnes:landed_value) %>%
   filter(!is.na(value)) %>%
   mutate(
-  value = ifelse(category == "landed_value", round(value/1000000000,4),round(value/1000,4)),
-  category = ifelse(category == "tonnes","Catch (thousand tonnes)","Value (billion USD)")
+    value = ifelse(category == "landed_value", round(value/1000000000,4),round(value/1000,4)),
+    category = ifelse(category == "tonnes","Catch (thousand tonnes)","Value (billion USD)")
   )
 
 
@@ -2468,12 +2710,12 @@ ggplot(Species_Data) +
   labs(x = "Country",
        y = "Value") +
   my_ggtheme_p(
-  leg_pos = "right",
-  leg_tl_s = 12,
-  leg_tx_s = 10,
-  facet_tx_s = 11,
-  ax_tx_s = 11,
-  ax_tl_s = 12
+    leg_pos = "right",
+    leg_tl_s = 12,
+    leg_tx_s = 10,
+    facet_tx_s = 11,
+    ax_tx_s = 11,
+    ax_tl_s = 12
   )
 
 
@@ -2505,7 +2747,7 @@ circle_data <-
     period == period_val,
     rcp == rcp_val,
     change == change_val
-         ) %>% 
+  ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
   ungroup() %>% 
   select(rowname = name,
@@ -2565,17 +2807,17 @@ net_change <-
   mutate_at(.var = c("gain","lost"),
             .funs = replace_na,0
   ) %>% 
-mutate(name = str_replace(realm_name," ", "\n"),
-       value = gain - lost,
-       rowname_b = ifelse(value > 0,name,rfmo_name),
-       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-    # View()
+  mutate(name = str_replace(realm_name," ", "\n"),
+         value = gain - lost,
+         rowname_b = ifelse(value > 0,name,rfmo_name),
+         key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+  # View()
   ungroup() %>%
   mutate(
     n_shifting = gain+lost,
     per = value/(n_shifting),
     per_non = same/(gain+lost+same)*100
-    ) %>% 
+  ) %>% 
   # View()
   filter(period == period_val,
          rcp == rcp_val) %>% 
@@ -2602,7 +2844,7 @@ chordDiagram(
   transparency = 0.30,
   scale = F,
   symmetric = F
-  )
+)
 dev.off() 
 
 
@@ -2621,9 +2863,9 @@ sankey_df <- prop_data %>%
   tally() %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
 
@@ -2635,11 +2877,11 @@ net_change <-
     values_from = n) %>% 
   mutate(gain = ifelse(is.na(gain),0,gain),
          lost = ifelse(is.na(lost),0,lost)) %>% 
-mutate(name = str_replace(realm_name," ", "\n"),
+  mutate(name = str_replace(realm_name," ", "\n"),
          value = gain - lost,
-       rowname_b = ifelse(value > 0,name,rfmo_name),
-       key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-# Uncomment for overall numbers
+         rowname_b = ifelse(value > 0,name,rfmo_name),
+         key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+  # Uncomment for overall numbers
   # group_by(period,rcp) %>%
   # summarise_at(c("gain","lost","same"),
   #              .funs = sum,
@@ -2657,8 +2899,8 @@ length(unique(net_change$key))
 length(unique(net_change$rowname))
 
 mycolor_g <- c(viridis(10, alpha = 1, begin = 0, end = 1, option = "D"),
-             viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-             )
+               viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
+)
 
 
 png("./results/figures/circular_net_tuna.png", width = 1200, height = 1200, res = 150, units = "px")
@@ -2674,7 +2916,7 @@ chordDiagram(
   transparency = 0.30,
   scale = F,
   symmetric = F
-  )
+)
 dev.off() 
 
 
@@ -2689,8 +2931,8 @@ dev.off()
 sankey_df <- prop_data %>% 
   mutate(range = ifelse(change == "gain",mean-low_tresh,
                         ifelse(change == "same",NA,mean-top_tresh)
-                        ) 
-         ) %>% 
+  ) 
+  ) %>% 
   filter(!is.na(range)) %>%
   # View()
   group_by(common_name,period,rcp,rfmo_name,realm_name) %>% 
@@ -2700,9 +2942,9 @@ sankey_df <- prop_data %>%
   filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),
-         realm_name = str_replace(realm_name,"Northern","N."),
-         realm_name = str_replace(realm_name, "Western", "W."),
-         realm_name = str_replace(realm_name,"Eastern", "E.")
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
 # Gain Data
@@ -2711,7 +2953,7 @@ circle_data <-
   filter(
     period == "ear"
     # change == "lost"
-         ) %>% 
+  ) %>% 
   mutate(name = str_replace(realm_name," ", "\n")) %>% 
   ungroup() %>% 
   select(rowname = name,
@@ -2732,7 +2974,7 @@ chordDiagram(
   transparency = 0.30,
   scale = F,
   symmetric = F
-  )
+)
 dev.off() 
 
 ```
@@ -2779,7 +3021,7 @@ stradd_bar_plot <- stradd_commercial %>%
                                                   "grey",
                                                   wes_palette("Darjeeling1")[4:5],
                                                   wes_palette("Darjeeling2"))
-                    ) +
+  ) +
   scale_y_continuous(breaks = seq(0,30,5))+
   theme_bw() +
   theme(
@@ -2792,7 +3034,7 @@ stradd_bar_plot <- stradd_commercial %>%
     strip.text = element_text(size = 12),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
-    );stradd_bar_plot
+  );stradd_bar_plot
 
 # Save plot 
 ggsave("./results/figures/fig_1b.png",
