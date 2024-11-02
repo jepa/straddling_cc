@@ -1350,7 +1350,7 @@ scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1ab.png",
+ggsave("./results/figures/fig_1a.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1365,7 +1365,7 @@ ggsave("./results/figures/fig_1ab.png",
 stradd_commercial_df <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(sau_groups) %>% 
-  group_by(rfmo_name,realm_name,commercial_group) %>% 
+  group_by(hs_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";")) %>% 
   mutate(realm_or = realm_name) %>% 
@@ -1402,6 +1402,19 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
   
   plot <- stradd_commercial_df %>% 
     filter(realm_name %in% realm) %>% 
+     mutate(new_region = case_when(
+    hs_name == "e_pacific" ~ "Pacific",
+    hs_name == "w_pacific" ~ "Pacific",
+    hs_name == "e_atlantic" ~ "Atlantic",
+    hs_name == "w_atlantic" ~ "Atlantic",
+    hs_name == "e_indian" ~ "Indian",
+    hs_name == "w_indian" ~ "Indian",
+    hs_name == "actic" ~ "Arctic",
+    hs_name == "antarctic" ~ "Antarctic"
+  )) %>% 
+    mutate(new_region = ifelse(is.na(new_region),hs_name,new_region)) %>% 
+    group_by(new_region,realm_name,realm_or,commercial_group) %>% 
+    summarise(n = sum(n,na.rm = T)) %>% 
     ggplot() +
     geom_bar(
       aes(
@@ -1411,7 +1424,7 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
       ),
       stat = "identity"
     ) +
-    facet_grid(rfmo_name~realm_name, switch = "x",
+    facet_grid(realm_or~new_region, switch = "x",
                scales = "free") +
     labs(x = "", y = "") +
     scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
@@ -1423,19 +1436,19 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
       panel.spacing = unit(1.5, "lines"),
       strip.background = element_blank(),
       legend.position = "",
-      strip.text.x = element_text(size = 40),
-      strip.text.y = element_text(size = 30),
-      axis.text.y = element_text(size = 28),
+      strip.text.x = element_text(size = 15, angle = 90),
+      strip.text.y = element_text(size = 20, angle = 90),
+      axis.text.y = element_text(size = 15, angle = 90),
       axis.text.x = element_blank(),
       axis.ticks.x = element_blank()
     )
   
-  plot_name <- paste0("./results/figures/fig_1_singles/",realm_or_name,".png")
+  plot_name <- paste0("./results/figures/fig_1b_singles/",realm_or_name,".png")
   
   ggsave(plot_name,
          plot,
-         height = 7,
-         width = 7
+         height = 5,
+         width = 5
   )
   
 }
