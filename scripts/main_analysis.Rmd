@@ -1553,7 +1553,7 @@ prop_data_esm %>%
 
 commerica_group_total <- prop_data %>% 
   left_join(sau_groups) %>% 
-  group_by(commercial_group,rfmo_name,realm_name) %>% 
+  group_by(commercial_group,hs_name,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   group_by(commercial_group) %>% 
   summarise(tot = sum(n))
@@ -1568,7 +1568,7 @@ prop_data %>%
   # Fix labels
   mutate(
     per = n/tot*100,
-    change = ifelse(change == "gain","RFMO",
+    change = ifelse(change == "gain","High Seas",
                     ifelse(change == "lost","EEZ","Same")),
     period = ifelse(period == "ear","Early","Middle"),
     rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
@@ -1597,7 +1597,7 @@ prop_data %>%
     
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
   ) 
 
 ggsave(filename = "./results/figures/straddling_status_barplot.png",
@@ -1974,11 +1974,13 @@ un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","T
 
 
 
-h_migratory_spp <- bind_rows(output,
+uh_migratory_taxa <- bind_rows(output,
                              un_species) %>% 
-  group_by(scientific_name,source) %>% 
+  group_by(taxon_name = scientific_name,source) %>% 
   tally() %>% 
-  mutate(cat = "high_mig")
+  mutate(cat = "high_mig") %>% 
+  left_join(exploited_spp) %>% 
+  filter(is.na(taxon_key))
 
 ```
 
