@@ -876,9 +876,12 @@ sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial
 # List of SAU species
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
+```
 
-# Get proportion analysis for Highly migratory species
-### RFMO ANALYSIS ####
+### Get data for Highly migratory species
+
+```{r}
+
 spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
 straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
@@ -934,8 +937,12 @@ prop_data_hm <- prop_data_esm_hm %>%
 
 length(unique(prop_data_hm$taxon_key))# 14
 
-# Get proportion analysis for non-highly migratory species
-### Ocean basin ANALYSIS ####
+```
+
+### Get proportion analysis for non-highly migratory species
+
+```{r}
+
 spp_complete <- list.files(my_path("R","Per_change_realm_ob/"))
 straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
@@ -982,9 +989,13 @@ prop_data_nhm <- prop_data_esm_nhm %>%
   )
   )
 
-length(unique(prop_data$taxon_key))# 76
+length(unique(prop_data_nhm$taxon_key)) # 53
 
-### RFMO to RFMO
+```
+
+### Get proportion analysis for highly migratory species between RFMOs
+
+```{r}
 
 list_rfmo_spp <- str_sub(list.files(my_path("R","Per_change_rfmo_rfmo/")),1,6)
 
@@ -1025,9 +1036,12 @@ prop_data <- bind_rows(
   prop_data_esm_nhm
 )
 
+```
 
 
-#### Catch data
+### Create SAU data for fishing groups
+
+```{r}
 
 # rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
 #   my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
@@ -1067,14 +1081,13 @@ sau_groups <- read.csv("./results/supplements/straddling_species.csv")
 
 ```
 
-
-
 ## Straddling identification
 
-### RFMO vs Ocean basin
+### Straddling identification method
+
+Supplemental material to show the different ammount of Straddling stocks depending on the threshold 
 
 ```{r}
-
 ## RFMO species ##
 straddling_rfmo <- list.files(my_path("R","Straddling_realm_rfmo/"))
 straddling_spp_rfmo <- str_replace(spp_complete,"\\_.*","")
@@ -1141,9 +1154,6 @@ bind_rows(shared_data_rfmo,
   ) 
 
 ```
-
-
-
 
 ### Straddling treshold supplements
 
@@ -1223,13 +1233,12 @@ bind_rows(
 # Save plot 
 ggsave("./results/supplements/fig_S3.png",
        last_plot(),
-       height = 8,
-       width = 8
+       height = 6,
+       width = 12
 )
 
 
 ```
-
 
 ### Speices list for supplements
 
@@ -1237,14 +1246,14 @@ ggsave("./results/supplements/fig_S3.png",
 
 # Number of straddling species
 length(unique(prop_data$taxon_key)) #76
-round(76/633 *100) #12
+round(67/633 *100) #12
 
 # Number of straddling stocks
 prop_data %>% 
-  group_by(rfmo_name,realm_name) %>% 
+  group_by(hs_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 379
+  pull(x) %>% sum() # 350
 
 straddling_species <- prop_data %>% 
   left_join(exploited_spp) %>% 
@@ -1263,20 +1272,18 @@ straddling_species %>%
 
 ```
 
-
-### Straddling species map
+### FIG. 1A- Straddling species map
 
 ```{r straddling_map, eval = T, echo = F}
 
 # Scaling function for plot
 scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
-
+# Relationship table for RFMO to ocean basin
 rfmo_to_ob <- data_frame(
   hs_name = c("ICCAT","ICCAT","WCPFC","IATTC","IOTC","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT","CCSBT"),
   basin = c("w_atlantic","e_atlantic","w_pacific","e_pacific","e_indian","w_indian","w_atlantic","e_atlantic","w_pacific","e_pacific","e_indian","w_indian")
 )
-
 
 
 # Get MEOW and EEZs (REMOVE)
@@ -1286,21 +1293,19 @@ prop_data_map <- prop_data %>%
     basin = ifelse(is.na(basin),hs_name,basin)
   )
 
-
-
 # Number of straddling stocks by MEOW
 strad_meow <- prop_data_map %>% 
   group_by(realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
-# Number of straddling stocks by RFMO
-stradd_rfmo <- prop_data_map %>% 
+# Number of straddling stocks by High seas
+stradd_hs <- prop_data_map %>% 
   group_by(basin) %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
-# Number of straddling stocks by RFMO and Realm
+# Number of straddling stocks by high seas and Realm
 rfmo_realm <- prop_data_map %>% 
   group_by(basin,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
@@ -1314,7 +1319,7 @@ sf_meow_map <- sf_meow %>%
 
 
 map_high_seas_stradd <- ggplot() + 
-  geom_tile(data = basin_data %>%  left_join(stradd_rfmo), 
+  geom_tile(data = basin_data %>%  left_join(stradd_hs), 
             aes(
               x = lon,
               y = lat,
@@ -1358,7 +1363,7 @@ ggsave("./results/figures/fig_1a.png",
 
 ```
 
-### Straddling species bar plot
+### FIG. 1B- Straddling species bar plot
 
 ```{r fig_1c_high_seas_only}
 
@@ -1441,9 +1446,6 @@ plot <-
   )
   
 ```
-
-
-
 
 ### Paper numbers on top shared species
 
@@ -1733,7 +1735,7 @@ rfmo_prop_data_esm %>%
 ```{r regional_map, eval = T, echo = F}
 
 regional_map <- ggplot() + 
-  geom_sf(data = sf_rfmo %>% left_join(stradd_rfmo), aes(),fill = "transparent") +
+  geom_sf(data = sf_rfmo %>% left_join(stradd_hs), aes(),fill = "transparent") +
   geom_sf(data = sf_meow_map, aes(fill = realm_name)) +
   # geom_sf_label(data = sf_rfmo, aes(label = rfmo_name)) +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
