@@ -1031,10 +1031,18 @@ length(unique(rfmo_prop_data$taxon_key))# 45
 
 #### Combine both data ###
 
-prop_data <- bind_rows(
+prop_data_esm <- bind_rows(
   prop_data_esm_hm,
   prop_data_esm_nhm
 )
+
+prop_data <- bind_rows(
+  prop_data_esm_hm,
+  prop_data_esm_nhm
+) %>% 
+  group_by(across(-esm)) %>%
+  summarise_if(is.numeric,mean,na.rm = T)
+
 
 ```
 
@@ -1288,8 +1296,6 @@ rfmo_to_ob <- data_frame(
 
 # Get MEOW and EEZs (REMOVE)
 prop_data_map <- prop_data %>% 
-    group_by(across(-esm)) %>%
-  summarise_if(is.numeric,mean,na.rm = T) %>%
   left_join(rfmo_to_ob) %>%
   mutate(
     basin = ifelse(is.na(basin),hs_name,basin)
@@ -1370,8 +1376,6 @@ ggsave("./results/figures/fig_1a.png",
 ```{r fig_1c_high_seas_only}
 
 stradd_commercial_df <- prop_data %>% 
-  group_by(across(-esm)) %>%
-  summarise_if(is.numeric,mean,na.rm = T) %>%
   left_join(exploited_spp) %>% 
   left_join(sau_groups) %>%
   mutate(hs_name = "high seas") %>% 
@@ -1456,8 +1460,6 @@ plot <-
 ```{r}
 
 prop_data %>% 
-  group_by(across(-esm)) %>%
-  summarise_if(is.numeric,mean,na.rm = T) %>%
   left_join(sau_groups) %>% 
   mutate(combo = paste0(realm_name,"_",hs_name)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
@@ -1476,8 +1478,6 @@ top_n(5,value) %>%
 
 # Prepare data
 sankey_df <- prop_data %>% 
-  group_by(across(-esm)) %>%
-  summarise_if(is.numeric,mean,na.rm = T) %>%
   group_by(period,rcp,hs_name,change,realm_name) %>% 
   tally() %>% 
   # filter(rcp == "rcp85") %>% 
@@ -1511,7 +1511,7 @@ sankey_df %>%
 
 # Total changes
 
-reg_total <- prop_data %>% 
+reg_total <- prop_data_esm %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
                          ifelse(mean < low_tresh,"lost","same")
   )
@@ -1522,7 +1522,7 @@ reg_total <- prop_data %>%
   group_by(rcp,period,esm) %>%
   summarise(total_changes = sum(n))
 
-prop_data %>% 
+prop_data_esm %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
                          ifelse(mean < low_tresh,"lost","same")
   )
@@ -1550,7 +1550,6 @@ prop_data %>%
 ### Shifts by commercial group
 
 ```{r}
-
 
 commerica_group_total <- prop_data %>% 
   left_join(sau_groups) %>% 
