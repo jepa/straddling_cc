@@ -1360,11 +1360,12 @@ ggsave("./results/figures/fig_1a.png",
 
 ### Straddling species bar plot
 
-```{r fig_1b_colette}
+```{r fig_1c_high_seas_only}
 
 stradd_commercial_df <- prop_data %>% 
   left_join(exploited_spp) %>% 
-  left_join(sau_groups) %>% 
+  left_join(sau_groups) %>%
+  mutate(hs_name = "high seas") %>% 
   group_by(hs_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";")) %>% 
@@ -1395,66 +1396,54 @@ commercial_scale <- c(
 )
 
 
-for(i in 1:length(unique(stradd_commercial_df$realm_name))){
-  
-  realm <- unique(stradd_commercial_df$realm_name)[i]
-  realm_or_name <- unique(stradd_commercial_df$realm_or)[i]
-  
-  plot <- stradd_commercial_df %>% 
-    filter(realm_name %in% realm) %>% 
-     mutate(new_region = case_when(
-    hs_name == "e_pacific" ~ "Pacific",
-    hs_name == "w_pacific" ~ "Pacific",
-    hs_name == "e_atlantic" ~ "Atlantic",
-    hs_name == "w_atlantic" ~ "Atlantic",
-    hs_name == "e_indian" ~ "Indian",
-    hs_name == "w_indian" ~ "Indian",
-    hs_name == "actic" ~ "Arctic",
-    hs_name == "antarctic" ~ "Antarctic"
-  )) %>% 
-    mutate(new_region = ifelse(is.na(new_region),hs_name,new_region)) %>% 
-    group_by(new_region,realm_name,realm_or,commercial_group) %>% 
-    summarise(n = sum(n,na.rm = T)) %>% 
-    ggplot() +
-    geom_bar(
-      aes(
-        x = commercial_group,
-        y = round(n),
-        fill = commercial_group
-      ),
-      stat = "identity"
-    ) +
-    facet_grid(realm_or~new_region, switch = "x",
-               scales = "free") +
-    labs(x = "", y = "") +
-    scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
-    # scale_y_continuous(breaks = seq(0,30,5))+
-    theme_bw() +
-    theme(
-      panel.grid.minor = element_blank(), 
-      panel.grid.major = element_blank(),
-      panel.spacing = unit(1.5, "lines"),
-      strip.background = element_blank(),
-      legend.position = "",
-      strip.text.x = element_text(size = 15, angle = 90),
-      strip.text.y = element_text(size = 20, angle = 90),
-      axis.text.y = element_text(size = 15, angle = 90),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank()
-    )
-  
-  plot_name <- paste0("./results/figures/fig_1b_singles/",realm_or_name,".png")
+
+plot <-
+  stradd_commercial_df %>%
+  group_by(hs_name,realm_name,realm_or,commercial_group) %>% 
+  summarise(n = sum(n,na.rm = T)) %>% 
+  ggplot() +
+  geom_bar(
+    aes(
+      x = reorder_within(commercial_group,n,realm_or),
+      y = round(n),
+      fill = commercial_group
+    ),
+    stat = "identity"
+  ) +
+  facet_wrap(~realm_or, 
+             # switch = "x",
+             scales = "free",
+             ncol = 4
+  ) +
+  labs(x = "", y = "") +
+  scale_fill_manual("Commerical group",values = commercial_scale) +  # Map colors based on commercial_scale
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.spacing = unit(1.5, "lines"),
+    strip.background = element_blank(),
+    legend.position = "bottom",
+    legend.text = element_text(size = 8.5),
+    strip.text.x = element_text(size = 8.5),
+    # strip.text.y = element_text(size = 20, angle = 90),
+    axis.text.y = element_text(size = 7),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+  plot_name <- paste0("./results/figures/fig1_pannel_hs.png")
   
   ggsave(plot_name,
          plot,
-         height = 5,
-         width = 5
+         height = 4,
+         width = 8
   )
   
-}
-
-
 ```
+
+
+
 
 ### Paper numbers on top shared species
 
@@ -1462,10 +1451,10 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
 
 prop_data %>% 
   left_join(sau_groups) %>% 
-  mutate(combo = paste0(realm_name,"_",rfmo_name)) %>% 
+  mutate(combo = paste0(realm_name,"_",hs_name)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   summarise(value = length(unique(combo))) %>%
-  View()
+  # View()
 top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
@@ -3113,6 +3102,104 @@ ggsave("./results/figures/fig_1b.png",
        height = 6,
        width = 12
 )
+
+
+```
+
+# fig_1b_colette per HS region
+
+```{r fig_1b_colette}
+
+stradd_commercial_df <- prop_data %>% 
+  left_join(exploited_spp) %>% 
+  left_join(sau_groups) %>% 
+  group_by(hs_name,realm_name,commercial_group) %>% 
+  summarise(n = length(unique(taxon_key)),
+            species = paste(unique(common_name), collapse = ";")) %>% 
+  mutate(realm_or = realm_name) %>% 
+  filter(n >0,
+         !is.na(commercial_group)) %>% 
+  mutate(
+    realm_name = str_replace(realm_name," ", "\n"),
+    realm_name = str_replace(realm_name,"Southern","S."),
+    realm_name = str_replace(realm_name,"South","S."),
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E.")
+  )
+
+commercial_scale <- c(
+  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
+  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
+  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
+  "Other fishes & inverts" = "grey",
+  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
+  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
+  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
+  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
+  "Small pelagic" = wes_palette("Darjeeling2",n =5)[3],
+  "Squids" = wes_palette("Darjeeling2",n =5)[4],
+  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
+)
+
+
+for(i in 1:length(unique(stradd_commercial_df$realm_name))){
+  
+  realm <- unique(stradd_commercial_df$realm_name)[i]
+  realm_or_name <- unique(stradd_commercial_df$realm_or)[i]
+  
+  plot <- stradd_commercial_df %>% 
+    filter(realm_name %in% realm) %>% 
+     mutate(new_region = case_when(
+    hs_name == "e_pacific" ~ "Pacific",
+    hs_name == "w_pacific" ~ "Pacific",
+    hs_name == "e_atlantic" ~ "Atlantic",
+    hs_name == "w_atlantic" ~ "Atlantic",
+    hs_name == "e_indian" ~ "Indian",
+    hs_name == "w_indian" ~ "Indian",
+    hs_name == "actic" ~ "Arctic",
+    hs_name == "antarctic" ~ "Antarctic"
+  )) %>% 
+    mutate(new_region = ifelse(is.na(new_region),hs_name,new_region)) %>% 
+    group_by(new_region,realm_name,realm_or,commercial_group) %>% 
+    summarise(n = sum(n,na.rm = T)) %>% 
+    ggplot() +
+    geom_bar(
+      aes(
+        x = commercial_group,
+        y = round(n),
+        fill = commercial_group
+      ),
+      stat = "identity"
+    ) +
+    facet_grid(realm_or~new_region, switch = "x",
+               scales = "free") +
+    labs(x = "", y = "") +
+    scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
+    # scale_y_continuous(breaks = seq(0,30,5))+
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(), 
+      panel.grid.major = element_blank(),
+      panel.spacing = unit(1.5, "lines"),
+      strip.background = element_blank(),
+      legend.position = "",
+      strip.text.x = element_text(size = 15, angle = 90),
+      strip.text.y = element_text(size = 20, angle = 90),
+      axis.text.y = element_text(size = 15, angle = 90),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank()
+    )
+  
+  plot_name <- paste0("./results/figures/fig_1b_singles/",realm_or_name,".png")
+  
+  ggsave(plot_name,
+         plot,
+         height = 5,
+         width = 5
+  )
+  
+}
 
 
 ```
