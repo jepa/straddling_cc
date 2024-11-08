@@ -12,7 +12,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       ) %>% 
       ungroup() %>% 
       select(rowname = name,
-             key = rfmo_name,
+             key = hs_name,
              value = n)
     
     
@@ -38,7 +38,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       link.auto = T,
       link.largest.ontop = TRUE,
       transparency = 0.30,
-      scale = T,
+      scale = F,
       symmetric = T,
       big.gap = 5
     )
@@ -64,7 +64,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
           link.auto = T,
           link.largest.ontop = TRUE,
           transparency = 0.30,
-          scale = T,
+          scale = F,
           symmetric = T,
           big.gap = 5,
           annotationTrack = "grid",
@@ -91,7 +91,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
           link.auto = T,
           link.largest.ontop = TRUE,
           transparency = 0.30,
-          scale = T,
+          scale = F,
           symmetric = T,
           big.gap = 5
         )
@@ -114,8 +114,8 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       ) %>% 
       mutate(
         value = gain - lost,
-        rowname_b = ifelse(value > 0,name,rfmo_name),
-        key_b = ifelse(value < 0,name,rfmo_name)) %>% 
+        rowname_b = ifelse(value > 0,name,hs_name),
+        key_b = ifelse(value < 0,name,hs_name)) %>% 
       # View()
       ungroup() %>%
       mutate(
@@ -159,7 +159,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
         link.largest.ontop = TRUE,
         transparency = 0.30,
         scale = F,
-        symmetric = F,
+        symmetric = T,
         annotationTrack = "grid", 
         preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(net_change)))))
       )
@@ -187,7 +187,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
         link.largest.ontop = TRUE,
         transparency = 0.30,
         scale = F,
-        symmetric = F
+        symmetric = T
       )
     }
     
