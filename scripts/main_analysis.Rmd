@@ -1726,22 +1726,22 @@ circle_df <- prop_data %>%
   select(-total) %>% 
   # filter(rcp == "rcp85") %>% 
   mutate(
-    realm_name = str_replace(realm_name,"Southern ","S."),
-    realm_name = str_replace(realm_name,"South ","S."),
-    realm_name = str_replace(realm_name,"Northern ","N."),
-    realm_name = str_replace(realm_name, "Western ", "W."),
-    realm_name = str_replace(realm_name,"Eastern ", "E."),
+    realm_name = str_replace(realm_name,"Southern","S."),
+    realm_name = str_replace(realm_name,"South","S."),
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E."),
     name = str_replace(realm_name," ", "\n")
   )
 
 # Color pallet
 mycolor_scale <- 
   c(
-    "CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
-    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2],
-    "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
-    "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
-    "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
+    # "CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+    # "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2],
+    # "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
+    # "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
+    # "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
     "High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
     "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
     "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
@@ -1749,7 +1749,7 @@ mycolor_scale <-
     "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
     "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
     "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-    "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
+    "Tropical\nE. Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
     "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
     "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
     "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
