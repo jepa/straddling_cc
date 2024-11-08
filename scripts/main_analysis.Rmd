@@ -796,6 +796,10 @@ suppressMessages(
 
 ```
 
+# Results
+
+## Data needed
+
 
 ### Highly migratory speices
 
@@ -809,7 +813,7 @@ List of Highly migratory speices according to Annex I Highly migratory species o
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 
-un_species <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
+highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
                                     "Auxis thazard", "Auxis rochei", 
                                     "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
                                     
@@ -831,11 +835,6 @@ un_species <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnu
   filter(!is.na(taxon_key))
 
 ```
-
-
-# Results
-
-## Data needed
 
 ```{r results_data, eva = T}
 
@@ -874,7 +873,7 @@ sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial
 #-----------------# 
 
 # List of SAU species
-exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
+# exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 ```
 
@@ -894,7 +893,7 @@ straddling_hm <- bind_rows(
   ) %>% 
   mutate(approach = "rfmo",
          category = "highly migratory") %>% 
-  filter(taxon_key %in% un_species$taxon_key)
+  filter(taxon_key %in% highly_migratory_spp$taxon_key)
 
 length(unique(highly_migratory_spp$taxon_key))# 18 species that are highly migratory
 
@@ -953,7 +952,7 @@ straddling_nhm <- bind_rows(
   mutate(approach = "ocean_basin",
          category = "straddling") %>% 
   rename(realm_name = realm) %>% 
-  filter(!taxon_key %in% un_species$taxon_key)
+  filter(!taxon_key %in% highly_migratory_spp$taxon_key)
 
 length(unique(straddling_nhm$taxon_key))# 131
 
@@ -1474,38 +1473,7 @@ top_n(5,value) %>%
 
 ## Proportion change
 
-```{r}
-
-# Prepare data
-sankey_df <- prop_data %>% 
-  group_by(period,rcp,hs_name,change,realm_name) %>% 
-  tally() %>% 
-  # filter(rcp == "rcp85") %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E."),
-    name = str_replace(realm_name," ", "\n")
-  )
-
-# Numbers for manuscript
-
-# Number of regions 
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  summarise(x = length(unique(realm_name))) %>% 
-  View()
-
-# Number of stocks
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  tally() %>% 
-  View()
-
-```
-
-## Proportion change table
+### Proportion change table
 
 ```{r}
 
@@ -1547,7 +1515,7 @@ prop_data_esm %>%
 
 ```
 
-### Shifts by commercial group
+### FIG 2. Shifts by commercial group
 
 ```{r}
 
@@ -1607,26 +1575,177 @@ ggsave(filename = "./results/figures/straddling_status_barplot.png",
 
 ```
 
-### Circle diagram
+### FIG 3. Circle diagram
 
 Resources:
 - https://r-charts.com/flow/chord-diagram/
 - https://www.data-to-viz.com/graph/chord.html
 
 
+```{r}
+
+
+# Numbers for manuscript
+
+# Number of regions 
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  summarise(x = length(unique(realm_name))) %>% 
+  View()
+
+# Number of stocks
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  tally() %>% 
+  View()
+
+```
+
+
+#### Normal sankey
+
+```{r}
+
+total_prop_data <- prop_data %>% 
+  group_by(period,rcp,realm_name) %>% 
+  tally() %>% 
+  rename(total = n)
+
+sankey_df <- prop_data %>% 
+  mutate(hs_name = "High Seas") %>% 
+  group_by(period,rcp,hs_name,change,realm_name) %>% 
+  tally() %>% 
+  left_join(total_prop_data) %>% 
+  mutate(
+    n = round((n/total)*100)
+  ) %>% 
+  select(-total) %>% 
+  # filter(rcp == "rcp85") %>% 
+  mutate(
+    realm_name = str_replace(realm_name,"SouthernB","S."),
+    realm_name = str_replace(realm_name,"NorthernB","N."),
+    realm_name = str_replace(realm_name, "WesternB", "W."),
+    realm_name = str_replace(realm_name,"EasternB", "E."),
+    name = str_replace(realm_name," ", "\n"),
+    realm_name = ifelse(name == "Arctic","Arctic ",realm_name)
+  ) %>% 
+  mutate(
+    realm_name = paste0(realm_name,"\n (n =" ,n,")"),
+    name = paste0(name,"\n(n =" ,n,")")
+  )
+
+# Change names for sankey flow
+gain_data <- sankey_df %>% 
+  filter(change == 'gain',
+         rcp == "rcp26",
+         period == "ear") %>% 
+  select(hs_name,n,
+         name = realm_name)
+
+loss_data <- sankey_df %>% 
+  filter(change == 'lost',
+         rcp == "rcp26",
+         period == "ear") %>% 
+  select(name = hs_name,
+         n,
+         hs_name = name)
+
+
+sankey_data <- bind_rows(gain_data,loss_data)
+
+# Create nodes (unique realm names + hs_name)
+nodes <- unique(c(sankey_data$name,sankey_data$hs_name))
+nodes <- data.frame(name = nodes) %>% 
+  mutate(
+    # group = c(rep("in",12),"hs",rep("out",12))
+    group = c(gain_data$name,"High Seas",loss_data$name)
+  )
+
+# Create links (realm_name -> hs_name for 'gain')
+links <- data.frame(
+  source = match(sankey_data$name, nodes$name) - 1, 
+  target = match(sankey_data$hs_name, nodes$name) - 1,
+  value = sankey_data$n,
+  group = c(sankey_data$name[1:12],sankey_data$name[1:12])
+)
+
+nodes$group <- rep("my_unique_group", 25)
+
+# Create Sankey plot
+# sankey <- sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', Target = 'target', Value = 'value', NodeID = 'name')
+
+# sankey <- sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', Target = 'target', Value = 'value', NodeID = 'name')
+
+
+
+# my_color <- 'd3.scaleOrdinal() .domain(["Loss", "Win", "my_unique_group"]) .range(["#69b3a2","steelblue","grey"])'
+
+
+my_color <- 'd3.scaleOrdinal() .domain(["Loss", "Win", "my_unique_group"]) .range(["#440154FF","#046C9A","#F4B5BD","#9C964A","#D69C4E","#CDC08C","#FAD77B","#DD8D29","#E2D200","#46ACC8","#E58601","#B40F20","#000000","#440154FF","#046C9A","#F4B5BD","#9C964A","#D69C4E","#CDC08C","#FAD77B","#DD8D29","#E2D200","#46ACC8","#E58601","#B40F20","#000000"])'
+
+
+
+# Create Sankey plot
+sankey <- sankeyNetwork(
+  Links = links, 
+  Nodes = nodes, 
+  Source = 'source', 
+  Target = 'target', 
+  Value = 'value', 
+  NodeID = 'name',
+  colourScale=my_color, 
+  NodeGroup="group",
+  LinkGroup = "group",
+  sinksRight = T,
+  fontSize = 15
+  
+)
+
+# Display the Sankey plot
+sankey
+
+
+
+```
+
+
+#### Circle diagrams
+
 ```{r circle_diagrams, eval = T, echo = T}
 
 
+
+circle_df <- prop_data %>% 
+  mutate(hs_name = "High Seas") %>% 
+  group_by(period,rcp,hs_name,change,realm_name) %>% 
+  tally() %>% 
+  left_join(total_prop_data) %>% 
+  mutate(
+    n = round((n/total)*100)
+  ) %>% 
+  select(-total) %>% 
+  # filter(rcp == "rcp85") %>% 
+  mutate(
+    realm_name = str_replace(realm_name,"Southern ","S."),
+    realm_name = str_replace(realm_name,"South ","S."),
+    realm_name = str_replace(realm_name,"Northern ","N."),
+    realm_name = str_replace(realm_name, "Western ", "W."),
+    realm_name = str_replace(realm_name,"Eastern ", "E."),
+    name = str_replace(realm_name," ", "\n")
+  )
+
 # Color pallet
 mycolor_scale <- 
-  c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
-    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
+  c(
+    "CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2],
     "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
     "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
     "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
+    "High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
     "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
     "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
-    "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
+    "Temperate\nS. America" = wes_palette("Moonrise3",n = 5)[3],
     "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
     "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
     "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
@@ -1649,7 +1768,7 @@ change_vals <- c("gain", "lost", "same", "net")
 lapply(rcp_vals, function(rcp) {
   lapply(period_vals, function(period) {
     lapply(change_vals, function(change) {
-      circular_plot(data = sankey_df, period_val = period, change_val = change, rcp = rcp)
+      circular_plot(data = circle_df, period_val = period, change_val = change, rcp = rcp)
     })
   })
 })
