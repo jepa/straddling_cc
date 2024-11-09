@@ -1814,6 +1814,15 @@ sankey_rfmo <- rfmo_prop_data %>%
     hs_name = rfmo_name
   )
 
+mycolor_scale <- 
+  c(
+    "CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2],
+    "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
+    "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
+    "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5]
+  )
+
 
 rcp_vals <- c("rcp26", "rcp85")
 period_vals <- c("ear", "mid")

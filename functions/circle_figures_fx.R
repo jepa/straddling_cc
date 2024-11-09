@@ -173,8 +173,9 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       }, bg.border = NA)
       
     }else{
+      # Plot for RFMO 
       png(name_net,
-          width = 700, height = 700, res = 150, units = "px")
+          width = 850, height = 850, res = 150, units = "px")
       chordDiagram(
         x = net_change %>% mutate(key = ifelse(key == "Temperate\nN. Pacific", "T.N. Pacific",
                                                ifelse(key == "Temperate\nN. Atlantic", "T.N. Atlantic",key))), 
@@ -183,11 +184,11 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
         direction.type = c("diffHeight","arrows"),
         link.arr.type = "big.arrow",
         link.arr.length = 0.1,
-        link.sort = F,
+        link.sort = T,
         link.largest.ontop = TRUE,
         transparency = 0.30,
-        scale = F,
-        symmetric = T
+        scale = TRUE,
+        symmetric = TRUE,
       )
     }
     
