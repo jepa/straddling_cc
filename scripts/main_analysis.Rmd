@@ -1713,8 +1713,6 @@ sankey
 
 ```{r circle_diagrams, eval = T, echo = T}
 
-
-
 circle_df <- prop_data %>% 
   mutate(hs_name = "High Seas") %>% 
   group_by(period,rcp,hs_name,change,realm_name) %>% 
@@ -1776,6 +1774,33 @@ lapply(rcp_vals, function(rcp) {
 ```
 
 
+```{r}
+# Example data (connections between categories)
+
+
+set.seed(999)
+mat = matrix(c(5,  6, 4,  10,  7, 7,  0, 20, 7,  5,  3,  9), 2, 6) 
+# rownames(mat) = paste0("S", 1:3)
+rownames(mat) = c("High Seas", "High Seas")
+colnames(mat) = c("Region F","Region E","Region D","Region C","Region B","Region A")
+
+
+grid.col = c("High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+    "Region A" = "grey", "Region B" = "grey", "Region C" = "orange", "Region D" = "grey", "Region E" = "grey", "Region F" = "grey")
+
+png("./results/figures/circle/legend.png",
+    width = 500, height = 500, res = 150, units = "px")
+chordDiagram(t(mat), 
+             grid.col = grid.col,
+             direction.type = "arrows",
+             link.arr.type = "big.arrow",
+             link.arr.length = 0.1,
+             directional =1
+             )
+dev.off()
+```
+
+
 # RFMO to RFMO
 
 ```{r}
@@ -1783,7 +1808,11 @@ lapply(rcp_vals, function(rcp) {
 
 sankey_rfmo <- rfmo_prop_data %>% 
   group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n,change) %>% 
-  tally()
+  tally() %>% 
+  rename(
+    name = rfmo_n,
+    hs_name = rfmo_name
+  )
 
 
 rcp_vals <- c("rcp26", "rcp85")
@@ -1800,7 +1829,7 @@ lapply(rcp_vals, function(rcp) {
   })
 })
 
-circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
+# circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
 
 ```
 
