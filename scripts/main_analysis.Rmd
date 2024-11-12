@@ -928,7 +928,8 @@ prop_data_hm <- prop_data_esm_hm %>%
     .vars = c("low_tresh","mean","top_tresh"),
     .funs = mean,
     na.rm = T) %>% 
-  mutate(change = ifelse(mean > top_tresh,"gain",
+  mutate(
+    change = ifelse(mean > top_tresh,"gain",
                          ifelse(mean < low_tresh,"lost","same")
   ),
   category = "highly migratory"
@@ -990,6 +991,21 @@ prop_data_nhm <- prop_data_esm_nhm %>%
 
 length(unique(prop_data_nhm$taxon_key)) # 53
 
+
+#### Combine both data ###
+
+prop_data_esm <- bind_rows(
+  prop_data_esm_hm,
+  prop_data_esm_nhm
+)
+
+prop_data <- bind_rows(
+  prop_data_hm,
+  prop_data_nhm
+)
+
+
+
 ```
 
 ### Get proportion analysis for highly migratory species between RFMOs
@@ -1018,30 +1034,10 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
   summarise_at(
     .vars = c("low_tresh_t","mean_t","top_tresh_t"), # Using just the territory RFMO
     .funs = mean,
-    na.rm = T) %>% 
-  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
-                         ifelse(mean_t < low_tresh_t,"lost","same")
-  )
-  )
+    na.rm = T) 
 
 # Remove duplicates (it is a bi-lateral change)
 length(unique(rfmo_prop_data$taxon_key))# 45
-
-
-#### Combine both data ###
-
-prop_data_esm <- bind_rows(
-  prop_data_esm_hm,
-  prop_data_esm_nhm
-)
-
-prop_data <- bind_rows(
-  prop_data_esm_hm,
-  prop_data_esm_nhm
-) %>% 
-  group_by(across(-esm)) %>%
-  summarise_if(is.numeric,mean,na.rm = T)
-
 
 ```
 
@@ -1611,7 +1607,8 @@ sankey_df %>%
 ```{r circle_diagrams, eval = T, echo = T}
 
 circle_df <- prop_data %>% 
-  mutate(hs_name = "High Seas") %>% 
+  # mutate(hs_name = "High Seas") %>% 
+  filter(realm_name == "Central Indo-Pacific")
   group_by(period,rcp,hs_name,change,realm_name) %>% 
   tally() %>% 
   left_join(total_prop_data) %>% 
