@@ -1773,6 +1773,7 @@ lapply(rcp_vals, function(rcp) {
 
 ```
 
+##### Figure Key for regions v.s. high seas
 
 ```{r}
 # Example data (connections between categories)
@@ -1841,6 +1842,41 @@ lapply(rcp_vals, function(rcp) {
 # circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
 
 ```
+
+##### Figure Key for RFMOs
+
+```{r}
+# Example data (connections between categories)
+grid.col = c(
+  "RFMO A" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+  " " = "grey",
+ "RFMO B" = "grey",
+ "RFMO C" = "grey"
+ )
+
+
+mat3 = matrix(rnorm(15), 3)
+colnames(mat3) = c("RFMO B","RFMO C"," ","RFMO A"," ")
+cor_mat = cor(mat3)
+
+
+png("./results/figures/circle/rfmo_legend.png",
+width = 700, height = 700, res = 150, units = "px")
+chordDiagram(cor_mat, 
+             grid.col = grid.col,
+             directional = 1, 
+        direction.type = c("diffHeight","arrows"),
+        link.arr.type = "big.arrow",
+        link.arr.length = 0.1,
+        link.sort = T,
+        link.largest.ontop = TRUE,
+        transparency = 0.30,
+        scale = TRUE,
+        symmetric = TRUE
+             )
+dev.off()
+```
+
 
 ### Numbers for RFMO - RFMO
 
