@@ -217,7 +217,7 @@ basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>
                                                              ifelse(basin2 == 7,"actic",
                                                                     NA))))))))
   ) %>% 
-  select(lon = longitude,
+  dplyr::select(lon = longitude,
          lat = latitude,
          basin) %>% 
   left_join(my_data("dbem_coords")) %>% 
@@ -865,7 +865,7 @@ sau_index_code <- my_data("sau_index")
 
 # SAU eez to fishing entity
 sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/sau_matching_names.csv") %>% 
-  select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
+  dplyr::select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
 
 
 #-----------------# 
@@ -895,7 +895,7 @@ straddling_hm <- bind_rows(
          category = "highly migratory") %>% 
   filter(taxon_key %in% highly_migratory_spp$taxon_key)
 
-length(unique(highly_migratory_spp$taxon_key))# 18 species that are highly migratory
+length(unique(straddling_hm$taxon_key))# 18 species that are highly migratory
 
 # Get Highly migratory straddling stocks
 prop_data_esm_hm <- bind_rows(
@@ -1377,7 +1377,7 @@ ggsave("./results/figures/fig_1a.png",
 stradd_commercial_df <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(sau_groups) %>%
-  mutate(hs_name = "high seas") %>% 
+  # mutate(hs_name = "high seas") %>% 
   group_by(hs_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";")) %>% 
@@ -1521,10 +1521,11 @@ prop_data_esm %>%
 
 commerica_group_total <- prop_data %>% 
   left_join(sau_groups) %>% 
-  group_by(commercial_group,hs_name,realm_name) %>% 
-  summarise(n = length(unique(taxon_key))) %>% 
-  group_by(commercial_group) %>% 
-  summarise(tot = sum(n))
+  group_by(period,rcp,commercial_group) %>% 
+  summarise(tot = n())
+  # summarise(n = length(unique(taxon_key))) %>% 
+  # group_by(commercial_group) %>% 
+  # summarise(tot = sum(n))
 
 
 prop_data %>% 
@@ -1533,6 +1534,7 @@ prop_data %>%
   group_by(period,rcp,change,commercial_group) %>% 
   tally() %>%
   left_join(commerica_group_total) %>% 
+  # View()
   # Fix labels
   mutate(
     per = n/tot*100,
