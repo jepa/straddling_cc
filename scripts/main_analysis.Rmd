@@ -1843,6 +1843,50 @@ lapply(rcp_vals, function(rcp) {
 
 ```
 
+##### RFMO map for figure
+
+
+
+```{r}
+sf_rfmo_map <-
+sf_rfmo %>% 
+  ggplot() +
+  geom_sf(aes(fill = rfmo_name),
+          alpha = 0.5) +
+  scale_fill_manual(values = mycolor_scale) +
+  my_land_map() +
+  # Add RFMO labels
+  geom_label_repel(data = sf_rfmo,
+                   aes(label = rfmo_name,
+                       geometry = geometry,
+                       fill = rfmo_name),
+                   stat = "sf_coordinates",
+                   direction = "y",
+                   seed = 5,
+                   max.overlaps = 10,
+                   point.padding = 50,
+                   hjust = "right",
+                   nudge_x = ifelse(sf_rfmo$rfmo_name == "ICCAT",-13,
+                                    ifelse(sf_rfmo$rfmo_name == "WCPFC",10,-5)),
+                   nudge_y = ifelse(sf_rfmo$rfmo_name == "CCSBT",-20,
+                                    ifelse(sf_rfmo$rfmo_name == "ICCAT",10,
+                                           ifelse(sf_rfmo$rfmo_name == "WCPFC",10,1))),
+                   alpha = 0.6,
+                   size = 4
+  ) +
+  my_ggtheme_m(leg_pos = "")
+
+
+ggsave(
+  "./results/figures/rfmo_map.png",
+  sf_rfmo_map,
+  width = 10,
+  height = 5
+)
+
+```
+
+
 ##### Figure Key for RFMOs
 
 ```{r}
@@ -1875,6 +1919,8 @@ chordDiagram(cor_mat,
         symmetric = TRUE
              )
 dev.off()
+
+
 ```
 
 
