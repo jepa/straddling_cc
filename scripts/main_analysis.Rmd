@@ -1373,7 +1373,7 @@ ggsave("./results/figures/fig_1a.png",
 stradd_commercial_df <- prop_data %>% 
   left_join(exploited_spp) %>% 
   left_join(sau_groups) %>%
-  # mutate(hs_name = "high seas") %>% 
+  mutate(hs_name = "high seas") %>%
   group_by(hs_name,realm_name,commercial_group) %>% 
   summarise(n = length(unique(taxon_key)),
             species = paste(unique(common_name), collapse = ";")) %>% 
@@ -1409,10 +1409,11 @@ plot <-
   stradd_commercial_df %>%
   group_by(hs_name,realm_name,realm_or,commercial_group) %>% 
   summarise(n = sum(n,na.rm = T)) %>% 
+  # View()
   ggplot() +
   geom_bar(
     aes(
-      x = reorder_within(commercial_group,n,realm_or),
+      x = tidytext::reorder_within(commercial_group,n,realm_or),
       y = round(n),
       fill = commercial_group
     ),
@@ -1473,6 +1474,17 @@ top_n(5,value) %>%
 
 ```{r}
 
+# Re- estimate change with average of all ESMs
+  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
+  summarise_at(
+    .vars = c("low_tresh","mean","top_tresh"),
+    .funs = mean,
+    na.rm = T) %>% 
+  mutate(change = ifelse(mean > top_tresh,"gain",
+                         ifelse(mean < low_tresh,"lost","same")
+  )
+  )
+
 # Total changes
 
 reg_total <- prop_data_esm %>% 
@@ -1480,7 +1492,6 @@ reg_total <- prop_data_esm %>%
                          ifelse(mean < low_tresh,"lost","same")
   )
   ) %>% 
-  # View()
   group_by(period,rcp,hs_name,change,realm_name,esm) %>% 
   tally() %>% 
   group_by(rcp,period,esm) %>%
@@ -1506,8 +1517,8 @@ prop_data_esm %>%
   ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_min,n_m,n_max,n_sd,per_min,per_m,per_max,n_sd) %>%
-  View()
-  # write_csv("./results/tables/gains_losses.csv")
+  # View()
+  write_csv("./results/tables/gains_losses.csv")
 
 ```
 
@@ -1519,15 +1530,10 @@ commerica_group_total <- prop_data %>%
   left_join(sau_groups) %>% 
   group_by(period,rcp,commercial_group) %>% 
   summarise(tot = n())
-  # summarise(n = length(unique(taxon_key))) %>% 
-  # group_by(commercial_group) %>% 
-  # summarise(tot = sum(n))
-
 
 prop_data %>% 
   left_join(sau_groups) %>% 
   # View()
-  # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
   group_by(period,rcp,change,commercial_group) %>% 
   tally() %>%
   left_join(commerica_group_total) %>% 
@@ -1539,7 +1545,6 @@ prop_data %>%
                     ifelse(change == "lost","EEZ","Same")),
     period = ifelse(period == "ear","Early","Middle"),
     rcp = ifelse(rcp == "rcp26","SSP1-2.6 (Low emission scenario)","SSP5-8.5 (High emission scenario)")#,
-    # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
   ) %>% 
   # filter(change != "Same") %>%
   # View()
