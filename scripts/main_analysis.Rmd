@@ -1530,6 +1530,7 @@ commerica_group_total <- prop_data %>%
 
 prop_data %>% 
   left_join(sau_groups) %>% 
+  # View()
   # mutate(straddling_status = ifelse(reporting == "","Not-known","Known")) %>% 
   group_by(period,rcp,change,commercial_group) %>% 
   tally() %>%
@@ -1541,7 +1542,7 @@ prop_data %>%
     change = ifelse(change == "gain","High Seas",
                     ifelse(change == "lost","EEZ","Same")),
     period = ifelse(period == "ear","Early","Middle"),
-    rcp = ifelse(rcp == "rcp26","SSP1-2.6","SSP5-8.5")#,
+    rcp = ifelse(rcp == "rcp26","SSP1-2.6 (Low emission scenario)","SSP5-8.5 (High emission scenario)")#,
     # x_lab = paste0(unique(commercial_group)," (",unique(tot),")")
   ) %>% 
   # filter(change != "Same") %>%
