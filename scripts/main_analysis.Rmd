@@ -1611,16 +1611,21 @@ sankey_df %>%
 
 ```{r circle_diagrams, eval = T, echo = T}
 
+total_prop_data <- prop_data %>% 
+  group_by(period,rcp,realm_name) %>% 
+  tally() %>% 
+  rename(total = n)
+
 circle_df <- prop_data %>% 
-  # mutate(hs_name = "High Seas") %>% 
-  filter(realm_name == "Central Indo-Pacific")
+  mutate(hs_name = "High Seas") %>%
+  # filter(realm_name == "Central Indo-Pacific")
   group_by(period,rcp,hs_name,change,realm_name) %>% 
   tally() %>% 
   left_join(total_prop_data) %>% 
   mutate(
-    n = round((n/total)*100)
+    n_per = round((n/total)*100)
   ) %>% 
-  select(-total) %>% 
+  # select(-total) %>% 
   # filter(rcp == "rcp85") %>% 
   mutate(
     realm_name = str_replace(realm_name,"Southern","S."),

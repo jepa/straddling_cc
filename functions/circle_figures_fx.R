@@ -13,7 +13,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       ungroup() %>% 
       select(rowname = name,
              key = hs_name,
-             value = n)
+             value = n_per)
     
     
     name <- paste0("./results/figures/circle/",level,"_circular_",change_val,"_",period_val,"_",rcp_val,".png")
@@ -106,6 +106,8 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
     # Net Change Data
     net_change <-
       data %>% 
+      select(-n_per) %>% 
+      filter(change != "same") %>%
       pivot_wider(
         names_from = change,
         values_from = n) %>% 
@@ -118,12 +120,6 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
         key_b = ifelse(value < 0,name,hs_name)) %>% 
       # View()
       ungroup() %>%
-      mutate(
-        n_shifting = gain+lost,
-        per = value/(n_shifting),
-        per_non = same/(gain+lost+same)*100
-      ) %>% 
-      # View()
       filter(period == period_val,
              rcp == rcp_val) %>% 
       select(rowname = rowname_b,
@@ -148,8 +144,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       png(name_net,
           width = 1300, height = 1300, res = 150, units = "px")
       chordDiagram(
-        x = net_change %>% mutate(key = ifelse(key == "Temperate\nN. Pacific", "T.N. Pacific",
-                                               ifelse(key == "Temperate\nN. Atlantic", "T.N. Atlantic",key))), 
+        x = net_change, 
         grid.col = mycolor_scale,
         directional = 1, 
         direction.type = c("diffHeight","arrows"),
@@ -177,8 +172,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       png(name_net,
           width = 850, height = 850, res = 150, units = "px")
       chordDiagram(
-        x = net_change %>% mutate(key = ifelse(key == "Temperate\nN. Pacific", "T.N. Pacific",
-                                               ifelse(key == "Temperate\nN. Atlantic", "T.N. Atlantic",key))), 
+        x = net_change,
         grid.col = mycolor_scale,
         directional = 1, 
         direction.type = c("diffHeight","arrows"),
