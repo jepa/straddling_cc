@@ -582,6 +582,11 @@ ran_species <- str_sub(ran_species,1,6)
 run_me_list <- straddling_spp[!(straddling_spp %in% ran_species)]
 
 
+run_me_list <- highly_migratory_spp %>% 
+  filter(taxon_key %in% straddling_spp) %>% 
+  pull(taxon_key)
+
+
 
 # stradd_data <- bind_rows(
 #   lapply(straddling_spp,GetResults)
@@ -1676,6 +1681,59 @@ lapply(rcp_vals, function(rcp) {
 })
 
 ```
+
+
+### Potential figure 4 Intensity
+
+```{r}
+
+x <- prop_data %>% 
+  # mutate(hs_name = "High Seas") %>%
+  filter(
+    period == "ear",
+         # rcp == "rcp26",
+         # taxon_key == 600006,
+         change != "same") %>% 
+  # Estimte intensity
+  mutate(
+    min_intensity = my_chng(low_tresh,mean,100),
+    max_intensity = my_chng(top_tresh,mean,100)
+  ) %>% 
+  # View()
+  left_join(sau_groups) %>%
+  # View()
+  group_by(commercial_group,period,rcp,realm_name) %>%
+  summarise(
+    min_intensity = mean(min_intensity,na.rm = T),
+    max_intensity = mean(max_intensity,na.rm = T)
+  ) %>%
+    # View()
+  gather("cat","val",min_intensity:max_intensity) %>% 
+  # View()
+  ggplot() +
+geom_bar(
+    aes(
+          x = commercial_group,
+      y = val,
+      color = realm_name,
+      fill = realm_name
+    ),
+    stat = "identity",
+    position = position_dodge2(),
+    alpha = 0.5
+  ) +
+  coord_flip() +
+  facet_wrap(~rcp,scales = "free")
+
+
+ggsave("xxx.png",x,
+       width = 15,
+       height = 10)
+
+```
+
+
+
 
 ##### Figure Key for regions v.s. high seas
 
