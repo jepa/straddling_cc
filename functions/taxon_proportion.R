@@ -2,14 +2,14 @@
 # taxon_proportion
 # This function is the main analysis estimating the proportion change above historic levels
 
-taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mig){
+taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mig = F){
   
   print(taxon_key)
-  colnames(hs_index)[2] <- "hs_region"
+  
   
   # If highly migratory then use RFMOs
   if(high_mig == T){
-    
+    colnames(hs_index)[2] <- "hs_region"
     stradd_data <- GetResults(taxon_key) %>% 
       rename(
         hs_name = rfmo_name,
@@ -22,6 +22,7 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
     
   }else{
     # Otherwise ocean basins
+    colnames(hs_index)[3] <- "hs_region"
     stradd_data <- GetResults(taxon_key,type = "ob")
   }
   # category <- unique(stradd_data$cat)
@@ -103,7 +104,7 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
                                   by = join_by("year", "taxon_key","realm_name")
       ) %>% 
         mutate(region_total = hs_total_zone_abd+realm_total_zone_abd) %>% 
-        mutate(per_hs = hs_total_zone_abd/region_total*100) %>%  # done with RFMO 
+        mutate(per_hs = hs_total_zone_abd/region_total*100) %>%  # proportion in high seas 
         filter(region_total >0) # Remove cases where there is no catch data in any area
       
       # How it looks
@@ -130,7 +131,7 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
                   .groups = "drop") %>%
         mutate(top_tresh = hs_mean+2*hs_sd,
                low_tresh = hs_mean-2*hs_sd) %>% 
-        select(-hs_mean,-hs_sd)
+        select(-hs_sd)
       
       # Estimate future proportions that overshoot the mean =- 2 sd
       prop_chng <- spp_proportion %>% 
@@ -161,7 +162,10 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
                esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)), # Fix MPI
                rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcpBF","rcp85",rcp)), # Fix MPS
         ) %>% 
-        select(taxon_key,esm,rcp,period,hs_name,change,realm_name,low_tresh,mean,top_tresh,area_hs,area_realm)
+        select(taxon_key,esm,rcp,period,hs_name,change,realm_name,hs_hist_prop=hs_mean,low_tresh,mean,top_tresh,area_hs,area_realm) %>% 
+        mutate(
+          diff = my_chng(hs_hist_prop,mean)
+        )
       
       
       if(m == 1){
