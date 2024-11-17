@@ -218,8 +218,8 @@ basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>
                                                                     NA))))))))
   ) %>% 
   dplyr::select(lon = longitude,
-         lat = latitude,
-         basin) %>% 
+                lat = latitude,
+                basin) %>% 
   left_join(my_data("dbem_coords")) %>% 
   filter(!is.na(basin))
 
@@ -819,29 +819,29 @@ exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 
 highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
-                                    "Auxis thazard", "Auxis rochei", 
-                                    "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
-                                    
-                                    "Istiophorus platypterus","Istiophorus albicans",
-                                    "Xiphias gladius",
-                                    "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
-                                    "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
-                     reffered_as = c(
-                       rep("Tuna",9),
-                       "Frigate mackerel","Frigate mackerel",
-                       rep("Marlin",9),
-                       "Sail-fish","Sail-fish",
-                       "Sword-fish",
-                       rep("Saury",4),
-                       rep("Shark",3)
-                     )) %>% 
+                                              "Auxis thazard", "Auxis rochei", 
+                                              "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
+                                              
+                                              "Istiophorus platypterus","Istiophorus albicans",
+                                              "Xiphias gladius",
+                                              "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
+                                              "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
+                               reffered_as = c(
+                                 rep("Tuna",9),
+                                 "Frigate mackerel","Frigate mackerel",
+                                 rep("Marlin",9),
+                                 "Sail-fish","Sail-fish",
+                                 "Sword-fish",
+                                 rep("Saury",4),
+                                 rep("Shark",3)
+                               )) %>% 
   mutate(shared = "high_migra") %>% 
   left_join(exploited_spp) %>% 
   filter(!is.na(taxon_key))
 
 ```
 
-```{r results_data, eva = T}
+```{r spatial_data, eva = T}
 
 #-----------------# 
 ## Georeferenced ##
@@ -873,13 +873,23 @@ sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial
   dplyr::select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
 
 
-#-----------------# 
-## Spp related   ##
-#-----------------# 
-
-# List of SAU species
-# exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
-
+basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
+  mutate(
+    basin = ifelse(basin2 == 0, "w_atlantic",
+                   ifelse(basin2 == 1 ,"e_atlantic",
+                          ifelse(basin2 == 2, "e_pacific",
+                                 ifelse(basin2 == 3, "w_pacific",
+                                        ifelse(basin2 == 4, "w_indian",
+                                               ifelse(basin2 == 5,"e_indian",
+                                                      ifelse(basin2 == 6,"antarctic",
+                                                             ifelse(basin2 == 7,"actic",
+                                                                    NA))))))))
+  ) %>% 
+  dplyr::select(lon = longitude,
+                lat = latitude,
+                basin) %>% 
+  left_join(my_data("dbem_coords")) %>% 
+  filter(!is.na(basin))
 ```
 
 ### Get data for Highly migratory species
@@ -906,7 +916,8 @@ length(unique(straddling_hm$taxon_key))# 18 species that are highly migratory
 prop_data_esm_hm <- bind_rows(
   lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
 ) %>% 
-  rename(hs_name = rfmo_name) %>% 
+  select(-area_hs) %>% 
+  # rename(hs_name) %>% 
   # View()
   # Include area index info
   left_join(straddling_hm,
@@ -930,14 +941,14 @@ prop_data_hm <- prop_data_esm_hm %>%
   # Re- estimate change with average of all ESMs
   group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach) %>% 
   summarise_at(
-    .vars = c("low_tresh","mean","top_tresh"),
+    .vars = c("hs_hist_prop","low_tresh","mean","top_tresh"),
     .funs = mean,
     na.rm = T) %>% 
   mutate(
     change = ifelse(mean > top_tresh,"gain",
-                         ifelse(mean < low_tresh,"lost","same")
-  ),
-  category = "highly migratory"
+                    ifelse(mean < low_tresh,"lost","same")
+    ),
+    category = "highly migratory"
   )
 
 length(unique(prop_data_hm$taxon_key))# 14
@@ -986,7 +997,7 @@ prop_data_nhm <- prop_data_esm_nhm %>%
   # Re- estimate change with average of all ESMs
   group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
   summarise_at(
-    .vars = c("low_tresh","mean","top_tresh"),
+    .vars = c("hs_hist_prop","low_tresh","mean","top_tresh"),
     .funs = mean,
     na.rm = T) %>% 
   mutate(change = ifelse(mean > top_tresh,"gain",
@@ -1354,8 +1365,8 @@ map_high_seas_stradd <- ggplot() +
                    alpha = 0.6,
                    size = 4
   ) +
-scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
-                     limits = c(0,50)) +
+  scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
+                       limits = c(0,50)) +
   scale_color_manual(values = wes_palette("Darjeeling1", n = 5)) +
   my_ggtheme_m(leg_pos = "bottom",
                leg_width = 2) +
@@ -1446,14 +1457,14 @@ plot <-
     axis.ticks.x = element_blank()
   )
 
-  plot_name <- paste0("./results/figures/fig1_pannel_hs.png")
-  
-  ggsave(plot_name,
-         plot,
-         height = 4,
-         width = 8
-  )
-  
+plot_name <- paste0("./results/figures/fig1_pannel_hs.png")
+
+ggsave(plot_name,
+       plot,
+       height = 4,
+       width = 8
+)
+
 ```
 
 ### Paper numbers on top shared species
@@ -1480,7 +1491,7 @@ top_n(5,value) %>%
 ```{r}
 
 # Re- estimate change with average of all ESMs
-  group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
+group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
   summarise_at(
     .vars = c("low_tresh","mean","top_tresh"),
     .funs = mean,
@@ -1687,48 +1698,200 @@ lapply(rcp_vals, function(rcp) {
 
 ```{r}
 
-x <- prop_data %>% 
+intense_data <- prop_data %>% 
   # mutate(hs_name = "High Seas") %>%
   filter(
-    period == "ear",
-         # rcp == "rcp26",
-         # taxon_key == 600006,
-         change != "same") %>% 
+    period == "mid",
+    # rcp == "rcp26",
+    # taxon_key == 600006,
+    # change != "same"
+    change != "same"
+    ) %>% 
   # Estimte intensity
   mutate(
-    min_intensity = my_chng(low_tresh,mean,100),
-    max_intensity = my_chng(top_tresh,mean,100)
+    eez_hist_prop = 100-hs_hist_prop,
+    mean_eez = 100-mean,
+    mean_intensity_hs = my_chng(hs_hist_prop,mean,100),
+    mean_intensity_eez = my_chng(eez_hist_prop,mean_eez,100)
   ) %>% 
+  # mutate_if(is.numeric,round) %>% 
   # View()
-  left_join(sau_groups) %>%
+  left_join(sau_groups) %>% 
   # View()
-  group_by(commercial_group,period,rcp,realm_name) %>%
+  group_by(commercial_group,period,rcp,realm_name,change) %>%
   summarise(
-    min_intensity = mean(min_intensity,na.rm = T),
-    max_intensity = mean(max_intensity,na.rm = T)
-  ) %>%
-    # View()
-  gather("cat","val",min_intensity:max_intensity) %>% 
-  # View()
+    mean_intensity = mean(mean_intensity_eez,na.rm = T),
+    sd_intensity = sd(mean_intensity_eez,na.rm = T)
+  ) %>% 
+    filter(mean_intensity != 0)
+
+# intense_data %>% 
+#   filter(rcp == "rcp26") %>%
+#   # filter(realm_name %in% c("Central Indo Pacific","Tropical Eastern Pacific")) %>% 
+#   # View()
+#   pull(commercial_group) %>% 
+#   unique()
+#   
+unique(prop_data$realm_name)
+  
+  
+mycolor_scale <- 
+  c(
+    "Central Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+    "Temperate Australasia" = wes_palette("Moonrise3",n = 5)[2],
+    "Temperate South America" = wes_palette("Moonrise3",n = 5)[3],
+    "Southern Ocean" = wes_palette("Darjeeling2",n = 5)[3],
+    "Western Indo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+    "Eastern Indo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+    "Tropical Eastern Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
+    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
+    "Temperate Northern Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+    "Temperate Southern Africa" = wes_palette("FantasticFox1",n =5)[4],
+    "Tropical Atlantic" =   wes_palette("FantasticFox1",n =5)[5],
+    "Temperate Northern Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+  )
+
+# View()
+intense_data %>% 
+  mutate(
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
+  ) %>% 
   ggplot() +
-geom_bar(
+  geom_bar(
     aes(
-          x = commercial_group,
-      y = val,
+      # x = commercial_group,
+      x = tidytext::reorder_within(commercial_group,mean_intensity,realm_name),
+      y = mean_intensity,
       color = realm_name,
       fill = realm_name
     ),
     stat = "identity",
-    position = position_dodge2(),
-    alpha = 0.5
+    position = position_dodge2()
+  ) +
+  geom_errorbar(
+    aes(
+      x = reorder_within(commercial_group, mean_intensity, realm_name), 
+      ymin = mean_intensity - sd_intensity, 
+      ymax = mean_intensity + sd_intensity
+    ),
+    position = position_dodge2(width = 0.75),
+    width = 0.25
   ) +
   coord_flip() +
-  facet_wrap(~rcp,scales = "free")
+  scale_color_manual("Region", values = mycolor_scale) +
+  scale_fill_manual("Region", values = mycolor_scale) +
+  facet_wrap(~ssp,scales = "free") +
+  scale_x_reordered("Commercial group")  +
+  my_ggtheme_p(leg_pos = "right",
+               ax_tl_s = 16,
+               ax_tx_s = 12,
+               leg_tl_s = 16,
+               leg_tx_s = 12,
+               facet_tx_s = 16
+  ) +
+  ylab("Change in SSR within EEZs relative to historic period (%)")
 
 
-ggsave("xxx.png",x,
-       width = 15,
+ggsave("./results/figures/intensity_realm_option_ear.png",
+       last_plot(),
+       width = 12,
        height = 10)
+
+
+### OPTION 2
+
+commercial_scale <- c(
+  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
+  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
+  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
+  "Other fishes & inverts" = "grey",
+  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
+  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
+  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
+  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
+  "Small pelagics" = wes_palette("Darjeeling2",n =5)[3],
+  "Squids" = wes_palette("Darjeeling2",n =5)[4],
+  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
+)
+
+intense_data %>% 
+  mutate(
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
+  ) %>% 
+  ggplot() +
+  geom_bar(
+    aes(
+      # x = commercial_group,
+      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
+      y = mean_intensity,
+      color = commercial_group,
+      fill = commercial_group
+    ),
+    stat = "identity",
+    position = position_dodge2()
+  ) +
+  geom_errorbar(
+    aes(
+      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
+      ymin = mean_intensity - sd_intensity, 
+      ymax = mean_intensity + sd_intensity
+    ),
+    position = position_dodge2(width = 0.75),
+    width = 0.25
+  ) +
+  coord_flip() +
+  scale_color_manual("Commercial group", values = commercial_scale) +
+  scale_fill_manual("Commercial group", values = commercial_scale) +
+  # scale_y_continuous(limits = c(-200,50)) +
+  facet_wrap(~ssp,scales = "free") +
+  scale_x_reordered("Region")  +
+  my_ggtheme_p(leg_pos = "right",
+               ax_tl_s = 16,
+               ax_tx_s = 12,
+               leg_tl_s = 16,
+               leg_tx_s = 12,
+               facet_tx_s = 16
+               
+               
+               ) +
+  ylab("Change in SSR within EEZs relative to historic period (%)")
+
+
+ggsave(
+  "./results/figures/intensity_comm_spp_option_ear.png",
+       last_plot(),
+       width = 14,
+       height = 10)
+
+
+
+  ### OPTION 3
+  # View()
+intense_data <- prop_data %>% 
+  # mutate(hs_name = "High Seas") %>%
+  filter(
+    period == "ear",
+    # rcp == "rcp26",
+    # taxon_key == 600006,
+    change != "same") %>% 
+  # Estimte intensity
+  mutate(
+    eez_hist_prop = 100-hs_hist_prop,
+    eez_mean = 100-mean,
+  ) %>% 
+  mutate_if(is.numeric,round) %>% 
+  # View()
+  left_join(sau_groups) %>%
+  # select(taxon_key,rcp,period,hs_name,realm_name,hs_hist_prop,eez_hist_prop,hs_mean = mean,eez_mean,commercial_group) %>% 
+  group_by(rcp,period,hs_name,realm_name,commercial_group) %>% 
+  summarise_if(is.numeric,mean) %>% 
+  rename(
+    hist_hs_prop = hs_hist_prop,
+    hist_eez_prop = eez_hist_prop,
+    med_hs_mean = mean,
+    med_eez_mean =eez_mean
+  ) %>% 
+  gather("time","vale",hist_hs_prop,hist_eez_prop,med_hs_mean,med_eez_mean)
 
 ```
 
@@ -1749,7 +1912,7 @@ colnames(mat) = c("Region F","Region E","Region D","Region C","Region B","Region
 
 
 grid.col = c("High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
-    "Region A" = "grey", "Region B" = "grey", "Region C" = "orange", "Region D" = "grey", "Region E" = "grey", "Region F" = "grey")
+             "Region A" = "grey", "Region B" = "grey", "Region C" = "orange", "Region D" = "grey", "Region E" = "grey", "Region F" = "grey")
 
 png("./results/figures/circle/legend.png",
     width = 500, height = 500, res = 150, units = "px")
@@ -1759,7 +1922,7 @@ chordDiagram(t(mat),
              link.arr.type = "big.arrow",
              link.arr.length = 0.1,
              directional =1
-             )
+)
 dev.off()
 ```
 
@@ -1811,7 +1974,7 @@ lapply(rcp_vals, function(rcp) {
 
 ```{r}
 sf_rfmo_map <-
-sf_rfmo %>% 
+  sf_rfmo %>% 
   ggplot() +
   geom_sf(aes(fill = rfmo_name),
           alpha = 0.5) +
@@ -1856,9 +2019,9 @@ ggsave(
 grid.col = c(
   "RFMO A" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
   " " = "grey",
- "RFMO B" = "grey",
- "RFMO C" = "grey"
- )
+  "RFMO B" = "grey",
+  "RFMO C" = "grey"
+)
 
 
 mat3 = matrix(rnorm(15), 3)
@@ -1867,19 +2030,19 @@ cor_mat = cor(mat3)
 
 
 png("./results/figures/circle/rfmo_legend.png",
-width = 700, height = 700, res = 150, units = "px")
+    width = 700, height = 700, res = 150, units = "px")
 chordDiagram(cor_mat, 
              grid.col = grid.col,
              directional = 1, 
-        direction.type = c("diffHeight","arrows"),
-        link.arr.type = "big.arrow",
-        link.arr.length = 0.1,
-        link.sort = T,
-        link.largest.ontop = TRUE,
-        transparency = 0.30,
-        scale = TRUE,
-        symmetric = TRUE
-             )
+             direction.type = c("diffHeight","arrows"),
+             link.arr.type = "big.arrow",
+             link.arr.length = 0.1,
+             link.sort = T,
+             link.largest.ontop = TRUE,
+             transparency = 0.30,
+             scale = TRUE,
+             symmetric = TRUE
+)
 dev.off()
 
 
@@ -2176,7 +2339,7 @@ un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","T
 
 
 uh_migratory_taxa <- bind_rows(output,
-                             un_species) %>% 
+                               un_species) %>% 
   group_by(taxon_name = scientific_name,source) %>% 
   tally() %>% 
   mutate(cat = "high_mig") %>% 
@@ -3359,16 +3522,16 @@ for(i in 1:length(unique(stradd_commercial_df$realm_name))){
   
   plot <- stradd_commercial_df %>% 
     filter(realm_name %in% realm) %>% 
-     mutate(new_region = case_when(
-    hs_name == "e_pacific" ~ "Pacific",
-    hs_name == "w_pacific" ~ "Pacific",
-    hs_name == "e_atlantic" ~ "Atlantic",
-    hs_name == "w_atlantic" ~ "Atlantic",
-    hs_name == "e_indian" ~ "Indian",
-    hs_name == "w_indian" ~ "Indian",
-    hs_name == "actic" ~ "Arctic",
-    hs_name == "antarctic" ~ "Antarctic"
-  )) %>% 
+    mutate(new_region = case_when(
+      hs_name == "e_pacific" ~ "Pacific",
+      hs_name == "w_pacific" ~ "Pacific",
+      hs_name == "e_atlantic" ~ "Atlantic",
+      hs_name == "w_atlantic" ~ "Atlantic",
+      hs_name == "e_indian" ~ "Indian",
+      hs_name == "w_indian" ~ "Indian",
+      hs_name == "actic" ~ "Arctic",
+      hs_name == "antarctic" ~ "Antarctic"
+    )) %>% 
     mutate(new_region = ifelse(is.na(new_region),hs_name,new_region)) %>% 
     group_by(new_region,realm_name,realm_or,commercial_group) %>% 
     summarise(n = sum(n,na.rm = T)) %>% 
