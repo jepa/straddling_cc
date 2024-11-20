@@ -1731,149 +1731,6 @@ intense_data <- prop_data %>%
   ) %>% 
     filter(mean_intensity != 0)
 
-# intense_data %>% 
-#   filter(rcp == "rcp26") %>%
-#   # filter(realm_name %in% c("Central Indo Pacific","Tropical Eastern Pacific")) %>% 
-#   # View()
-#   pull(commercial_group) %>% 
-#   unique()
-#   
-unique(prop_data$realm_name)
-  
-  
-mycolor_scale <- 
-  c(
-    "Central Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
-    "Temperate Australasia" = wes_palette("Moonrise3",n = 5)[2],
-    "Temperate South America" = wes_palette("Moonrise3",n = 5)[3],
-    "Southern Ocean" = wes_palette("Darjeeling2",n = 5)[3],
-    "Western Indo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
-    "Eastern Indo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-    "Tropical Eastern Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
-    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
-    "Temperate Northern Atlantic" = wes_palette("FantasticFox1",n =5)[3],
-    "Temperate Southern Africa" = wes_palette("FantasticFox1",n =5)[4],
-    "Tropical Atlantic" =   wes_palette("FantasticFox1",n =5)[5],
-    "Temperate Northern Pacific" = wes_palette("Darjeeling2", n = 5)[5]
-  )
-
-# View()
-intense_data %>% 
-  mutate(
-    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)"),
-    Direction = ifelse(mean_intensity < 0,"High seas","EEZs")
-  ) %>% 
-  # View()
-  ggplot() +
-  geom_bar(
-    aes(
-      # x = commercial_group,
-      x = tidytext::reorder_within(commercial_group,realm_name,realm_name,sep = "-"),
-      y = mean_intensity,
-      color = Direction,
-      fill = Direction
-    ),
-    stat = "identity",
-    position = position_dodge2()
-  ) +
-  geom_errorbar(
-    aes(
-      x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"), 
-      ymin = mean_intensity - sd_intensity, 
-      ymax = mean_intensity + sd_intensity
-    ),
-    position = position_dodge2(width = 0.75),
-    width = 0.25
-  ) +
-  coord_flip() +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
-  # scale_color_manual("Direction", values = mycolor_scale) +
-  # scale_fill_manual("Direction", values = mycolor_scale) +
-  facet_wrap(~ssp,scales = "free_x") +
-  scale_x_reordered("Commercial group")  +
-  my_ggtheme_p(leg_pos = "right",
-               ax_tl_s = 16,
-               ax_tx_s = 12,
-               leg_tl_s = 16,
-               leg_tx_s = 12,
-               facet_tx_s = 16
-  ) +
-  ylab("Change in SSR within EEZs relative to historic period (%)") +
-    theme(text = element_text(family = "Times New Roman"))
-
-
-ggsave("./results/figures/intensity_realm_option_ear.png",
-       last_plot(),
-       width = 14,
-       height = 10)
-
-
-### OPTION 2
-
-commercial_scale <- c(
-  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
-  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
-  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
-  "Other fishes & inverts" = "grey",
-  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
-  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
-  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
-  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
-  "Small pelagics" = wes_palette("Darjeeling2",n =5)[3],
-  "Squids" = wes_palette("Darjeeling2",n =5)[4],
-  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
-)
-
-intense_data %>% 
-  mutate(
-    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
-  ) %>% 
-  ggplot() +
-  geom_bar(
-    aes(
-      # x = commercial_group,
-      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
-      y = mean_intensity,
-      color = commercial_group,
-      fill = commercial_group
-    ),
-    stat = "identity",
-    position = position_dodge2()
-  ) +
-  geom_errorbar(
-    aes(
-      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
-      ymin = mean_intensity - sd_intensity, 
-      ymax = mean_intensity + sd_intensity
-    ),
-    position = position_dodge2(width = 0.75),
-    width = 0.25
-  ) +
-  coord_flip() +
-  scale_color_manual("Commercial group", values = commercial_scale) +
-  scale_fill_manual("Commercial group", values = commercial_scale) +
-  # scale_y_continuous(limits = c(-200,50)) +
-  facet_wrap(~ssp,scales = "free") +
-  scale_x_reordered("Region")  +
-  my_ggtheme_p(leg_pos = "right",
-               ax_tl_s = 16,
-               ax_tx_s = 12,
-               leg_tl_s = 16,
-               leg_tx_s = 12,
-               facet_tx_s = 16
-               
-               
-               ) +
-  ylab("Change in SSR within EEZs relative to historic period (%)")
-
-
-ggsave(
-  "./results/figures/intensity_comm_spp_option_ear.png",
-       last_plot(),
-       width = 14,
-       height = 10)
-
 
   ### OPTION 3
 intense_data %>% 
@@ -3459,6 +3316,148 @@ chordDiagram(
 dev.off() 
 
 ```
+
+
+###
+
+```{r}
+
+mycolor_scale <- 
+  c(
+    "Central Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+    "Temperate Australasia" = wes_palette("Moonrise3",n = 5)[2],
+    "Temperate South America" = wes_palette("Moonrise3",n = 5)[3],
+    "Southern Ocean" = wes_palette("Darjeeling2",n = 5)[3],
+    "Western Indo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+    "Eastern Indo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+    "Tropical Eastern Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
+    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
+    "Temperate Northern Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+    "Temperate Southern Africa" = wes_palette("FantasticFox1",n =5)[4],
+    "Tropical Atlantic" =   wes_palette("FantasticFox1",n =5)[5],
+    "Temperate Northern Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+  )
+
+# View()
+intense_data %>% 
+  mutate(
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)"),
+    Direction = ifelse(mean_intensity < 0,"High seas","EEZs")
+  ) %>% 
+  # View()
+  ggplot() +
+  geom_bar(
+    aes(
+      # x = commercial_group,
+      x = tidytext::reorder_within(commercial_group,realm_name,realm_name,sep = "-"),
+      y = mean_intensity,
+      color = Direction,
+      fill = Direction
+    ),
+    stat = "identity",
+    position = position_dodge2()
+  ) +
+  geom_errorbar(
+    aes(
+      x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"), 
+      ymin = mean_intensity - sd_intensity, 
+      ymax = mean_intensity + sd_intensity
+    ),
+    position = position_dodge2(width = 0.75),
+    width = 0.25
+  ) +
+  coord_flip() +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  # scale_color_manual("Direction", values = mycolor_scale) +
+  # scale_fill_manual("Direction", values = mycolor_scale) +
+  facet_wrap(~ssp,scales = "free_x") +
+  scale_x_reordered("Commercial group")  +
+  my_ggtheme_p(leg_pos = "right",
+               ax_tl_s = 16,
+               ax_tx_s = 12,
+               leg_tl_s = 16,
+               leg_tx_s = 12,
+               facet_tx_s = 16
+  ) +
+  ylab("Change in SSR within EEZs relative to historic period (%)") +
+    theme(text = element_text(family = "Times New Roman"))
+
+
+ggsave("./results/figures/intensity_realm_option_ear.png",
+       last_plot(),
+       width = 14,
+       height = 10)
+
+
+### OPTION 2
+
+commercial_scale <- c(
+  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
+  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
+  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
+  "Other fishes & inverts" = "grey",
+  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
+  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
+  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
+  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
+  "Small pelagics" = wes_palette("Darjeeling2",n =5)[3],
+  "Squids" = wes_palette("Darjeeling2",n =5)[4],
+  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
+)
+
+intense_data %>% 
+  mutate(
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
+  ) %>% 
+  ggplot() +
+  geom_bar(
+    aes(
+      # x = commercial_group,
+      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
+      y = mean_intensity,
+      color = commercial_group,
+      fill = commercial_group
+    ),
+    stat = "identity",
+    position = position_dodge2()
+  ) +
+  geom_errorbar(
+    aes(
+      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
+      ymin = mean_intensity - sd_intensity, 
+      ymax = mean_intensity + sd_intensity
+    ),
+    position = position_dodge2(width = 0.75),
+    width = 0.25
+  ) +
+  coord_flip() +
+  scale_color_manual("Commercial group", values = commercial_scale) +
+  scale_fill_manual("Commercial group", values = commercial_scale) +
+  # scale_y_continuous(limits = c(-200,50)) +
+  facet_wrap(~ssp,scales = "free") +
+  scale_x_reordered("Region")  +
+  my_ggtheme_p(leg_pos = "right",
+               ax_tl_s = 16,
+               ax_tx_s = 12,
+               leg_tl_s = 16,
+               leg_tx_s = 12,
+               facet_tx_s = 16
+               
+               
+               ) +
+  ylab("Change in SSR within EEZs relative to historic period (%)")
+
+
+ggsave(
+  "./results/figures/intensity_comm_spp_option_ear.png",
+       last_plot(),
+       width = 14,
+       height = 10)
+
+
+```
+
 
 
 ## Figure 1 b
