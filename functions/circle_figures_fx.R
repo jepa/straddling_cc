@@ -40,8 +40,55 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
       transparency = 0.30,
       scale = F,
       symmetric = T,
-      big.gap = 5
+      big.gap = 5,
+      annotationTrack = "grid", 
+      preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(circle_data)))))
     )
+    
+    circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+      xlim = get.cell.meta.data("xlim")
+      ylim = get.cell.meta.data("ylim")
+      sector.name = get.cell.meta.data("sector.index")
+      circos.text(mean(xlim), ylim[1] - .1, 
+                  labels = sector.name[!sector.name %in% c("High Seas","Arctic")], 
+                  facing = "clockwise", 
+                  niceFacing = TRUE, #Orientation of label 
+                  adj = c(1.3, 0.5) # adjust position of label (0.5 middle)
+                  )
+      circos.axis(h = "top", 
+                  # labels.font	= "Times",
+                  labels.cex = 1, 
+                  major.tick.length = 1, 
+                  sector.index = sector.name,
+                  track.index = 2)
+    }, bg.border = NA)
+    
+    # Arctic label
+    circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+      xlim = get.cell.meta.data("xlim")
+      ylim = get.cell.meta.data("ylim")
+      sector.name = get.cell.meta.data("sector.index")
+      circos.text(mean(xlim), ylim[1] - .3, 
+                  labels = sector.name[sector.name %in% c("Arctic")], 
+                  facing = "clockwise", 
+                  niceFacing = TRUE, #Orientation of label 
+                  adj = c(1.3, 0.5) # adjust position of label (0.5 middle)
+      )
+    }, bg.border = NA)
+    
+    # High Seas label
+    circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+      xlim = get.cell.meta.data("xlim")
+      ylim = get.cell.meta.data("ylim")
+      sector.name = get.cell.meta.data("sector.index")
+      circos.text(mean(xlim), ylim[1] - .1, 
+                  labels = sector.name[sector.name %in% c("High Seas")], 
+                  facing = "bending.outside", 
+                  niceFacing = TRUE, #Orientation of label 
+                  adj = c(0.5, 4) # adjust position of label (0.5 middle)
+      )
+    }, bg.border = NA)
+    
     dev.off()
     
     
@@ -164,7 +211,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
         ylim = get.cell.meta.data("ylim")
         sector.name = get.cell.meta.data("sector.index")
         circos.text(mean(xlim), ylim[1] + .1, sector.name, facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
-        circos.axis(h = "top", labels.cex = 0.5, major.tick.length = 0.2, sector.index = sector.name, track.index = 2)
+        circos.axis(h = "top", labels.cex = 1, major.tick.length = 0.2, sector.index = sector.name, track.index = 2)
       }, bg.border = NA)
       
     }else{

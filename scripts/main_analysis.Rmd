@@ -1649,7 +1649,11 @@ circle_df <- prop_data %>%
     realm_name = str_replace(realm_name,"Northern","N."),
     realm_name = str_replace(realm_name, "Western", "W."),
     realm_name = str_replace(realm_name,"Eastern", "E."),
-    name = str_replace(realm_name," ", "\n")
+    realm_name = str_replace(realm_name,"Temperate", "T."),
+    realm_name = str_replace(realm_name,"Tropical", "Tr."),
+    realm_name = str_replace(realm_name,"Central", "C."),
+    name = realm_name
+    # name = str_replace(realm_name," ", "\n")
   )
 
 # Color pallet
@@ -1661,18 +1665,18 @@ mycolor_scale <-
     # "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
     # "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
     "High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
-    "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
-    "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
-    "Temperate\nS. America" = wes_palette("Moonrise3",n = 5)[3],
-    "S.\nOcean" = wes_palette("Darjeeling2",n = 5)[3],
-    "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
-    "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-    "Tropical\nE. Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
+    "C. Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
+    "T. Australasia" = wes_palette("Moonrise3",n = 5)[2],
+    "T. S. America" = wes_palette("Moonrise3",n = 5)[3],
+    "S. Ocean" = wes_palette("Darjeeling2",n = 5)[3],
+    "W. Indo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
+    "E. Indo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
+    "Tr. E. Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
     "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
-    "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
-    "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
-    "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
-    "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
+    "T. N. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
+    "T. S. Africa" = wes_palette("FantasticFox1",n =5)[4],
+    "Tr. Atlantic" =   wes_palette("FantasticFox1",n =5)[5],
+    "T. N. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
   )
 
 # Run plots
