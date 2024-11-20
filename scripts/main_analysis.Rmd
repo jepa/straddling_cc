@@ -1694,14 +1694,14 @@ lapply(rcp_vals, function(rcp) {
 ```
 
 
-### Potential figure 4 Intensity
+### FIG 4. Intensity
 
 ```{r}
 
 intense_data <- prop_data %>% 
   # mutate(hs_name = "High Seas") %>%
   filter(
-    period == "mid",
+    # period == "ear",
     # rcp == "rcp26",
     # taxon_key == 600006,
     # change != "same"
@@ -1711,17 +1711,23 @@ intense_data <- prop_data %>%
   mutate(
     eez_hist_prop = 100-hs_hist_prop,
     mean_eez = 100-mean,
-    mean_intensity_hs = my_chng(hs_hist_prop,mean,100),
-    mean_intensity_eez = my_chng(eez_hist_prop,mean_eez,100)
+    per_change_hs = my_chng(hs_hist_prop,mean,100),
+    per_change_eez = my_chng(eez_hist_prop,mean_eez,100)
   ) %>% 
   # mutate_if(is.numeric,round) %>% 
   # View()
   left_join(sau_groups) %>% 
   # View()
-  group_by(commercial_group,period,rcp,realm_name,change) %>%
+  group_by(commercial_group,period,rcp,hs_name,realm_name) %>%
   summarise(
-    mean_intensity = mean(mean_intensity_eez,na.rm = T),
-    sd_intensity = sd(mean_intensity_eez,na.rm = T)
+    mean_intensity = mean(per_change_eez,na.rm = T)
+  ) %>% 
+    filter(mean_intensity != 0) %>%
+  # View()
+  group_by(commercial_group,period,rcp,realm_name) %>%
+  summarise(
+    sd_intensity = sd(mean_intensity,na.rm = T),
+    mean_intensity = mean(mean_intensity,na.rm = T)
   ) %>% 
     filter(mean_intensity != 0)
 
@@ -1754,23 +1760,25 @@ mycolor_scale <-
 # View()
 intense_data %>% 
   mutate(
-    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)"),
+    Direction = ifelse(mean_intensity < 0,"High seas","EEZs")
   ) %>% 
+  # View()
   ggplot() +
   geom_bar(
     aes(
       # x = commercial_group,
-      x = tidytext::reorder_within(commercial_group,mean_intensity,realm_name),
+      x = tidytext::reorder_within(commercial_group,realm_name,realm_name,sep = "-"),
       y = mean_intensity,
-      color = realm_name,
-      fill = realm_name
+      color = Direction,
+      fill = Direction
     ),
     stat = "identity",
     position = position_dodge2()
   ) +
   geom_errorbar(
     aes(
-      x = reorder_within(commercial_group, mean_intensity, realm_name), 
+      x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"), 
       ymin = mean_intensity - sd_intensity, 
       ymax = mean_intensity + sd_intensity
     ),
@@ -1778,9 +1786,11 @@ intense_data %>%
     width = 0.25
   ) +
   coord_flip() +
-  scale_color_manual("Region", values = mycolor_scale) +
-  scale_fill_manual("Region", values = mycolor_scale) +
-  facet_wrap(~ssp,scales = "free") +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  # scale_color_manual("Direction", values = mycolor_scale) +
+  # scale_fill_manual("Direction", values = mycolor_scale) +
+  facet_wrap(~ssp,scales = "free_x") +
   scale_x_reordered("Commercial group")  +
   my_ggtheme_p(leg_pos = "right",
                ax_tl_s = 16,
@@ -1789,12 +1799,13 @@ intense_data %>%
                leg_tx_s = 12,
                facet_tx_s = 16
   ) +
-  ylab("Change in SSR within EEZs relative to historic period (%)")
+  ylab("Change in SSR within EEZs relative to historic period (%)") +
+    theme(text = element_text(family = "Times New Roman"))
 
 
 ggsave("./results/figures/intensity_realm_option_ear.png",
        last_plot(),
-       width = 12,
+       width = 14,
        height = 10)
 
 
@@ -1864,38 +1875,76 @@ ggsave(
        height = 10)
 
 
-
   ### OPTION 3
-  # View()
-intense_data <- prop_data %>% 
-  # mutate(hs_name = "High Seas") %>%
-  filter(
-    period == "ear",
-    # rcp == "rcp26",
-    # taxon_key == 600006,
-    change != "same") %>% 
-  # Estimte intensity
+intense_data %>% 
+  filter(period == "ear") %>%
   mutate(
-    eez_hist_prop = 100-hs_hist_prop,
-    eez_mean = 100-mean,
+    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)"),
+    Direction = ifelse(mean_intensity < 0,"High seas","EEZs"),
+    # reorder_y = tidytext::reorder_within(commercial_group,mean_intensity,realm_name),
+    commercial_group = str_replace(commercial_group," ", "\n"),
+    realm_name = str_replace(realm_name,"Southern","S."),
+    realm_name = str_replace(realm_name,"South","S."),
+    realm_name = str_replace(realm_name,"Northern","N."),
+    realm_name = str_replace(realm_name, "Western", "W."),
+    realm_name = str_replace(realm_name,"Eastern", "E."),
+    realm_name = str_replace(realm_name,"Temperate", "T."),
+    realm_name = str_replace(realm_name,"Tropical", "Tr."),
+    realm_name = str_replace(realm_name,"Central", "C."),
+    name = str_replace(realm_name," ", "\n"),
+    reorder_y = tidytext::reorder_within(realm_name,mean_intensity,commercial_group)
   ) %>% 
-  mutate_if(is.numeric,round) %>% 
   # View()
-  left_join(sau_groups) %>%
-  # select(taxon_key,rcp,period,hs_name,realm_name,hs_hist_prop,eez_hist_prop,hs_mean = mean,eez_mean,commercial_group) %>% 
-  group_by(rcp,period,hs_name,realm_name,commercial_group) %>% 
-  summarise_if(is.numeric,mean) %>% 
-  rename(
-    hist_hs_prop = hs_hist_prop,
-    hist_eez_prop = eez_hist_prop,
-    med_hs_mean = mean,
-    med_eez_mean =eez_mean
-  ) %>% 
-  gather("time","vale",hist_hs_prop,hist_eez_prop,med_hs_mean,med_eez_mean)
+  ggplot() +
+  geom_bar(
+    aes(
+      # x = commercial_group,
+      # x = reorder(commercial_group,mean_intensity),
+      x = reorder_y,
+      y = mean_intensity,
+      color = Direction,
+      fill = Direction
+    ),
+    stat = "identity",
+    # position = position_dodge2()
+  ) +
+  geom_errorbar(
+    aes(
+      # x = commercial_group,
+      x = reorder_y,
+      # x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"),
+      ymin = mean_intensity - sd_intensity,
+      ymax = mean_intensity + sd_intensity
+    ),
+    width = 0.25
+  ) +
+  coord_flip() +
+  scale_color_viridis_d(direction = -1,begin = .5) +
+  scale_fill_viridis_d(direction = -1, begin = .5) +
+  # scale_color_manual("Direction", values = mycolor_scale) +
+  # scale_fill_manual("Direction", values = mycolor_scale) +
+  # facet_wrap(~commercial_group,scales = "free_y",ncol = 1,strip.position = "left") +
+  facet_grid(commercial_group~ssp,scales = "free_y",space = "free_y") +
+  scale_x_reordered("Region")  +
+  my_ggtheme_p(leg_pos = "right",
+               ax_tl_s = 12,
+               ax_tx_s = 10,
+               leg_tl_s = 12,
+               leg_tx_s = 10,
+               facet_tx_s = 12
+  ) +
+  ylab("Change in SSR within EEZs relative to historic period (%)") +
+    theme(text = element_text(family = "Times New Roman"),
+          strip.text.y = element_text(angle = 1)
+          )
+
+ggsave(
+  "./results/figures/per_chng/per_chng_ear.png",
+       last_plot(),
+       width = 7,
+       height = 8)
 
 ```
-
-
 
 
 ##### Figure Key for regions v.s. high seas
