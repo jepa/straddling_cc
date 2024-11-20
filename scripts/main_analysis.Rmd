@@ -1602,29 +1602,6 @@ Resources:
 - https://www.data-to-viz.com/graph/chord.html
 
 
-```{r}
-
-
-# Numbers for manuscript
-
-# Number of regions 
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  summarise(x = length(unique(realm_name))) %>% 
-  View()
-
-# Number of stocks
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  tally() %>% 
-  View()
-
-```
-
-
-
-#### Circle diagrams
-
 ```{r circle_diagrams, eval = T, echo = T}
 
 total_prop_data <- prop_data %>% 
@@ -1697,6 +1674,66 @@ lapply(rcp_vals, function(rcp) {
 
 ```
 
+##### Figure Key for regions v.s. high seas
+
+```{r}
+
+# Random data for legend
+set.seed(999)
+mat = matrix(c(5,  6, 4,  10,  7, 7,  0, 20, 7,  5,  3,  9), 2, 6) 
+# rownames(mat) = paste0("S", 1:3)
+rownames(mat) = c("High Seas", "High Seas")
+colnames(mat) = c("Region F","Region E","Region D","Region C","Region B","Region A")
+
+
+grid.col = c("High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
+             "Region A" = "grey", "Region B" = "grey", "Region C" = "orange", "Region D" = "grey", "Region E" = "grey", "Region F" = "grey")
+
+png("./results/figures/circle/legenda.png",
+    width = 700, height = 700, res = 150, units = "px")
+chordDiagram(t(mat), 
+             grid.col = grid.col,
+             direction.type = "arrows",
+             link.arr.type = "big.arrow",
+             link.arr.length = 0.1,
+             directional =1,
+             annotationTrack = "grid", 
+             preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(t(mat))))))
+)
+circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  circos.text(mean(xlim), ylim[1] - .1, 
+              labels = sector.name[!sector.name %in% c("High Seas")], 
+              facing = "clockwise", 
+              cex = 0.8,
+              niceFacing = TRUE, #Orientation of label 
+              adj = c(1, 0.5) # adjust position of label (0.5 middle)
+  )
+  circos.axis(h = "top", 
+              # labels.font	= "Times",
+              labels.cex = 0.5, 
+              major.tick.length = 1, 
+              sector.index = sector.name,
+              track.index = 2)
+}, bg.border = NA)
+circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  circos.text(mean(xlim), ylim[1] - .1, 
+              labels = sector.name[sector.name %in% c("High Seas")], 
+              facing = "bending.outside", 
+              cex = 0.8, 
+              niceFacing = TRUE, #Orientation of label 
+              adj = c(0.5, 4) # adjust position of label (0.5 middle)
+  )
+}, bg.border = NA)
+
+
+dev.off()
+```
 
 ### FIG 4. Intensity
 
@@ -1805,35 +1842,6 @@ ggsave(
        width = 7,
        height = 8)
 
-```
-
-
-##### Figure Key for regions v.s. high seas
-
-```{r}
-# Example data (connections between categories)
-
-
-set.seed(999)
-mat = matrix(c(5,  6, 4,  10,  7, 7,  0, 20, 7,  5,  3,  9), 2, 6) 
-# rownames(mat) = paste0("S", 1:3)
-rownames(mat) = c("High Seas", "High Seas")
-colnames(mat) = c("Region F","Region E","Region D","Region C","Region B","Region A")
-
-
-grid.col = c("High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
-             "Region A" = "grey", "Region B" = "grey", "Region C" = "orange", "Region D" = "grey", "Region E" = "grey", "Region F" = "grey")
-
-png("./results/figures/circle/legend.png",
-    width = 500, height = 500, res = 150, units = "px")
-chordDiagram(t(mat), 
-             grid.col = grid.col,
-             direction.type = "arrows",
-             link.arr.type = "big.arrow",
-             link.arr.length = 0.1,
-             directional =1
-)
-dev.off()
 ```
 
 
@@ -2570,6 +2578,24 @@ links %>%
   group_by(nameb,change) %>% 
   summarise(sum(value)) %>% 
   View()
+
+
+
+
+# Numbers for manuscript
+
+# Number of regions 
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  summarise(x = length(unique(realm_name))) %>% 
+  View()
+
+# Number of stocks
+sankey_df %>% 
+  group_by(period,rcp,change) %>% 
+  tally() %>% 
+  View()
+
 
 ```
 
