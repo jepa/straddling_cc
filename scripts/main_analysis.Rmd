@@ -852,15 +852,23 @@ highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnu
 
 #world land 
 sf_land <- ne_countries(scale = 'large', returnclass = c("sf")) %>%
-  st_transform(crs = 4326)
+  st_transform(crs = 4326) %>% 
+  st_transform(crs = "+proj=eck4")
 
 # meows
 sf_meow <- my_sf("MEOW") %>% 
   clean_names()
 st_crs(sf_meow) = 4326
 
+sf_meow <- sf_meow %>% 
+  st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>%  #fixes lines across map
+  st_transform(crs = "+proj=eck4")
+
+
+
 # RFMO regions
-sf_rfmo <- my_sf("RFMO_tuna",simple = 1)
+# sf_rfmo <- my_sf("RFMO_tuna",simple = 1) %>% 
+  # st_transform(crs = "+proj=eck4")
 
 # SAU shapefile
 # sf_eez <- my_sf("SAU", simple = 0.1)
@@ -1318,6 +1326,15 @@ strad_meow <- prop_data_map %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
+
+strad_meow_map <- sf_meow_map %>% 
+  left_join(strad_meow) %>% 
+  st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>% 
+  st_transform(crs = "+proj=eck4")
+
+
+
+
 # Number of straddling stocks by High seas
 stradd_hs <- prop_data_map %>% 
   group_by(basin) %>%
@@ -1337,44 +1354,83 @@ sf_meow_map <- sf_meow %>%
   select(-n)
 
 
-map_high_seas_stradd <- ggplot() + 
-  geom_tile(data = basin_data %>%  left_join(stradd_hs), 
-            aes(
-              x = lon,
-              y = lat,
-              fill = n)
-  ) +
-  geom_sf(data = sf_meow_map %>% left_join(strad_meow), aes(fill = n)) +
-  geom_sf(data = sf_rfmo, aes(), fill = "transparent", color = "black") +
+# Transform projection of all
+basin_sf <- basin_data %>% 
+  left_join(stradd_hs) %>% 
+  st_as_sf(.,
+           coords = c("lon", "lat"), crs = 4326) %>% 
+  st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>% 
+  st_transform(crs = "+proj=eck4")
+
+
+# The RFMO shapefile needs to be re-manipulated
+
+# sf_rfmo <- my_sf("RFMO") 
+# st_crs(sf_rfmo) = 4326
+# 
+# sf_rfmob <- sf_rfmo %>% 
+#   filter(rfmo_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
+#   # st_transform(crs = 4326) %>% 
+#   # mutate(geometry = (geometry + c(180,90)) %% c(360) - c(180,90)) %>%
+#   # st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = T) %>%
+#   group_by(rfmo_nm_s) %>% 
+#   summarise(geometry = st_union(geometry)) 
+#   st_transform(crs = "+proj=eck4") %>%
+#   st_shift_longitude()
+#   
+#   sf_rfmoc <- sf_rfmob %>% 
+#     rename(rfmo_name = rfmo_nm_s) %>% 
+#     st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = T) %>% 
+#     st_transform(crs = "+proj=eck4")
+# 
+# x <- ggplot(sf_rfmoc) +
+#   geom_sf(aes()) +
+#   facet_wrap(~rfmo_name)
+#   
+# 
+# ggsave("test.png",
+#        x)
+
+
+
+map_high_seas_stradd <-
+  ggplot() + 
+  geom_sf(data = basin_sf,
+          aes(color = n)) +
+  geom_sf(data = strad_meow_map,
+          aes(fill = n)) +
+  # geom_sf(data = sf_rfmoc, aes(), fill = "transparent", color = "black") +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
   # Add RFMO labels
-  geom_label_repel(data = sf_rfmo,
-                   aes(label = rfmo_name,
-                       geometry = geometry),
-                   stat = "sf_coordinates",
-                   direction = "y",
-                   seed = 5,
-                   max.overlaps = 10,
-                   point.padding = 50,
-                   hjust = "right",
-                   nudge_x = ifelse(sf_rfmo$rfmo_name == "ICCAT",-13,
-                                    ifelse(sf_rfmo$rfmo_name == "WCPFC",10,-5)),
-                   nudge_y = ifelse(sf_rfmo$rfmo_name == "CCSBT",-20,
-                                    ifelse(sf_rfmo$rfmo_name == "ICCAT",10,
-                                           ifelse(sf_rfmo$rfmo_name == "WCPFC",10,1))),
-                   alpha = 0.6,
-                   size = 4
-  ) +
+  # geom_label_repel(data = sf_rfmoc,
+  #                  aes(label = rfmo_name,
+  #                      geometry = geometry),
+  #                  stat = "sf_coordinates",
+  #                  direction = "y",
+  #                  seed = 5,
+  #                  max.overlaps = 10,
+  #                  point.padding = 50,
+  #                  hjust = "right",
+  #                  nudge_x = ifelse(sf_rfmoc$rfmo_name == "ICCAT",-13,
+  #                                   ifelse(sf_rfmoc$rfmo_name == "WCPFC",10,-5)),
+  #                  nudge_y = ifelse(sf_rfmoc$rfmo_name == "CCSBT",-20,
+  #                                   ifelse(sf_rfmoc$rfmo_name == "ICCAT",10,
+  #                                          ifelse(sf_rfmoc$rfmo_name == "WCPFC",10,1))),
+  #                  alpha = 0.6,
+  #                  size = 4
+  # ) +
   scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
                        limits = c(0,50)) +
-  scale_color_manual(values = wes_palette("Darjeeling1", n = 5)) +
+  # scale_color_manual(values = wes_palette("Darjeeling1", n = 5)) +
+    scale_color_viridis_c("Number of Straddling Stocks", na.value = "white",
+                       limits = c(0,50)) +
   my_ggtheme_m(leg_pos = "bottom",
                leg_width = 2) +
   theme(legend.text = element_text(size = 14),
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1a.png",
+ggsave("./results/figures/fig_1ac.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
