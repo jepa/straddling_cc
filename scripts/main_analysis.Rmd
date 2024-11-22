@@ -1791,7 +1791,7 @@ circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
 dev.off()
 ```
 
-### FIG 4. Intensity
+### FIG 4. Intensitys
 
 ```{r}
 
@@ -1875,9 +1875,6 @@ intense_data %>%
   coord_flip() +
   scale_color_viridis_d(direction = -1,begin = .5) +
   scale_fill_viridis_d(direction = -1, begin = .5) +
-  # scale_color_manual("Direction", values = mycolor_scale) +
-  # scale_fill_manual("Direction", values = mycolor_scale) +
-  # facet_wrap(~commercial_group,scales = "free_y",ncol = 1,strip.position = "left") +
   facet_grid(commercial_group~ssp,scales = "free_y",space = "free_y") +
   scale_x_reordered("Region")  +
   my_ggtheme_p(leg_pos = "right",
