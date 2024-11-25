@@ -13,7 +13,10 @@ library(MyFunctions)
 packages <- c(
   "readxl", # Read dataframe
   "data.table", # Read dataframe (Fast!)
-  "tidyverse"
+  "tidyverse",
+  "worrms",
+  "sf",
+  "sp"
 )
 
 my_lib(packages)
@@ -21,7 +24,7 @@ my_lib(packages)
 # Fix new updates of sf package
 sf::sf_use_s2(use_s2 = FALSE)
 
-source("./functions/get_results.R")
+source("../functions/get_results.R")
 ```
 
 # GLobal data
@@ -53,27 +56,36 @@ taxon_list <- Transboundary_spp %>%
   unique()
 
 # Process in batches 'cus function does not like more than 50 species
-for (i in seq(1, length(taxon_list), by = 50)) {
-  batch <- taxon_list[i:min(i + 50 - 1, length(taxon_list))]
-  results <- wm_records_names(batch)
-  all_results <- append(all_results, results)
-}
+# for (i in seq(1, length(taxon_list), by = 50)) {
+#   batch <- taxon_list[i:min(i + 50 - 1, length(taxon_list))]
+#   results <- wm_records_names(batch)
+#   all_results <- append(all_results, results)
+# }
 
 # Re order dataset
-alphaid <- dplyr::bind_rows(all_results) %>%
-  dplyr::select(taxon_name = scientificname, status, aphia_id = valid_AphiaID,worms_name = valid_name,kingdom:genus) %>% 
-  # remove non-fish species (a.k.a. invertebrates, mammals...)
-    dplyr::filter(class %in% c("Elasmobranchii","Actinopterygii","Holocephali","Myxini",
-                               "Petromyzonti", "Actinopteri", "Teleostei", "Holostei",
-                               "Chondrostei")
-    ) %>% 
-  left_join(exploited_spp,
-            by = "taxon_name",
-            relationship = "many-to-many") 
+# alphaid <- dplyr::bind_rows(all_results) %>%
+#   dplyr::select(taxon_name = scientificname, status, aphia_id = valid_AphiaID,worms_name = valid_name,kingdom:genus) %>% 
+#   # remove non-fish species (a.k.a. invertebrates, mammals...)
+#     dplyr::filter(class %in% c("Elasmobranchii","Actinopterygii","Holocephali","Myxini",
+#                                "Petromyzonti", "Actinopteri", "Teleostei", "Holostei",
+#                                "Chondrostei")
+#     ) %>% 
+#   left_join(exploited_spp,
+#             by = "taxon_name",
+#             relationship = "many-to-many") 
   
   
 
-alphaid
+# alphaid
+
+# write_csv(
+  # alphaid,
+  # "south_america_spp.csv",
+# )
+
+alphaid <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/MigrantFish/south_america_spp.csv")
+
+
 # ------------------------------------------- #
 ### Estimate number of transboundary stocks ###
 # ------------------------------------------- #
@@ -131,7 +143,12 @@ Eme_Res <- bind_rows(lapply(Paths, fread)) %>%
   mutate(tresh = str_to_lower(tresh))  %>% 
     filter(sf_eez_name %in% c("Brazil","Uruguay","Falkland Isl. (UK)","Chile","Peru","Ecuador","Colombia (Pacific)","Colombia (Caribbean)","Venezuela","Suriname","Guyana","French Guiana"),
            eez_neighbour %in% c("Brazil","Uruguay","Falkland Isl. (UK)","Chile","Peru","Ecuador","Colombia (Pacific)","Colombia (Caribbean)","Venezuela","Suriname","Guyana","French Guiana")
-           )
+           ) %>% 
+  left_join(my_data("sau_species"))
+
+
+
+unique(Eme_Res$common_name)
 
 ```
 
@@ -164,71 +181,112 @@ Eme_Res %>%
   ) %>% 
   arrange(desc(n_total))
 
+
+filter(taxon_key %in% alphaid$taxon_key)
+
 ```
-
-
-
-# Straddling stocks data
 
 ```{r}
 
-spp_complete <- list.files(my_path("R","Per_change_realm_rfmo/"))
-straddling_spp <- str_replace(spp_complete,"\\_.*","")
 
-partial_straddling_df <- bind_rows(
-  lapply(straddling_spp,GetResults, type = "strad")
+Sau_data <-fread(paste(my_path("G"),"EmergingFish/Data/SAU/sau_catch_value_country_taxon_JEPA.csv", sep ="")) %>%
+  clean_names() %>% 
+  # Remove high seas and 207 and 208 that are unknown
+  filter(!fishing_entity_id %in% c(213,223)) %>%  # 207,208
+  # Allocate catch of islands to UK
+  mutate(fishing_entity_id = ifelse(fishing_entity_id %in% c(219,220), 183,fishing_entity_id)) %>% 
+  # Convert to 2019 real USD
+  mutate(values = 1.16 * value) %>%
+  # Average 10 years of data
+  group_by(fishing_entity_id,taxon_key) %>% 
+  summarise_at(c("catch","value"),
+               mean,na.rm=T) %>% 
+  gather("variable","value",catch:value)
+
+
+Eez_d_hist <- Eme_Res %>% 
+  group_by(eezid,sau_fishing_entity,tresh) %>% 
+  # summarise(n_tax = length(unique(taxon_key))) %>% 
+  summarise(
+    mean_yr = mean(emerging_yr,na.rm=T),
+    sd_yr = sd(emerging_yr,na.rm=T),
+    n_taxa = length(unique(taxon_key))
   ) %>% 
-  rename(realm_name = realm
-         ) %>% 
-  filter(rfmo_name %in% c("IATTC","ICCAT","CCSBT"),
-         realm_name %in% c("Temperate South America","Southern Ocean","Tropical Atlantic","Tropical Eastern Pacific")) %>% 
-  # Filter only fish
-  filter(taxon_key %in% alphaid$taxon_key)
-
-length(unique(partial_straddling_df$taxon_key))# 86 
-
-# Get straddling stocks
-prop_data_esm <- bind_rows(
-  lapply(unique(partial_straddling_df$taxon_key),GetResults, type = "prop")
-  ) %>%
-  # View()
-  # Include area index info
-  left_join(partial_straddling_df,
-            by = c("taxon_key","rfmo_name","realm_name")
-        ) %>% 
-  filter(area_rfmo > 10,
-         area_rfmo < 90) %>% 
-  # Remove species not present in high seas
-  filter(
-    low_tresh != 0 &
-      mean != 0 &
-      top_tresh != 0,
-    low_tresh != 100 &
-      mean != 100 &
-      top_tresh != 100
-           ) %>% 
-  left_join(exploited_spp) 
-
-
-prop_data <- prop_data_esm %>%
-  # Re- estimate change with average of all ESMs
-  group_by(taxon_key,taxon_name,common_name,rcp,period,rfmo_name,realm_name) %>% 
-  summarise_at(
-    .vars = c("low_tresh","mean","top_tresh"),
-    .funs = mean,
-    na.rm = T) %>% 
-  mutate(change = ifelse(mean > top_tresh,"gain",
-                               ifelse(mean < low_tresh,"lost","same")
-        )
+  gather("metric","value",mean_yr:n_taxa) %>% 
+  # filter(metric != "n_taxa") %>% 
+  mutate(
+    reverse = abs(value-2100)  + 2000
   )
 
+
+
+# Estimate the value (catch and USD) of emerging species
+Eme_value_data <- Eme_Res %>% 
+  group_by(sau_fishing_entity,fishing_entity_id,tresh,taxon_key) %>% 
+  summarise(n()) %>% 
+  left_join(Sau_data,
+            by = c("fishing_entity_id","taxon_key")) %>% 
+  filter(!is.na(variable)) %>% 
+  group_by(sau_fishing_entity,fishing_entity_id,tresh,variable) %>% 
+  summarise(
+    sum_value = sum(value,na.rm=T),
+    n_taxa = length(unique(taxon_key)) 
+  )
+
+# Total value of each fishing nation
+
+Total_value <- Sau_data %>% 
+  group_by(fishing_entity_id,variable) %>% 
+  summarise(tot_value= sum(value,na.rm=T))
+
+
+Value_map_data <- Eme_value_data %>% 
+  left_join(Total_value,
+            by = c("fishing_entity_id","variable")) %>% 
+  mutate(participation = (sum_value/tot_value)*100+2000)
+
+
+# Per fishing entity
+
+fish_d_hist <- Eme_Res %>% 
+  group_by(sau_fishing_entity,tresh) %>% 
+  # summarise(n_tax = length(unique(taxon_key))) %>% 
+  summarise(
+    value = length(unique(taxon_key))
+  ) %>% 
+  filter(!is.na(sau_fishing_entity))
+
+
+
+World_map <- rnaturalearth::ne_countries(scale = 'large', returnclass = c("sf")) %>%
+  clean_names() %>% 
+  select(iso_a3,sovereignt,sov_a3,name,name_long,region_wb,continent,geometry) %>% 
+  st_transform(crs = "+proj=eck4") %>%
+  # st_transform(crs = 4326) %>% # 4326
+  mutate(iso_a3 = ifelse(sovereignt == "Norway","NOR",
+                         ifelse(name == "France","FRA",
+                                iso_a3)
+  )
+  )
+
+
+World_map_nemer <- World_map %>%
+  full_join(Value_map_data,
+            by = c("sau_fishing_entity","fishing_entity_id")
+  ) %>% 
+  filter(!is.na(participation)) %>% 
+  sf::st_transform(crs = "+proj=eck4") 
+
+
+# These are regions without transboundary species
+grey_land <- World_map %>% 
+  filter(!fishing_entity_id %in% Value_map_data$fishing_entity_id) %>% 
+  filter(!sovereignt %in% c("Antarctica"))%>% 
+  sf::st_transform(crs = "+proj=eck4") 
+
+
+
+
 ```
 
-# Results
-
-```{r}
-prop_data %>% 
-  group_by(rcp,period,change) %>% 
-  tally()
-```
 
