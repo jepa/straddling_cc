@@ -1,7 +1,6 @@
 #GetResults
 
 # This function simply loads the results
-
 GetResults=function(Spp,type = "strad"){
   
   if(type == "strad"){
