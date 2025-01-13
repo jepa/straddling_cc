@@ -2,16 +2,31 @@
 # taxon_proportion
 # This function is the main analysis estimating the proportion change above historic levels
 
-taxon_proportion <- function(taxon_key, dbem_grid){
+taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mig = F){
   
   print(taxon_key)
   
-  stradd_data <- GetResults(taxon_key)
+  
+  # If highly migratory then use RFMOs
+  if(high_mig == T){
+    colnames(hs_index)[2] <- "hs_region"
+    stradd_data <- GetResults(taxon_key) %>% 
+      rename(
+        hs_name = rfmo_name,
+        area_hs = area_rfmo
+      )
+    
+    rfmo_areas <- stradd_data %>% 
+      pull(hs_name) %>% 
+      unique()
+    
+  }else{
+    # Otherwise ocean basins
+    colnames(hs_index)[3] <- "hs_region"
+    stradd_data <- GetResults(taxon_key,type = "ob")
+  }
   # category <- unique(stradd_data$cat)
   
-  rfmo_areas <- stradd_data %>% 
-    pull(rfmo_name) %>% 
-    unique()
   
   files_path <-list.files(my_path("G","dbem/dbem_cmip6/r_data"),full.names = T)[-3] # remove GFDL45B
   
@@ -22,7 +37,7 @@ taxon_proportion <- function(taxon_key, dbem_grid){
     #################################
     # List esm folders
     file_to_read <- paste0(files_path[m],"/",to_read)
-    print(file_to_read)
+    # print(file_to_read)
     if(file.exists(file_to_read)){
       
       load(file_to_read)
@@ -44,22 +59,22 @@ taxon_proportion <- function(taxon_key, dbem_grid){
       
       
       # Get area of analysis
-      taxon_rfmo_dbem_area <-stradd_data %>%
-        pivot_longer(c(realm,rfmo_name)) %>% 
+      taxon_region_dbem_area <- stradd_data %>%
+        pivot_longer(c(realm,hs_name)) %>% 
         pull(value) %>% 
         unique()
       
       # Get ammount abundance per region
-      spp_data_area <-spp_data %>% 
+      spp_data_area <- spp_data %>% 
         gather("year","value",`1951`:`2100`) %>%
         left_join(dbem_grid,
                   by = c("index")
         ) %>% 
-        left_join(rfmo_index,
+        left_join(hs_index,
                   by = "index",
                   relationship = "many-to-many") %>% 
-        mutate(name = ifelse(is.na(realm),rfmo_name,realm)) %>% 
-        filter(name %in% taxon_rfmo_dbem_area) %>%
+        mutate(name = ifelse(is.na(realm),hs_region,realm)) %>% 
+        filter(name %in% taxon_region_dbem_area) %>%
         group_by(year,name) %>% 
         summarise(total_zone_abd = sum(value,na.rm = T),
                   .groups = "drop") %>% 
@@ -68,12 +83,12 @@ taxon_proportion <- function(taxon_key, dbem_grid){
       # Estimate proportions of each region
       
       # RFMO values
-      rfmo_values <- spp_data_area %>% 
-        filter(name %in% stradd_data$rfmo_name) %>% 
-        rename(rfmo_total_zone_abd = total_zone_abd,
-               rfmo_name = name) %>% 
+      hs_values <- spp_data_area %>% 
+        filter(name %in% stradd_data$hs_name) %>% 
+        rename(hs_total_zone_abd = total_zone_abd,
+               hs_name = name) %>% 
         left_join(stradd_data,
-                  by = c("rfmo_name","taxon_key"),
+                  by = c("hs_name","taxon_key"),
                   relationship = "many-to-many") %>% 
         rename(realm_name = realm)
       
@@ -85,11 +100,11 @@ taxon_proportion <- function(taxon_key, dbem_grid){
       
       
       # combine both regions to estimate proportions
-      spp_proportion <- left_join(rfmo_values,realm_values,
+      spp_proportion <- left_join(hs_values,realm_values,
                                   by = join_by("year", "taxon_key","realm_name")
       ) %>% 
-        mutate(region_total = rfmo_total_zone_abd+realm_total_zone_abd) %>% 
-        mutate(per_rfmo = rfmo_total_zone_abd/region_total*100) %>%  # done with RFMO 
+        mutate(region_total = hs_total_zone_abd+realm_total_zone_abd) %>% 
+        mutate(per_hs = hs_total_zone_abd/region_total*100) %>%  # proportion in high seas 
         filter(region_total >0) # Remove cases where there is no catch data in any area
       
       # How it looks
@@ -97,12 +112,12 @@ taxon_proportion <- function(taxon_key, dbem_grid){
       #   geom_area(
       #     aes(
       #       x = as.numeric(year),
-      #       y = per_rfmo,
-      #       fill = realm
-      #       # fill = high_mig_spa
-      #     )
-      #   ) +
-      #   facet_wrap(~rfmo_name)
+      #       y = per_hs
+      # fill = realm
+      # fill = high_mig_spa
+      #   )
+      # ) +
+      # facet_wrap(~realm_name)
       
       
       # Estimate changes in abd proportion
@@ -110,13 +125,13 @@ taxon_proportion <- function(taxon_key, dbem_grid){
       # Early proportions
       hs_historical_means <- spp_proportion %>% 
         filter(year <= 2014) %>%
-        group_by(taxon_key,rfmo_name,realm_name) %>% 
-        summarise(hs_mean = mean(per_rfmo, na.rm = T),
-                  hs_sd = sd(per_rfmo, na.rm = T),
+        group_by(taxon_key,hs_name,realm_name) %>% 
+        summarise(hs_mean = mean(per_hs, na.rm = T),
+                  hs_sd = sd(per_hs, na.rm = T),
                   .groups = "drop") %>%
         mutate(top_tresh = hs_mean+2*hs_sd,
                low_tresh = hs_mean-2*hs_sd) %>% 
-        select(-hs_mean,-hs_sd)
+        select(-hs_sd)
       
       # Estimate future proportions that overshoot the mean =- 2 sd
       prop_chng <- spp_proportion %>% 
@@ -125,12 +140,12 @@ taxon_proportion <- function(taxon_key, dbem_grid){
         )
         ) %>% 
         filter(!is.na(period)) %>% 
-        group_by(taxon_key,rfmo_name,realm_name,area_rfmo,area_realm,period) %>% 
-        summarise(mean = mean(per_rfmo, na.rm = T),
-                  sd = sd(per_rfmo, na.rm = T),
+        group_by(taxon_key,hs_name,realm_name,area_hs,area_realm,period) %>% 
+        summarise(mean = mean(per_hs, na.rm = T),
+                  sd = sd(per_hs, na.rm = T),
                   .groups = "drop") %>% 
         left_join(hs_historical_means,
-                  by = c("taxon_key","rfmo_name","realm_name"),
+                  by = c("taxon_key","hs_name","realm_name"),
                   relationship = "many-to-many") %>% 
         mutate(change = ifelse(mean > top_tresh,"gain",
                                ifelse(mean < low_tresh,"lost","same")
@@ -147,7 +162,10 @@ taxon_proportion <- function(taxon_key, dbem_grid){
                esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)), # Fix MPI
                rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcpBF","rcp85",rcp)), # Fix MPS
         ) %>% 
-        select(taxon_key,esm,rcp,period,rfmo_name,change,realm_name,low_tresh,mean,top_tresh,area_rfmo,area_realm)
+        select(taxon_key,esm,rcp,period,hs_name,change,realm_name,hs_hist_prop=hs_mean,low_tresh,mean,top_tresh,area_hs,area_realm) %>% 
+        mutate(
+          diff = my_chng(hs_hist_prop,mean)
+        )
       
       
       if(m == 1){
@@ -162,7 +180,7 @@ taxon_proportion <- function(taxon_key, dbem_grid){
   }
   
   # Save file
-  name_file <- my_path("R","Per_change_realm_rfmo", paste0(taxon_key,"_perchg.csv"))
+  name_file <- my_path("R",folder_name, paste0(taxon_key,"_perchg.csv"))
   write_csv(final_output, name_file)
   return(paste("Data for",taxon_key, "saved"))
   

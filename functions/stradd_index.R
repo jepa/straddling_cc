@@ -3,13 +3,17 @@
 
 # This function determines which transboundary stocks are straddling
 
-StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code, treshold = F){
+stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_index,folder_name){
+  
+  colnames(hs_index)[2] <- "hs_region"
+  
   
   # Get model data from spps
-  SppDist <- GetSppDist(Spp,Model,Coord)
+  spp_dist <- GetSppDist(Spp = spp,Model = model,Coord = coord) %>% 
+    clean_names()
   
   
-  # ggplot(SppDist %>% filter(Value >0)) +
+  # ggplot(sppDist %>% filter(Value >0)) +
   #   geom_tile(
   #     aes(
   #       x = longitude,
@@ -26,51 +30,51 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code, tresh
   # Result 1. Number of Countries that share the species
   
   #____________ ESTIMATING MODEL INDEX (TRESHOLD 1)_________ #
-  Trans_Spp <- SppDist %>%
-    filter(Model != "SAU_C") %>% 
-    mutate(Value = ifelse(Value > 0, 1,0)) %>%  
-    group_by(TaxonKey, INDEX) %>%
-    summarise(Model_Index = sum(Value,na.rm=T)/3,
+  trans_spp <- spp_dist %>%
+    filter(model != "SAU_C") %>% 
+    mutate(value = ifelse(value > 0, 1,0)) %>%  
+    group_by(taxon_key, index) %>%
+    summarise(model_index = sum(value,na.rm=t)/3,
               .groups = "drop") %>%
-    # filter(Model_Index > 0.4) %>% # at least 2 sources agree
-    # ____________ ESTIMATING FUNDAMENTAL NICHE (TRESHOLD 2)_________ #
-    left_join(SppDist,
-              by = c("TaxonKey","INDEX")) %>%
-    filter(Model == "SAU_C", # Only keeping cells where SAU catch exists
-           Value > 0) %>%
-    # mutate(Model_Index = Model_Index*100) %>%
-    select(-Model, -Value, -latitude,-longitude,-Model_Index) %>%
-    rename(index = INDEX) %>% 
+    # filter(model_index > 0.4) %>% # at least 2 sources agree
+    # ____________ estimating fundamental niche (treshold 2)_________ #
+    left_join(spp_dist,
+              by = c("taxon_key","index")) %>%
+    filter(model == "SAU_C", # only keeping cells where sau catch exists
+           value > 0) %>%
+    # mutate(model_index = model_index*100) %>%
+    select(-model, -value, -latitude,-longitude,-model_index) %>%
+    rename(index = index) %>% 
     
-    # Trans_Spp %>%
-    #   left_join(coords_dbem) %>%
-    #   ggplot() +
-    #   geom_tile(
+    # trans_spp %>%
+    # left_join(coords_dbem) %>%
+    # ggplot() +
+    # geom_tile(
+    #   aes(x = lon,
+    #       y = lat,
+    #       fill = index)
+    # ) +
+    # geom_tile( data = trans_spp %>% left_join(coords_dbem) %>% filter(index %in% c(72227,72228,72946)),
     #     aes(x = lon,
-    #         y = lat,
-    #         fill = index)
-    #   ) +
-    #   geom_tile( data = Trans_Spp %>% left_join(coords_dbem) %>% filter(index %in% c(72227,72228,72946)),
-    #       aes(x = lon,
-  #         y = lat),
-  #       fill = "red"
-  #     )
+    #       y = lat),
+    #     fill = "red"
+    #   )
   
   # joint eez names
   left_join(meow_dbem_grid, # No EEZs but MEOWs
             by = "index") %>% 
-    # joint rfmo area names
-    left_join(rfmo_index,
+    # joint hs_names
+    left_join(hs_index,
               by = "index") %>% 
     mutate(
-      region = ifelse(is.na(rfmo_name),realm,rfmo_name),
-      category = ifelse(!is.na(rfmo_name),"rfmo","realm"),
+      region = ifelse(is.na(hs_region),realm,hs_region),
+      category = ifelse(!is.na(hs_region),"hs_region","realm"),
     ) %>%
     select(1:3,region,category) %>%
     clean_names()
   
   ### ----------  Distributional test  ---------- ###
-  # test <- Trans_Spp %>%
+  # test <- Trans_spp %>%
   # left_join(coords_dbem) #%>% 
   # filter(is.na(territory))
   
@@ -108,16 +112,16 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code, tresh
   
   ### ----------------------------------- ###
   
-  # Get realms and RFMOs
-  rfmo_to_realm <- Neighbours %>% 
-    filter(region %in% c(Trans_Spp %>% filter(category == "rfmo") %>% pull(region) %>% unique()),
-           adjacent_region %in% c(Trans_Spp %>% filter(category == "realm") %>% pull(region) %>% unique()))
+  # Get realms and ocean basins
+  hs_to_realm <- neighbours %>% 
+    filter(region %in% c(trans_spp %>% filter(category == "hs_region") %>% pull(region) %>% unique()),
+           adjacent_region %in% c(trans_spp %>% filter(category == "realm") %>% pull(region) %>% unique()))
   
   
   #____________ ESTIMATING DISTRIBUTION INDEX (TRESHOLD 3)_________ #
   # The number of species' cells present within each REALM and RFMO
   
-  Spp_Grid <- Trans_Spp %>% 
+  spp_grid <- trans_spp %>% 
     group_by(taxon_key,
              region,
              category) %>% 
@@ -125,74 +129,72 @@ StraddIndex <- function(Spp, Model = "All", Neighbours, Coord, Index_Code, tresh
               .groups = "drop")
   
   # Split dataframes to merge latter
-  Territory_T <- Spp_Grid %>% 
+  territory_t <- spp_grid %>% 
     filter(category == "realm") %>% 
     ungroup() %>% 
     select(
       taxon_key,
-      Name=region,
+      name=region,
       n_cells_territory
     )
   
-  Neighbour_T <- Spp_Grid %>%
-    filter(category == "rfmo") %>% 
+  neighbour_t <- spp_grid %>%
+    filter(category == "hs_region") %>% 
     ungroup() %>% 
     select(
       taxon_key,
       n_cells_territory,
-      Name=region
+      name=region
     ) 
   
   
-  rfmo_grid <- Spp_Grid %>% 
-    filter(category == "rfmo") %>% 
-    left_join(rfmo_to_realm,
+  hs_grid <- spp_grid %>% 
+    filter(category == "hs_region") %>% 
+    left_join(hs_to_realm,
               by = "region") %>% 
-    select(Name = adjacent_region,
-           rfmo_name = region,
+    select(name = adjacent_region,
+           hs_name = region,
            n_cells_territory)
   
   # Merge dataframes to get totals per Neighbourds
-  Area_Index_D <-
-    full_join(Territory_T,
-              Neighbour_T, 
-              by = c("Name","taxon_key")
+  area_index_d <-
+    full_join(territory_t,
+              neighbour_t, 
+              by = c("name","taxon_key")
     ) %>%
-    left_join(rfmo_grid,
-              by ="Name") %>% 
-    filter(!is.na(rfmo_name)) %>% # remove non-straddling stocks
+    left_join(hs_grid,
+              by ="name") %>% 
+    filter(!is.na(hs_name)) %>% # remove non-straddling stocks
     rowwise() %>%
     mutate(spp_total = sum(n_cells_territory.x,n_cells_territory,na.rm=T)) %>% # Total gridcelles per Neighbours
     distinct() %>% # Removes false duplicates from `full_join()`
-    rename(realm = Name,
+    rename(realm = name,
            n_cells_realm = n_cells_territory.x,
            n_cells_rfmo = n_cells_territory) %>%
     # Estimate if it is straddling by counting the percentage of the distribution in the RFMO
-    mutate(area_rfmo = (n_cells_rfmo/spp_total)*100,
+    mutate(area_hs = (n_cells_rfmo/spp_total)*100,
            area_realm = (n_cells_realm/spp_total)*100
     )
   
   
-  output <- Area_Index_D %>% 
+  output <- area_index_d %>% 
     select(taxon_key,
            realm,
-           rfmo_name,
-           area_rfmo,
+           hs_name,
+           area_hs,
            area_realm)
   
-  File_Name <- paste(Spp,"_straddling.csv",sep = "")
-  Save_Path <- my_path("R","Straddling_realm_rfmo", File_Name)
+  File_Name <- paste(spp,"_straddling.csv",sep = "")
+  Save_Path <- my_path("R",folder_name, File_Name)
   
   if(nrow(output) >0){
     
     write_csv(output,
               Save_Path)
     
-    return(print(paste("Completed analysis for taxon key",Spp)))
+    return(print(paste("Completed analysis for taxon key",spp)))
   }else{
-    return(print(paste("Taxon key",Spp,"is not a straddling stock")))
+    return(print(paste("Taxon key",spp,"is not a straddling stock")))
   }
   
-} # closes treshold ifstatement
-
 } # closes function
