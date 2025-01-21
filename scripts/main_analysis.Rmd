@@ -1520,14 +1520,14 @@ stradd_commercial_df <- prop_data %>%
   )
 
 commercial_scale <- c(
-  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
-  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
-  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
+  "Cod-likes" =  wes_palette("Royal2",n = 5)[3],
+  "Flatfishes" = wes_palette("IsleofDogs1",n = 5)[1],
+  "Herring-likes" = wes_palette("IsleofDogs2",n = 5)[3],
   "Other fishes & inverts" = "grey",
   "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
-  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
+  "Salmon, smelts, etc" = wes_palette("GrandBudapest1",n = 4)[3],
   "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
-  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
+  "Sharks & rays" = wes_palette("GrandBudapest1",n = 4)[2],
   "Small pelagic" = wes_palette("Darjeeling2",n =5)[3],
   "Squids" = wes_palette("Darjeeling2",n =5)[4],
   "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
