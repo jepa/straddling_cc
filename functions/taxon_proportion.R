@@ -162,7 +162,9 @@ taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mi
                esm = ifelse(esm == "mpi2","mpi", ifelse(esm == "mpi8","mpi",esm)), # Fix MPI
                rcp = ifelse(rcp == "rcp6F","rcp26", ifelse(rcp == "rcpBF","rcp85",rcp)), # Fix MPS
         ) %>% 
-        select(taxon_key,esm,rcp,period,hs_name,change,realm_name,hs_hist_prop=hs_mean,low_tresh,mean,top_tresh,area_hs,area_realm) %>% 
+        select(taxon_key,esm,rcp,period,hs_name,change,realm_name,hs_hist_prop=hs_mean,low_tresh,mean,
+               sd,# included SD fro Lauren analysis
+               top_tresh,area_hs,area_realm) %>% 
         mutate(
           diff = my_chng(hs_hist_prop,mean)
         )

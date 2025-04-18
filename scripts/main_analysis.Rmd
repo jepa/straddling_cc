@@ -708,6 +708,19 @@ suppressMessages(
 )
 
 
+# For lauren
+#Multiple species in parallel
+suppressMessages(
+  mclapply(run_me_list,
+           taxon_proportion,
+           dbem_grid = meow_dbem_grid,
+           hs_index = ob_index,
+           high_mig = F,
+           folder_name = "/lauren/per_change_realm_ob",
+           mc.cores = detectCores()-4)
+)
+
+
 ```
 
 
