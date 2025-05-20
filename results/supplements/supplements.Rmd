@@ -3,8 +3,23 @@ title: Supplement material for Climate change drives shifts in straddling fish s
 subtitle: "Juliano Palacios-Abrantes, Thomas Frölicher, Gabriel Reygondeau, Bianca S. Santos, U. Rashid Sumaila, Colette C. C. Wabnitz & William W. L. Cheung"
 output: 
  pdf_document:
-   toc: yes
+toc: 
+lof: no
+lot: no
+number_sections: no
+header-includes:
+   - \usepackage{caption}
 ---
+\captionsetup{width=6in}
+
+\begin{flushleft}
+{\LARGE \textbf{List of Supplementary Materials:}}
+\begin{itemize}
+\item \textbf{Figures:} S1 - S8
+\item \textbf{Tables:} S1 - S3
+\end{itemize}
+\end{flushleft}
+
 
 
 ```{r setup, include=FALSE, eval = T}
@@ -27,6 +42,7 @@ library("readr")
 ```
 
 
+\clearpage
 
 \renewcommand{\thefigure}{S\arabic{figure}}
 \setcounter{figure}{0}
@@ -35,7 +51,19 @@ library("readr")
 
 # Supplementary Figures
 
-```{r rfmo_map, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009.The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
+
+
+```{r changes_early_high, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Percentage of total straddling stocks per region projected to undergo significant changes in stock share ratio (SSR) between Exclusive Economic Zones (EEZs) and the high seas by 2030 under the high emissions scenario. A) Arrows indicate stocks shifting from EEZs to the high seas, (B) Arrows indicate stocks shifting from the high seas to EEZs. Values represent the percentage of stocks experiencing significant SSR shifts relative to the total number of straddling stocks in each region. The width of each arrow link width corresponds to the proportion of stocks shifting, with wider links indicating a larger proportion. Arrows are color-coded by region for clarity. Abbreviations: C = Central; E = Eastern; N = North; S = Southern; T = Temperate; Tr = Tropical; W = West. See table S1 for a list of EEZs within each region.", out.extra=''}
+
+# Call the image
+img <- readPNG("fig_S1.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r changes_mid, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and the high seas by the middle of the 21st century under both scenarios. A) Shifts from EEZ to the high seas under the low emission scenario, B) shifts from the high seas to EEZ under low emisison scenario, C) shifts from EEZ to the high seas under high emsission scenario, D) shifts from the high seas to EEZ, under high emission scenario. Values represent the percentage of stocks experiencing significant SSR shifts relative to the total number of straddling stocks in each region. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone (EEZ/high seas). The width of each arrow link width corresponds to the proportion of stocks shifting, with wider links indicating a larger proportion. Arrows are color-coded by region for clarity. Abbreviations: C = Central; E = Eastern; N = North; S = Southern; T = Temperate; Tr = Tropical; W = West. See table S2 for a list of EEZs within each region. ", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S2.png")
@@ -44,46 +72,7 @@ img <- readPNG("fig_S2.png")
 grid.raster(img)
 ```
 
-
-```{r changes_early_high, eval = T, echo = T, echo=FALSE, fig.height=4, fig.width=8, fig.pos= "H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the early 21st century under SPP8-585. A) Shifts from EEZ to RFMO (i.e., RFMO gain SSR), (B) shifts from RFMO to EEZ (i.e., EEZs gain SSR). Arrows represent directionality and width percentage of stocks shifting to the neighboring zone. Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West.", out.extra=''}
-
-# Call the image
-img <- readPNG("fig_S4.png")
-
-# Print the image
-grid.raster(img)
-```
-
-
-```{r changes_mid, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Changes in straddling stock share ratio (SSR) between Exclusive Economic Zones (EEZ) and Regional Fisheries Management Organizations (RFMO) by the middle of the 21st century under both SPPs. A) Shifts from EEZ to RFMO under SSP1-2.6, B) Shifts from EEZ to RFMO under SSP5-8.5, C) shifts from RFMO to EEZ under SSP1-2.6, D) shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone (EEZ/RFMO). Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
-
-# Call the image
-img <- readPNG("fig_S5.png")
-
-# Print the image
-grid.raster(img)
-```
-
-```{r net_changes, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Net changes in SSR for each region and neighboring RFMO. A) Early shifts from EEZ to RFMO under SSP1-2.6, B) Early shifts from EEZ to RFMO under SSP5-8.5, C) Mid shifts from RFMO to EEZ under SSP1-2.6, D) Mid shifts from RFMO to EEZ, under SSP5-8.5. Arrows represent directionality and width percentage of stocks shifting to the neighboring zone (EEZ/RFMO). Color coded by region. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). E, Eastern; N, North; S, Southern; W, West. ", out.extra=''}
-
-# Call the image
-img <- readPNG("fig_S6.png")
-
-# Print the image
-grid.raster(img)
-```
-
-```{r net_changes_rfmo, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos = "H", fig.cap="Net changes in SSR by neighboring RFMOs. A) Net shifts by the early 21st century under SSP8-.8.5, B) net shifts by the middle of the 21st century under SSP1-2.6, C) net shifts by the middle of the 21st century under SSP5-8.5. Values represent the number of stocks shifting and the arrow shows the direction of the shift. Numbers on the axis represent the number of stocks shifting. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
-
-# Call the image
-img <- readPNG("fig_S7.png")
-
-# Print the image
-grid.raster(img)
-```
-
-
-```{r treshold, eval = T, echo = T, echo=FALSE, fig.height = 4, fig.width = 4, fig.pos= "H", fig.align='center',fig.cap="Sensitivity analysis for spatial threshold. Each level represents a minimum percentage of occurrence between Region and RFMO. For example, the 10\\% threshold means that both the Region and the RFMO have at least 10\\% of the shared stock. For this study we used the 10\\% (red) threshold, the 0\\% (gray) represents no threshold. Analysis done with GFDL under SSP1-2.6 at the early time period (see methods)", out.extra=''}
+```{r net_changes_eezs, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos = "H", fig.cap="Net changes in Stock Share Ratio (SSR) between Exclusive Economic Zones (EEZ) and the high seas by the middle of the 21st century under both scenarios. A) Shifts by 2030 under the low emission scenario, B) Shifts by 2030 under high emsission scenario, C) shifts by 2050 under the low emission scenario, B) shifts by 2050 under high emsission scenario. Links colored by region. Net changes = stock gains - stock losses. Numbers on the axis and size of links represent the percentage of stocks shifting and the arrow shows the direction of the shift.", out.extra=''}
 
 # Call the image
 img <- readPNG("fig_S3.png")
@@ -93,10 +82,50 @@ grid.raster(img)
 ```
 
 
-```{r n_transboundary, eval = T, echo = T, echo=FALSE, fig.height = 5, fig.width=9, fig.pos= "H", fig.cap="Map showing the number of transboundary species present in each cell of the world. Gridcell scale 0.5 latitude by 0.5 longitude. The original 633 species were then used to estimate the number of straddling stocks.", out.extra=''}
+```{r net_changes, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos="H", fig.cap="Average percentage change in Stock Share Ratio (SSR) across commercial groups within EEZs by the mid 21st century. Positive changes indicate an increase in the proportion of stocks within EEZs (yellow), while negative changes indicate an increase in the proportion of stocks in the high seas (green). Error bars represent the standard deviation of SSR changes across shifting stocks within each commercial group. Only commercial groups with shifting stocks are shown for each time period. Abbreviations: C = Central; E = Eastern; N = North; S = Southern; T = Temperate; Tr = Tropical W = West.", out.extra=''}
 
 # Call the image
-img <- readPNG("fig_S1.png")
+img <- readPNG("fig_S4.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r net_changes_rfmo, eval = T, echo = T, echo=FALSE, fig.height=10, fig.width=10, fig.pos = "H", fig.cap="Net changes in Stock Share Ratio (SSR) of highly migratory straddling stocks between neighboring Regional Fisheries Management Organizations (RFMOs). A) By 2030 under the high emission scenario, B) by 2050 under the low emission scenario, C) by 2050 under the high emission scenario. Links colored by RFMO. Net changes = stock gains - stock losses. Numbers on the axis and size of links represent the percentage of stocks shifting and the arrow shows the direction of the shift. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC).", out.extra=''}
+
+# Call the image
+img <- readPNG("fig_S5.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r treshold, eval = T, echo = T, echo=FALSE, fig.height = 4, fig.width = 7, fig.pos= "H", fig.align='center',fig.cap="Sensitivity analysis for spatial threshold. Each level represents a minimum percentage of occurrence between Region and the high seas. For example, the 10\\% threshold means that both the Region and the the high seas have at least 10\\% of the shared stock. For this study we used the 10\\% (red) threshold, the 0\\% (gray) represents no threshold. Analysis done with GFDL under low emission scenario at the early time period (see methods)", out.extra=''}
+
+# Call the image
+img <- readPNG("fig_S6.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r rfmo_map, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al 2009. The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). Note that CCSBT has no defined convention area, thus, for this analysis, CCSBT area has been considered the areas south of IATTC, ICCAT, IOTC and WCPFC convention areas’ southern limits.", out.extra=''}
+
+# Call the image
+img <- readPNG("fig_S7.png")
+
+# Print the image
+grid.raster(img)
+```
+
+
+```{r n_transboundary, eval = T, echo = T, echo=FALSE, fig.height = 5, fig.width=9, fig.pos= "H", fig.cap="Map showing the number of transboundary species (n = 633) present in each cell of the world (4). Gridcell scale 0.5 latitude by 0.5 longitude. The original 633 species were then used to estimate the number of straddling stocks.", out.extra=''}
+
+# Call the image
+img <- readPNG("fig_S8.png")
 
 # Print the image
 grid.raster(img)
@@ -109,27 +138,6 @@ grid.raster(img)
 \clearpage
 
 # Supplementary Tables
-
-The global EEZ shapefile (updated 1 July 2015) and the RFMOs shapefiles were provided by SAU (Available from https ://www.seaaroundus.org). It is important to note that the data subdivides the EEZs of 198 coastal states into 280 regions (e.g., Mexico’s EEZ is divided in Mexico Pacificand Mexico Atlantic), including islands territories. Finally, the MEOW shapefile according to Spalding et al (2007) was provided by World Widlife Fund and The Nature Conservancy (Available from https://www.worldwildlife.org/publications/marine-ecoregions-of-the-world-a-bioregionalization-of-coastal-and-shelf-areas). 
-
-```{r table_realm_eez, eval = T, echo = F, message = FALSE}
-
-readr::read_csv(here::here('./results/supplements/realm_to_eez.csv')) %>% 
-  dplyr::rename(`Exclusive Economic Zone` = EEZ) %>% 
-  kable("latex",
-        caption = "List of Exclusive Economic Zones (EEZs) according to the Sea Around Us (www.searoundus.org) and their Realm according to Spalding et al (2006).",
-        booktabs = TRUE,
-        # col.names = NULL,
-        longtable = TRUE) %>% # needed if extends one page
-  column_spec(1, width = "2cm") %>%  # Size of first column
-  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold
-  sub("\\\\toprule", "", .) %>% # removes top border
-  sub("\\\\bottomrule", "", .) # removes bottom border
-  
-
-
-```
-
 
 ```{r table_straddling, eval = T, echo = F, message = FALSE}
 
@@ -148,6 +156,26 @@ readr::read_csv(here::here('./results/supplements/straddling_species.csv')) %>%
   column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold 
   sub("\\\\toprule", "", .) %>% # removes top border
   sub("\\\\bottomrule", "", .)  # removes bottom border
+
+```
+
+The global EEZ shapefile (updated 1 July 2015) and the RFMOs shapefiles were provided by SAU (Available from https ://www.seaaroundus.org). It is important to note that the data subdivides the EEZs of 198 coastal states into 280 regions (e.g., Mexico’s EEZ is divided in Mexico Pacificand Mexico Atlantic), including islands territories. Finally, the MEOW shapefile according to Spalding et al (2007) was provided by World Widlife Fund and The Nature Conservancy (Available from https://www.worldwildlife.org/publications/marine-ecoregions-of-the-world-a-bioregionalization-of-coastal-and-shelf-areas). 
+
+```{r table_realm_eez, eval = T, echo = F, message = FALSE}
+
+readr::read_csv(here::here('./results/supplements/realm_to_eez.csv')) %>% 
+  dplyr::rename(`Exclusive Economic Zone` = EEZ) %>% 
+  kable("latex",
+        caption = "List of Exclusive Economic Zones (EEZs) according to the Sea Around Us (www.searoundus.org) and their Realm according to Spalding et al (2006).",
+        booktabs = TRUE,
+        # col.names = NULL,
+        longtable = TRUE) %>% # needed if extends one page
+  column_spec(1, width = "2cm") %>%  # Size of first column
+  column_spec(1,italic = TRUE, bold = F) %>% # Abbreviation bold
+  sub("\\\\toprule", "", .) %>% # removes top border
+  sub("\\\\bottomrule", "", .) # removes bottom border
+  
+
 
 ```
 
@@ -193,7 +221,7 @@ data.frame(
    "circlize"
     )
 ) %>% kable("latex",
-        caption = "List of straddling species identified in the present study grouped by “commercial group” based on the Sea Around Us classification.",
+        caption = "List of R packages used in the current study.",
         booktabs = TRUE,
         # col.names = FA,
         longtable = TRUE) %>% # needed if glossary extends one page
