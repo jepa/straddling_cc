@@ -812,8 +812,6 @@ List of Highly migratory speices according to Annex I Highly migratory species o
 
 ```{r un_highly_mig_spp, eval = F}
 
-# CANCELLED CHUNK
-
 # List of SAU species
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
@@ -987,7 +985,9 @@ length(unique(straddling_nhm$taxon_key))# 131
 prop_data_esm_nhm <- bind_rows(
   lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
 ) %>% 
-  filter(area_hs > 10,
+  filter(
+    taxon_key %in% straddling_nhm$taxon_key,
+    area_hs > 10,
          area_hs < 90) %>% 
   # Remove species not present in high seas
   filter(
@@ -1432,7 +1432,7 @@ map_high_seas_stradd <-
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1an.png",
+ggsave("./results/figures/fig_1a.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1534,8 +1534,8 @@ prop_data %>%
   mutate(combo = paste0(realm_name,"_",hs_name)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   summarise(value = length(unique(combo))) %>%
-  left_join(un_species) %>% 
-  View()
+  left_join(highly_migratory_spp) %>% 
+  # View()
 top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
@@ -1892,7 +1892,7 @@ intense_data %>%
           )
 
 ggsave(
-  "./results/figures/per_chng/per_chng_ear.png",
+  "./results/figures/per_chng/per_chng_earb.png",
        last_plot(),
        width = 7,
        height = 8)
@@ -1906,7 +1906,7 @@ ggsave(
 
 
 sankey_rfmo <- rfmo_prop_data %>% 
-  group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n,change) %>% 
+  group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n) %>% 
   tally() %>% 
   rename(
     name = rfmo_n,
@@ -1942,8 +1942,6 @@ lapply(rcp_vals, function(rcp) {
 ```
 
 ##### RFMO map for figure
-
-
 
 ```{r}
 sf_rfmo_map <-
