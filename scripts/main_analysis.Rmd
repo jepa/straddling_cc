@@ -1436,7 +1436,7 @@ map_high_seas_stradd <-
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1an.png",
+ggsave("./results/figures/fig_1a.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
