@@ -1045,6 +1045,7 @@ rfmo_prop_data_esm <- bind_rows(
 ) %>% 
   # Remove species not present in high seas
   filter(
+    taxon_key %in% highly_migratory_spp$taxon_key,
     low_tresh_t != 0 &
       mean_t != 0 &
       top_tresh_t != 0,
@@ -1063,7 +1064,7 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
     na.rm = T) 
 
 # Remove duplicates (it is a bi-lateral change)
-length(unique(rfmo_prop_data$taxon_key))# 45
+length(unique(rfmo_prop_data$taxon_key))# 13
 
 ```
 
@@ -1432,7 +1433,7 @@ map_high_seas_stradd <-
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1a.png",
+ggsave("./results/figures/fig_1an.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1906,12 +1907,17 @@ ggsave(
 
 
 sankey_rfmo <- rfmo_prop_data %>% 
-  group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n) %>% 
+ mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
+  ) %>% 
+  group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n,change) %>% 
   tally() %>% 
   rename(
     name = rfmo_n,
     hs_name = rfmo_name
-  )
+  ) %>% 
+  mutate(n_per = NA)
 
 mycolor_scale <- 
   c(
@@ -1937,7 +1943,8 @@ lapply(rcp_vals, function(rcp) {
   })
 })
 
-# circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
+
+circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
 
 ```
 
@@ -2025,6 +2032,10 @@ dev.off()
 ```{r}
 
 rfmo_prop_data %>% 
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
+  ) %>% 
   group_by(rfmo_t,rfmo_n,period,rcp,change) %>% 
   tally() %>% 
   group_by(period,rcp,change) %>% 
