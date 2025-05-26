@@ -1303,6 +1303,18 @@ straddling_species %>%
 
 write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
 
+
+straddling_species %>% 
+  mutate(
+    large_pel = commercial_group %in% c("Tuna & billfishes", "Sharks & rays")
+  ) %>% 
+  group_by(large_pel) %>%
+  tally()
+  
+# Total large pellagics
+# tunas, billfishes sharks rays + mola, king of fish, wahoo, Common dolphinfish,
+(34 + 4) /67
+
 ```
 
 ### FIG. 1A- Straddling species map
