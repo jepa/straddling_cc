@@ -918,7 +918,7 @@ straddling_hm <- bind_rows(
          category = "highly migratory") %>% 
   filter(taxon_key %in% highly_migratory_spp$taxon_key)
 
-length(unique(straddling_hm$taxon_key))# 18 species that are highly migratory
+length(unique(straddling_hm$taxon_key))# 19 species that are highly migratory
 
 # Get Highly migratory straddling stocks
 prop_data_esm_hm <- bind_rows(
@@ -959,7 +959,7 @@ prop_data_hm <- prop_data_esm_hm %>%
     category = "highly migratory"
   )
 
-length(unique(prop_data_hm$taxon_key))# 15
+length(unique(prop_data_hm$taxon_key))# 15 #Number that changed 15/19 (79%)
 
 ```
 
@@ -981,14 +981,14 @@ straddling_nhm <- bind_rows(
 
 length(unique(straddling_nhm$taxon_key))# 131
 
-# Get straddling stocks
+# Get straddling stocks after applying filters
 prop_data_esm_nhm <- bind_rows(
   lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
 ) %>% 
   filter(
     taxon_key %in% straddling_nhm$taxon_key,
-    area_hs > 10,
-         area_hs < 90) %>% 
+    area_hs >= 10,
+         area_hs <= 90) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
@@ -1001,6 +1001,8 @@ prop_data_esm_nhm <- bind_rows(
   left_join(exploited_spp)  %>% 
   mutate(approach = "ocean_basin",
          category = "straddling")
+
+length(unique(prop_data_esm_nhm$taxon_key)) # 52 number that were identified (52/131) 40%
 
 
 prop_data_nhm <- prop_data_esm_nhm %>%
@@ -1015,11 +1017,10 @@ prop_data_nhm <- prop_data_esm_nhm %>%
   )
   )
 
-length(unique(prop_data_nhm$taxon_key)) # 53
+length(unique(prop_data_nhm$taxon_key)) # 52 number that changed (52/131) 40%
 
 
 #### Combine both data ###
-
 prop_data_esm <- bind_rows(
   prop_data_esm_hm,
   prop_data_esm_nhm
@@ -1030,6 +1031,7 @@ prop_data <- bind_rows(
   prop_data_nhm
 )
 
+length(unique(prop_data$taxon_key)) # 67 species total (15 highly migratory + 52 non-highly migratory)
 
 
 ```
@@ -1064,7 +1066,7 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
     na.rm = T) 
 
 # Remove duplicates (it is a bi-lateral change)
-length(unique(rfmo_prop_data$taxon_key))# 13
+length(unique(rfmo_prop_data$taxon_key)) # 13 species that changed
 
 ```
 
@@ -1132,7 +1134,7 @@ shared_data_rfmo <- bind_rows(
   ) %>% 
   rename(hs_name =rfmo_name,
          area_hs = area_rfmo)
-# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+
 
 ## Ocean Basin species ##
 straddling_ob <- list.files(my_path("R","straddling_realm_ob/"))
@@ -1275,19 +1277,20 @@ ggsave("./results/supplements/fig_S3.png",
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key)) #76
-round(67/633 *100) #12
+length(unique(prop_data$taxon_key)) #67
+round(67/633 *100) #11
 
 # Number of straddling stocks
 prop_data %>% 
   group_by(hs_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 350
+  pull(x) %>% sum() # 347
 
 straddling_species <- prop_data %>% 
   left_join(exploited_spp) %>% 
-  left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
+  left_join(sau_groups #%>% rename(taxon_name = scientific_name)
+            ) %>% 
   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   tally() %>% 
@@ -1298,7 +1301,7 @@ straddling_species %>%
   unique()
 
 
-# write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
+write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
 
 ```
 
