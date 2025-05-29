@@ -1038,6 +1038,41 @@ length(unique(prop_data$taxon_key)) # 67 species total (15 highly migratory + 52
 
 ```
 
+
+```{r}
+
+### Save data for Borealis
+write_csv(prop_data,
+          my_path("R", "borealis", name = "proportion_change_data_v2.csv")
+)
+
+# Metadata 
+data.frame(
+  "column_name" = names(prop_data),
+  "description" = 
+    c(
+      "Unique taxon id",
+      "Taxon scientific name according to the Sea Around Us",
+      "Taxon common name (eng.)",
+      "Climate change scenario. rcp85 = ssp5-8.5; rcp26 = ssp1-2.6",
+      "Time period of analysis. Ear = early (2030); mid = middle (2050)",
+      "Name of high seas region",
+      "Name of realm",
+      "Estimation approach. If highly migratory tuna, RFMO, else ocean basin",
+      "historic proportion of stock share ration in the high seas",
+      "lower threshold of historical stock share ratio proportion given by the mean - 2*sd",
+      "future mean threshold of stock share ratio proportion",
+      "upper threshold of historical stock share ratio proportion given by the mean + 2*sd",
+      "Identification of shift in terms of hs_name. The mean needs to overshoot the thresholds for a stock to shift.",
+      "Type of straddling stock according to the definition. straddling and straddling highly migratory."
+    )
+) %>% 
+  write_csv(.,
+            my_path("R", "borealis", name = "proportion_change_metadata.csv")
+  )
+```
+
+
 ### Get proportion analysis for highly migratory species between RFMOs
 
 ```{r}
@@ -1070,6 +1105,37 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
 # Remove duplicates (it is a bi-lateral change)
 length(unique(rfmo_prop_data$taxon_key)) # 13 species 
 
+```
+
+
+```{r}
+
+# Save data for Borealis
+write_csv(rfmo_prop_data,
+          my_path("R", "borealis", name = "hm_rfmo_proportion_change_data_v2.csv")
+)
+
+# Metadata 
+data.frame(
+  "column" = names(rfmo_prop_data),
+  "description" = 
+    c(
+      "Unique taxon id",
+      "Taxon scientific name according to the Sea Around Us",
+      "Taxon common name (eng.)",
+      "Climate change scenario. rcp85 = ssp5-8.5; rcp26 = ssp1-2.6",
+      "Time period of analysis. Ear = early (2030); mid = middle (2050)",
+      "RFMO territory. RFMO t wins/looses proporiton referent to RFMO n",
+      "RFMO neighbour",
+      "lower threshold of historical proportion given by the mean - 2*sd",
+      "mean threshold of future proportion",
+      "upper threshold of historical proportion given by the mean + 2*sd"
+      
+    )
+) %>% 
+  write_csv(.,
+            my_path("R", "uploaded", name = "hm_proportion_change_metadata.csv")
+  )
 ```
 
 
