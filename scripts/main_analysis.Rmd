@@ -916,9 +916,9 @@ straddling_hm <- bind_rows(
   ) %>% 
   mutate(approach = "rfmo",
          category = "highly migratory") %>% 
-  filter(taxon_key %in% highly_migratory_spp$taxon_key)
+  filter(taxon_key %in% highly_migratory_spp$taxon_key) # filter out only UNCLO's species
 
-length(unique(straddling_hm$taxon_key))# 19 species that are highly migratory
+length(unique(straddling_hm$taxon_key))# 19 species modeleed that are highly migratory
 
 # Get Highly migratory straddling stocks
 prop_data_esm_hm <- bind_rows(
@@ -933,7 +933,7 @@ prop_data_esm_hm <- bind_rows(
   ) %>% 
   filter(area_hs > 10,
          area_hs < 90) %>% 
-  # Remove species not present in high seas
+  # Remove stocks not present in high seas
   filter(
     low_tresh != 0 &
       mean != 0 &
@@ -941,8 +941,10 @@ prop_data_esm_hm <- bind_rows(
     low_tresh != 100 &
       mean != 100 &
       top_tresh != 100
-  ) %>% 
+  ) %>%
   left_join(exploited_spp) 
+
+length(unique(prop_data_esm_hm$taxon_key)) # species 
 
 
 prop_data_hm <- prop_data_esm_hm %>%
@@ -959,7 +961,7 @@ prop_data_hm <- prop_data_esm_hm %>%
     category = "highly migratory"
   )
 
-length(unique(prop_data_hm$taxon_key))# 15 #Number that changed 15/19 (79%)
+length(unique(prop_data_hm$taxon_key))# 15 numbers after filters
 
 ```
 
@@ -1066,7 +1068,7 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
     na.rm = T) 
 
 # Remove duplicates (it is a bi-lateral change)
-length(unique(rfmo_prop_data$taxon_key)) # 13 species that changed
+length(unique(rfmo_prop_data$taxon_key)) # 13 species 
 
 ```
 
@@ -1191,25 +1193,29 @@ bind_rows(shared_data_rfmo,
 
 ```{r threshold_sensitivity, eval = F}
 
-
 bind_rows(
-  prop_data_esm_hm,
-  prop_data_esm_nhm
+  bind_rows(
+    lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
+  ) %>% 
+    filter(taxon_key %in% straddling_nhm$taxon_key) %>% 
+    mutate(
+      category = "straddling"
+    ),
+  bind_rows(
+    lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
+  ) %>% 
+    mutate(
+      category = "highly migratory"
+    )
 ) %>% 
-  # bind_rows(
-  #   lapply(straddling_spp,GetResults, type = "prop")
-  # ) %>% 
   filter(
     rcp == "rcp26",
     period == "ear",
     esm == "gfdl"
   ) %>% 
   # View()
-  # Include area index info
-  # left_join(straddling_hm,
-  # by = c("taxon_key","rfmo_name","realm_name")
-  # ) %>%
   mutate(
+    hs_name = ifelse(hs_name == "actic","Arctic_HS",hs_name),
     tresh_30 = ifelse(area_hs > 30, "30%",NA),
     tresh_20 = ifelse(area_hs > 20, "20%",NA),
     tresh_0 = ifelse(area_hs > 0, "0%",NA),
@@ -1263,7 +1269,7 @@ bind_rows(
              ncol = 2)
 
 # Save plot 
-ggsave("./results/supplements/fig_S3.png",
+ggsave("./results/supplements/fig_S6.png",
        last_plot(),
        height = 6,
        width = 12
@@ -1344,14 +1350,16 @@ strad_meow <- prop_data_map %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
+# Map it
+sf_meow_map <- sf_meow %>% 
+  group_by(realm_name = realm,rlm_code) %>% 
+  tally() %>% 
+  select(-n)
 
 strad_meow_map <- sf_meow_map %>% 
   left_join(strad_meow) %>% 
   st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>% 
   st_transform(crs = "+proj=eck4")
-
-
-
 
 # Number of straddling stocks by High seas
 stradd_hs <- prop_data_map %>% 
@@ -1364,13 +1372,6 @@ rfmo_realm <- prop_data_map %>%
   group_by(basin,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
-
-# Map it
-sf_meow_map <- sf_meow %>% 
-  group_by(realm_name = realm,rlm_code) %>% 
-  tally() %>% 
-  select(-n)
-
 
 # Transform projection of all
 basin_sf <- basin_data %>% 
@@ -1448,7 +1449,7 @@ map_high_seas_stradd <-
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1a.png",
+ggsave("./results/figures/fig_1an.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1607,7 +1608,7 @@ prop_data_esm %>%
   ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_min,n_m,n_max,n_sd,per_min,per_m,per_max,n_sd) %>%
-  View()
+  # View()
   write_csv("./results/tables/gains_losses.csv")
 
 ```
