@@ -105,7 +105,7 @@ grid.raster(img)
 ```{r rfmo_map, eval = T, echo = T, echo=FALSE, fig.height = 3,fig.width=8, fig.pos= "h", fig.cap="Map showing the five different tuna RFMO and EEZs classifications according to the marine realm established by Spalding et al (88). The Commission for the Conservation of Southern Bluefin Tuna (CCSBT), The Inter-American Tropical Tuna Commission (IATTC), The International Commission for the Conservation of Atlantic Tunas (ICCAT), The Indian Ocean Tuna Commission (IOTC), and The Western and Central Pacific Fisheries Commission (WCPFC). Note that CCSBT has no defined convention area, thus, for this analysis, CCSBT area has been considered the areas south of IATTC, ICCAT, IOTC and WCPFC convention areas’ southern limits.", out.extra=''}
 
 # Call the image
-img <- readPNG("fig_S7.png")
+img <- readPNG("fig_S6.png")
 
 # Print the image
 grid.raster(img)
@@ -114,7 +114,7 @@ grid.raster(img)
 ```{r treshold, eval = T, echo = T, echo=FALSE, fig.height = 4, fig.width = 7, fig.pos= "H", fig.align='center',fig.cap="Sensitivity analysis for spatial threshold. Each level represents a minimum percentage of occurrence between Region and the high seas. For example, the 10\\% threshold means that both the Region and the the high seas have at least 10\\% of the shared stock. For this study we used the 10\\% (red) threshold, the 0\\% (gray) represents no threshold. Analysis done with GFDL under low emission scenario at the early time period (see methods)", out.extra=''}
 
 # Call the image
-img <- readPNG("fig_S6.png")
+img <- readPNG("fig_S7.png")
 
 # Print the image
 grid.raster(img)
