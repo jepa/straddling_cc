@@ -708,19 +708,6 @@ suppressMessages(
 )
 
 
-# For lauren
-#Multiple species in parallel
-suppressMessages(
-  mclapply(run_me_list,
-           taxon_proportion,
-           dbem_grid = meow_dbem_grid,
-           hs_index = ob_index,
-           high_mig = F,
-           folder_name = "/lauren/per_change_realm_ob",
-           mc.cores = detectCores()-4)
-)
-
-
 ```
 
 
@@ -825,8 +812,6 @@ List of Highly migratory speices according to Annex I Highly migratory species o
 
 ```{r un_highly_mig_spp, eval = F}
 
-# CANCELLED CHUNK
-
 # List of SAU species
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
@@ -837,6 +822,7 @@ highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnu
                                               
                                               "Istiophorus platypterus","Istiophorus albicans",
                                               "Xiphias gladius",
+                                              "Coryphaena hippurus",
                                               "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
                                               "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
                                reffered_as = c(
@@ -845,6 +831,7 @@ highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnu
                                  rep("Marlin",9),
                                  "Sail-fish","Sail-fish",
                                  "Sword-fish",
+                                 "Common dolphinfish",
                                  rep("Saury",4),
                                  rep("Shark",3)
                                )) %>% 
@@ -929,9 +916,9 @@ straddling_hm <- bind_rows(
   ) %>% 
   mutate(approach = "rfmo",
          category = "highly migratory") %>% 
-  filter(taxon_key %in% highly_migratory_spp$taxon_key)
+  filter(taxon_key %in% highly_migratory_spp$taxon_key) # filter out only UNCLO's species
 
-length(unique(straddling_hm$taxon_key))# 18 species that are highly migratory
+length(unique(straddling_hm$taxon_key))# 19 species modeleed that are highly migratory
 
 # Get Highly migratory straddling stocks
 prop_data_esm_hm <- bind_rows(
@@ -946,7 +933,7 @@ prop_data_esm_hm <- bind_rows(
   ) %>% 
   filter(area_hs > 10,
          area_hs < 90) %>% 
-  # Remove species not present in high seas
+  # Remove stocks not present in high seas
   filter(
     low_tresh != 0 &
       mean != 0 &
@@ -954,8 +941,10 @@ prop_data_esm_hm <- bind_rows(
     low_tresh != 100 &
       mean != 100 &
       top_tresh != 100
-  ) %>% 
+  ) %>%
   left_join(exploited_spp) 
+
+length(unique(prop_data_esm_hm$taxon_key)) # species 
 
 
 prop_data_hm <- prop_data_esm_hm %>%
@@ -972,7 +961,7 @@ prop_data_hm <- prop_data_esm_hm %>%
     category = "highly migratory"
   )
 
-length(unique(prop_data_hm$taxon_key))# 14
+length(unique(prop_data_hm$taxon_key))# 15 numbers after filters
 
 ```
 
@@ -994,12 +983,14 @@ straddling_nhm <- bind_rows(
 
 length(unique(straddling_nhm$taxon_key))# 131
 
-# Get straddling stocks
+# Get straddling stocks after applying filters
 prop_data_esm_nhm <- bind_rows(
   lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
 ) %>% 
-  filter(area_hs > 10,
-         area_hs < 90) %>% 
+  filter(
+    taxon_key %in% straddling_nhm$taxon_key,
+    area_hs >= 10,
+         area_hs <= 90) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
@@ -1012,6 +1003,8 @@ prop_data_esm_nhm <- bind_rows(
   left_join(exploited_spp)  %>% 
   mutate(approach = "ocean_basin",
          category = "straddling")
+
+length(unique(prop_data_esm_nhm$taxon_key)) # 52 number that were identified (52/131) 40%
 
 
 prop_data_nhm <- prop_data_esm_nhm %>%
@@ -1026,11 +1019,10 @@ prop_data_nhm <- prop_data_esm_nhm %>%
   )
   )
 
-length(unique(prop_data_nhm$taxon_key)) # 53
+length(unique(prop_data_nhm$taxon_key)) # 52 number that changed (52/131) 40%
 
 
 #### Combine both data ###
-
 prop_data_esm <- bind_rows(
   prop_data_esm_hm,
   prop_data_esm_nhm
@@ -1041,8 +1033,17 @@ prop_data <- bind_rows(
   prop_data_nhm
 )
 
+length(unique(prop_data$taxon_key)) # 67 species total (15 highly migratory + 52 non-highly migratory)
+
+
+```
+
+
+```{r}
+
+### Save data for Borealis
 write_csv(prop_data,
-          my_path("R", "uploaded", name = "proportion_change_data.csv")
+          my_path("R", "borealis", name = "proportion_change_data_v2.csv")
 )
 
 # Metadata 
@@ -1067,11 +1068,10 @@ data.frame(
     )
 ) %>% 
   write_csv(.,
-            my_path("R", "uploaded", name = "proportion_change_metadata.csv")
+            my_path("R", "borealis", name = "proportion_change_metadata.csv")
   )
-  
-
 ```
+
 
 ### Get proportion analysis for highly migratory species between RFMOs
 
@@ -1084,6 +1084,7 @@ rfmo_prop_data_esm <- bind_rows(
 ) %>% 
   # Remove species not present in high seas
   filter(
+    taxon_key %in% highly_migratory_spp$taxon_key,
     low_tresh_t != 0 &
       mean_t != 0 &
       top_tresh_t != 0,
@@ -1102,10 +1103,16 @@ rfmo_prop_data <- rfmo_prop_data_esm %>%
     na.rm = T) 
 
 # Remove duplicates (it is a bi-lateral change)
-length(unique(rfmo_prop_data$taxon_key))# 45
+length(unique(rfmo_prop_data$taxon_key)) # 13 species 
 
+```
+
+
+```{r}
+
+# Save data for Borealis
 write_csv(rfmo_prop_data,
-          my_path("R", "uploaded", name = "hm_proportion_change_data.csv")
+          my_path("R", "borealis", name = "hm_rfmo_proportion_change_data_v2.csv")
 )
 
 # Metadata 
@@ -1129,12 +1136,7 @@ data.frame(
   write_csv(.,
             my_path("R", "uploaded", name = "hm_proportion_change_metadata.csv")
   )
-  
-
-
 ```
-
-
 
 
 ### Create SAU data for fishing groups
@@ -1200,7 +1202,7 @@ shared_data_rfmo <- bind_rows(
   ) %>% 
   rename(hs_name =rfmo_name,
          area_hs = area_rfmo)
-# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
+
 
 ## Ocean Basin species ##
 straddling_ob <- list.files(my_path("R","straddling_realm_ob/"))
@@ -1257,25 +1259,29 @@ bind_rows(shared_data_rfmo,
 
 ```{r threshold_sensitivity, eval = F}
 
-
 bind_rows(
-  prop_data_esm_hm,
-  prop_data_esm_nhm
+  bind_rows(
+    lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
+  ) %>% 
+    filter(taxon_key %in% straddling_nhm$taxon_key) %>% 
+    mutate(
+      category = "straddling"
+    ),
+  bind_rows(
+    lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
+  ) %>% 
+    mutate(
+      category = "highly migratory"
+    )
 ) %>% 
-  # bind_rows(
-  #   lapply(straddling_spp,GetResults, type = "prop")
-  # ) %>% 
   filter(
     rcp == "rcp26",
     period == "ear",
     esm == "gfdl"
   ) %>% 
   # View()
-  # Include area index info
-  # left_join(straddling_hm,
-  # by = c("taxon_key","rfmo_name","realm_name")
-  # ) %>%
   mutate(
+    hs_name = ifelse(hs_name == "actic","Arctic_HS",hs_name),
     tresh_30 = ifelse(area_hs > 30, "30%",NA),
     tresh_20 = ifelse(area_hs > 20, "20%",NA),
     tresh_0 = ifelse(area_hs > 0, "0%",NA),
@@ -1329,7 +1335,7 @@ bind_rows(
              ncol = 2)
 
 # Save plot 
-ggsave("./results/supplements/fig_S3.png",
+ggsave("./results/supplements/fig_S6.png",
        last_plot(),
        height = 6,
        width = 12
@@ -1343,19 +1349,20 @@ ggsave("./results/supplements/fig_S3.png",
 ```{r}
 
 # Number of straddling species
-length(unique(prop_data$taxon_key)) #76
-round(67/633 *100) #12
+length(unique(prop_data$taxon_key)) #67
+round(67/633 *100) #11
 
 # Number of straddling stocks
 prop_data %>% 
   group_by(hs_name,realm_name) %>% 
   summarise(x = length(unique(taxon_key)),
             .groups = "keep") %>% 
-  pull(x) %>% sum() # 350
+  pull(x) %>% sum() # 347
 
 straddling_species <- prop_data %>% 
   left_join(exploited_spp) %>% 
-  left_join(sau_groups %>% rename(taxon_name = scientific_name)) %>% 
+  left_join(sau_groups #%>% rename(taxon_name = scientific_name)
+            ) %>% 
   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   tally() %>% 
@@ -1366,7 +1373,19 @@ straddling_species %>%
   unique()
 
 
-# write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
+write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
+
+
+straddling_species %>% 
+  mutate(
+    large_pel = commercial_group %in% c("Tuna & billfishes", "Sharks & rays")
+  ) %>% 
+  group_by(large_pel) %>%
+  tally()
+  
+# Total large pellagics
+# tunas, billfishes sharks rays + mola, king of fish, wahoo, Common dolphinfish,
+(34 + 4) /67
 
 ```
 
@@ -1397,14 +1416,16 @@ strad_meow <- prop_data_map %>%
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
 
+# Map it
+sf_meow_map <- sf_meow %>% 
+  group_by(realm_name = realm,rlm_code) %>% 
+  tally() %>% 
+  select(-n)
 
 strad_meow_map <- sf_meow_map %>% 
   left_join(strad_meow) %>% 
   st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>% 
   st_transform(crs = "+proj=eck4")
-
-
-
 
 # Number of straddling stocks by High seas
 stradd_hs <- prop_data_map %>% 
@@ -1417,13 +1438,6 @@ rfmo_realm <- prop_data_map %>%
   group_by(basin,realm_name) %>% 
   summarise(n = length(unique(taxon_key))) %>% 
   mutate(scale_n = scaling(n))
-
-# Map it
-sf_meow_map <- sf_meow %>% 
-  group_by(realm_name = realm,rlm_code) %>% 
-  tally() %>% 
-  select(-n)
-
 
 # Transform projection of all
 basin_sf <- basin_data %>% 
@@ -1501,7 +1515,7 @@ map_high_seas_stradd <-
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1ac.png",
+ggsave("./results/figures/fig_1an.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1603,8 +1617,8 @@ prop_data %>%
   mutate(combo = paste0(realm_name,"_",hs_name)) %>% 
   group_by(taxon_name,common_name,commercial_group) %>% 
   summarise(value = length(unique(combo))) %>%
-  left_join(un_species) %>% 
-  View()
+  left_join(highly_migratory_spp) %>% 
+  # View()
 top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
@@ -1975,12 +1989,17 @@ ggsave(
 
 
 sankey_rfmo <- rfmo_prop_data %>% 
+ mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
+  ) %>% 
   group_by(period,rcp,rfmo_name = rfmo_t,rfmo_n,change) %>% 
   tally() %>% 
   rename(
     name = rfmo_n,
     hs_name = rfmo_name
-  )
+  ) %>% 
+  mutate(n_per = NA)
 
 mycolor_scale <- 
   c(
@@ -2006,13 +2025,12 @@ lapply(rcp_vals, function(rcp) {
   })
 })
 
-# circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
+
+circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level = "rfmo", rcp = "rcp85")
 
 ```
 
 ##### RFMO map for figure
-
-
 
 ```{r}
 sf_rfmo_map <-
@@ -2096,6 +2114,10 @@ dev.off()
 ```{r}
 
 rfmo_prop_data %>% 
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+                         ifelse(mean_t < low_tresh_t,"lost","same")
+  )
+  ) %>% 
   group_by(rfmo_t,rfmo_n,period,rcp,change) %>% 
   tally() %>% 
   group_by(period,rcp,change) %>% 
