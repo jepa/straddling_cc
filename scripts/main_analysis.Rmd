@@ -74,15 +74,80 @@ source("./functions/circle_figures_fx.R")
 
 4.- Be happy, happy like a hippo
 
-# Data
+## Data
 
-## Shapefiles 
+### Shapefiles 
+
+#### Ocean Basins
+
+Bioms data from Gabs (Reygondea et al 2019)
+
+```{r}
+# Do analysis by ocean basin
+
+# Bioms data from Gabs (Reygondea et al 2019)
+# biome2 1 = Coastal tropical 
+# biome2 2 = Coastal sub-tropical
+# biome2 3 = Coastal polar
+# biome2 4 = Oceanic tropical
+# biome2 5 = Oceanic sub-tropical
+# biome2 6 = Oceanic polar
+
+basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
+  mutate(
+    basin_name = ifelse(basin2 == 0, "w_atlantic",
+                        ifelse(basin2 == 1 ,"e_atlantic",
+                               ifelse(basin2 == 2, "e_pacific",
+                                      ifelse(basin2 == 3, "w_pacific",
+                                             ifelse(basin2 == 4, "w_indian",
+                                                    ifelse(basin2 == 5,"e_indian",
+                                                           ifelse(basin2 == 6,"antarctic",
+                                                                  ifelse(basin2 == 7,"actic",
+                                                                         NA))))))))
+  ) %>% 
+  select(lon = longitude,
+         lat = latitude,
+         basin_name) %>% 
+  left_join(my_data("dbem_coords"))
+
+
+# For supplemental material 
+
+basin_sf <- st_as_sf(basin_data,
+                     coords = c("lon", "lat"), crs = 4326)  # WGS84
+
+# meow_sf <- my_sf("MEOW")
+
+ggplot() +
+  geom_sf(data = basin_sf %>% filter(!is.na(basin_name)),
+          aes(
+            color = as.character(basin_name)
+          )
+  ) +
+  geom_sf(data = meow_sf %>% filter(realm == "Central Indo-Pacific"), aes(fill = realm)) +
+  scale_fill_viridis_d() +
+  scale_color_brewer(palette = "Set3") + 
+  my_land_map(fill = "black") +
+  theme(legend.background = element_blank())
+
+
+
+# This data now substitutes rfmo_index in the analysis
+ob_index <- basin_data %>% 
+  filter(!index %in% dbem_meow_df$index) %>% 
+  select(index,basin_name)
+
+# DBEM to MEOW grid
+meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
+  clean_names()
+
+# Neighboring RFMOs and MEOWs created in previous chunk on July 20
+ob_meow <- my_path("G","Spatial/SAU/","ob_meow_neighbours.csv", read = T)
+```
+
+#### General shapefiles
 
 ```{r shapefiles, eval = F}
-
-# World land maps
-world_land <- ne_countries(scale = 'medium', returnclass = c("sf")) %>% 
-  st_transform(crs = 4326)# 4326
 
 # Coordinatres DBEM
 coords_dbem <- my_path("Spa","DBEM","Lon_Lat_DBEM.txt",read = T, header = F)
@@ -129,9 +194,10 @@ dbem_meow_df_supp <- dbem_meow_df %>%
          Realm = realm,
          EEZ = eez_name)
 
+# Save data for future analysis
 # write_csv(dbem_meow_df_supp,"./results/supplements/realm_to_eez.csv")
 
-
+# Check map
 # dbem_meow_df_supp %>%
 #   filter(eez_name=="High seas") %>%
 #   left_join(coords_dbem) %>%
@@ -190,7 +256,8 @@ dbem_rfmo_index <- rfmo_dbem_hs %>%
 #     fill = "red"
 #   )
 
-write_csv(dbem_rfmo_index, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
+# Save data for further analysis
+# write_csv(dbem_rfmo_index, my_path("Spa", "SAU/SAU_RFMO/","RFMO_Index_Code.csv"))
 
 ## Coombine rfmo and MEOW shapefiles in one
 sf_rfmo_to_combine <- sf_rfmo %>% 
@@ -202,26 +269,6 @@ sf_meow_to_combine <- meow_regions %>%
 sf_meow_rfmo <- rbind(sf_rfmo_to_combine, 
                       sf_meow_to_combine)
 
-### Basins data ####
-
-
-basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
-  mutate(
-    basin = ifelse(basin2 == 0, "w_atlantic",
-                   ifelse(basin2 == 1 ,"e_atlantic",
-                          ifelse(basin2 == 2, "e_pacific",
-                                 ifelse(basin2 == 3, "w_pacific",
-                                        ifelse(basin2 == 4, "w_indian",
-                                               ifelse(basin2 == 5,"e_indian",
-                                                      ifelse(basin2 == 6,"antarctic",
-                                                             ifelse(basin2 == 7,"actic",
-                                                                    NA))))))))
-  ) %>% 
-  dplyr::select(lon = longitude,
-                lat = latitude,
-                basin) %>% 
-  left_join(my_data("dbem_coords")) %>% 
-  filter(!is.na(basin))
 
 # Create index only of high seas
 ob_index <- basin_data %>% 
@@ -238,7 +285,6 @@ ob_index <- basin_data %>%
 
 
 # Join both SF to run neighbours on
-
 basin_sf <-st_as_sf(basin_data,
                     coords = c("lon", "lat")
 ) %>% 
@@ -264,7 +310,7 @@ unique(sf_meow_basin$region)
 ```
 
 
-# Determine adjacent RFMOs and MEOWS
+## Determine adjacent RFMOs and MEOWS
 
 Code modified from FishForVisa
 
@@ -330,84 +376,17 @@ ob_meow_final <- bind_rows(rfmo_partial,meow_partial) %>%
   tally() %>% 
   select(-n)
 
+# If done with ocean basins data
+# write_csv(ob_meow_final, my_path("G","Spatial/SAU/","ob_meow_neighbours.csv"))
 
-write_csv(ob_meow_final, my_path("G","Spatial/SAU/","ob_meow_neighbours.csv"))
+# If done with RFMO data
 # write_csv(ob_meow_final, my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv"))
 
 ```
 
-# Determining straddling stocks
+## Determining straddling stocks
 
-## Control pannel
-
-## Ocean Basin data
-
-```{r}
-
-# Do analysis by ocean basin
-
-# Bioms data from Gabs (Reygondea et al 2019)
-# biome2 1 = Coastal tropical 
-# biome2 2 = Coastal sub-tropical
-# biome2 3 = Coastal polar
-# biome2 4 = Oceanic tropical
-# biome2 5 = Oceanic sub-tropical
-# biome2 6 = Oceanic polar
-
-basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
-  mutate(
-    basin_name = ifelse(basin2 == 0, "w_atlantic",
-                        ifelse(basin2 == 1 ,"e_atlantic",
-                               ifelse(basin2 == 2, "e_pacific",
-                                      ifelse(basin2 == 3, "w_pacific",
-                                             ifelse(basin2 == 4, "w_indian",
-                                                    ifelse(basin2 == 5,"e_indian",
-                                                           ifelse(basin2 == 6,"antarctic",
-                                                                  ifelse(basin2 == 7,"actic",
-                                                                         NA))))))))
-  ) %>% 
-  select(lon = longitude,
-         lat = latitude,
-         basin_name) %>% 
-  left_join(my_data("dbem_coords"))
-
-
-# For supplemental material 
-
-basin_sf <- st_as_sf(basin_data,
-                     coords = c("lon", "lat"), crs = 4326)  # WGS84
-
-# meow_sf <- my_sf("MEOW")
-
-ggplot() +
-  geom_sf(data = basin_sf %>% filter(!is.na(basin_name)),
-          aes(
-            color = as.character(basin_name)
-          )
-  ) +
-  geom_sf(data = meow_sf %>% filter(realm == "Central Indo-Pacific"), aes(fill = realm)) +
-  scale_fill_viridis_d() +
-  scale_color_brewer(palette = "Set3") + 
-  my_land_map(fill = "black") +
-  theme(legend.background = element_blank())
-
-
-
-# This data now substitutes rfmo_index in the analysis
-ob_index <- basin_data %>% 
-  filter(!index %in% dbem_meow_df$index) %>% 
-  select(index,basin_name)
-
-# DBEM to MEOW grid
-meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
-  clean_names()
-
-# Neighboring RFMOs and MEOWs created in previous chunk on July 20
-ob_meow <- my_path("G","Spatial/SAU/","ob_meow_neighbours.csv", read = T)
-
-```
-
-## RFMO data
+### Data required
 
 ```{r}
 
@@ -416,20 +395,13 @@ rfmo_index <- my_path("Spa","/SAU/SAU_RFMO/","RFMO_Index_Code.csv", read = T)
 # Neighboring RFMOs and MEOWs created in previous chunk on July 20
 rfmo_meow <- my_path("G","Spatial/SAU/SAU_RFMO/","rfmo_meow_neighbours.csv", read = T)
 
-
-```
-
-
-```{r control_pannel, eva = F}
-
-# Gabriel's coordinate system 
+# Gabriel's coordinate system for GetSppDist fx. data pull
 CoorG <- my_path("G","FishForVisa/Data/Spatial/","coordinates_gab.csv",read =T) %>%
   mutate(INDEX = seq(1,259200,1))
 
-# DBEM to MEOW grid
+# DBEM to MEOW grid needed for stradd_index fx
 meow_dbem_grid <- my_path("Spa","MEOW", "meow_dbem_grid.csv", read = T) %>% 
   clean_names()
-
 
 # Load FishForVisa Results
 transboundary_spp <- read_csv("https://media.githubusercontent.com/media/jepa/FishForVisa/master/Data/Results/Clean_Results_Trans.csv") %>% 
@@ -458,8 +430,7 @@ run_me <- transboundary_spp %>%
   unique()
 
 
-# Exx to region to Rfmo  DF
-
+# Get eez to rfmo region for highly migratory
 eez_rfmo_region <- dbem_sf %>% 
   left_join(sau_index_code) %>% 
   filter(eez_id > 0) %>% 
@@ -476,6 +447,8 @@ write(eez_rfmo_region, my_path("D","Spatial",name = "eez_rfmo_region.csv"))
 
 ```
 
+
+### Control Panel
 
 Methodological points to consider
 
@@ -543,7 +516,7 @@ gc()
 
 ```
 
-# Estimating Proportion change
+## Estimating Proportion change
 
 ### Control pannel for RFMO to realm
 
@@ -605,16 +578,16 @@ run_me_list <- highly_migratory_spp %>%
 
 ```
 
-### Proportion estimate
+#### Proportion estimate
 
 ```{r proportion_call, eval = F}
 
 # Single species
-taxon_proportion(taxon_key = 600069,
-                 dbem_grid = meow_dbem_grid,
-                 hs_index = ob_index,
-                 folder_name = "per_change_realm_ob"
-)
+# taxon_proportion(taxon_key = 600069,
+#                  dbem_grid = meow_dbem_grid,
+#                  hs_index = ob_index,
+#                  folder_name = "per_change_realm_ob"
+# )
 
 # Multiple speices in one
 # suppressMessages(
@@ -673,28 +646,28 @@ non_high_mig <- read_csv("results/supplements/straddling_species.csv") %>%
 
 ```
 
-### Proportion estimate
+#### Proportion estimate
 
 ```{r proportion_call, eval = F}
 
 # Single species
-taxon_proportion(taxon_key = 600069,
-                 dbem_grid = meow_dbem_grid,
-                 hs_index = ob_index,
-                 high_mig = F,
-                 folder_name = "per_change_realm_ob"
+# taxon_proportion(taxon_key = 600069,
+#                  dbem_grid = meow_dbem_grid,
+#                  hs_index = ob_index,
+#                  high_mig = F,
+#                  folder_name = "per_change_realm_ob"
 )
 
 # Multiple speices in one
-suppressMessages(
-  lapply(run_me_list,
-         taxon_proportion,
-         dbem_grid = meow_dbem_grid,
-         hs_index = ob_index,
-         high_mig = F,
-         folder_name = "per_change_realm_ob"
-  )
-)
+# suppressMessages(
+#   lapply(run_me_list,
+#          taxon_proportion,
+#          dbem_grid = meow_dbem_grid,
+#          hs_index = ob_index,
+#          high_mig = F,
+#          folder_name = "per_change_realm_ob"
+#   )
+# )
 
 #Multiple species in parallel
 suppressMessages(
@@ -709,7 +682,6 @@ suppressMessages(
 
 
 ```
-
 
 ### Control pannel for RFMO to RFMO
 
@@ -779,7 +751,7 @@ stradd_data_ob <- bind_rows(
 ```
 
 
-### Proportion estimate
+#### Proportion estimate
 
 ```{r proportion_call, eval = F}
 
@@ -805,14 +777,13 @@ suppressMessages(
 
 ## Data needed
 
-
-### Highly migratory speices
+### Data for highly migratory speices
 
 List of Highly migratory speices according to Annex I Highly migratory species of UNCLOS. Note that we only included those at the species level https://www.un.org/depts/los/convention_agreements/texts/unclos/annex1.htm
 
 ```{r un_highly_mig_spp, eval = F}
 
-# List of SAU species
+# List of SAU speciess
 exploited_spp <- my_path("G","Species", "exploited_species_list.csv", read = T)
 
 
@@ -841,6 +812,50 @@ highly_migratory_spp <- tibble(taxon_name = c("Thunnus alalunga","Thunnus thynnu
 
 ```
 
+### Create SAU data for fishing groups
+
+```{r}
+
+# rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
+#   my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
+#   # my_path("D","SAU/catch/iccat",),
+#   my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
+#   my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
+# )
+
+# suppressMessages(
+# rfmo_catch <- bind_rows(
+#   lapply(rfmo_list, read_csv)) %>%
+#   filter(scientific_name %in% unique(prop_data$taxon_name)) %>%
+#   group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>%
+#   #adds up gear type, fishing sectors, catch type and reporting
+#   summarise_at(.vars = c("tonnes","landed_value"),
+#                .funs = sum) %>%
+#   # Average last 10 years of data
+#   filter(year >= 2007) %>%
+#   group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>%
+#   summarise_at(.vars = c("tonnes","landed_value"),
+#                .funs = mean,
+#                na.rm = T) %>%
+#   filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
+#          !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
+#          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
+#          ) #remove wrong data as per personal communication with Deng P.
+# ) %>%
+#   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
+#          commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
+#                                    ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
+#                                           commercial_group)
+#          )
+#   )
+
+
+sau_groups <- read.csv("./results/supplements/straddling_species.csv")
+
+```
+
+### Spatial data needed
+
 ```{r spatial_data, eva = T}
 
 #-----------------# 
@@ -868,17 +883,13 @@ sf_meow <- sf_meow %>%
 
 # RFMO regions
 # sf_rfmo <- my_sf("RFMO_tuna",simple = 1) %>% 
-  # st_transform(crs = "+proj=eck4")
+# st_transform(crs = "+proj=eck4")
 
 # SAU shapefile
 # sf_eez <- my_sf("SAU", simple = 0.1)
 
 # SAU index table
 sau_index_code <- my_data("sau_index")
-
-# SAU eez to fishing entity
-sau_matching_names <- read.csv("~/Library/CloudStorage/OneDrive-UBC/Data/Spatial/SAU/sau_matching_names.csv") %>% 
-  dplyr::select(sf_eez_name,fishing_entity = sau_fishing_entity,iso_a3)
 
 
 basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>% 
@@ -900,7 +911,7 @@ basin_data <- my_path("Spa","gabs","ALL_META_HAB_CMIP6_LAYERS.csv", read = T) %>
   filter(!is.na(basin))
 ```
 
-### Get data for Highly migratory species
+## Highly migratory species
 
 ```{r}
 
@@ -965,7 +976,7 @@ length(unique(prop_data_hm$taxon_key))# 15 numbers after filters
 
 ```
 
-### Get proportion analysis for non-highly migratory species
+## Non-highly migratory species
 
 ```{r}
 
@@ -990,7 +1001,7 @@ prop_data_esm_nhm <- bind_rows(
   filter(
     taxon_key %in% straddling_nhm$taxon_key,
     area_hs >= 10,
-         area_hs <= 90) %>% 
+    area_hs <= 90) %>% 
   # Remove species not present in high seas
   filter(
     low_tresh != 0 &
@@ -1038,42 +1049,7 @@ length(unique(prop_data$taxon_key)) # 67 species total (15 highly migratory + 52
 
 ```
 
-
-```{r}
-
-### Save data for Borealis
-write_csv(prop_data,
-          my_path("R", "borealis", name = "proportion_change_data_v2.csv")
-)
-
-# Metadata 
-data.frame(
-  "column_name" = names(prop_data),
-  "description" = 
-    c(
-      "Unique taxon id",
-      "Taxon scientific name according to the Sea Around Us",
-      "Taxon common name (eng.)",
-      "Climate change scenario. rcp85 = ssp5-8.5; rcp26 = ssp1-2.6",
-      "Time period of analysis. Ear = early (2030); mid = middle (2050)",
-      "Name of high seas region",
-      "Name of realm",
-      "Estimation approach. If highly migratory tuna, RFMO, else ocean basin",
-      "historic proportion of stock share ration in the high seas",
-      "lower threshold of historical stock share ratio proportion given by the mean - 2*sd",
-      "future mean threshold of stock share ratio proportion",
-      "upper threshold of historical stock share ratio proportion given by the mean + 2*sd",
-      "Identification of shift in terms of hs_name. The mean needs to overshoot the thresholds for a stock to shift.",
-      "Type of straddling stock according to the definition. straddling and straddling highly migratory."
-    )
-) %>% 
-  write_csv(.,
-            my_path("R", "borealis", name = "proportion_change_metadata.csv")
-  )
-```
-
-
-### Get proportion analysis for highly migratory species between RFMOs
+## Highly migratory species between RFMOs
 
 ```{r}
 
@@ -1107,6 +1083,44 @@ length(unique(rfmo_prop_data$taxon_key)) # 13 species
 
 ```
 
+## Save data for Borealis
+
+### Highly and non-highly migratory
+
+```{r}
+
+###  Save data for Borealis
+write_csv(prop_data,
+          my_path("R", "borealis", name = "proportion_change_data_v2.csv")
+)
+
+# Metadata 
+data.frame(
+  "column_name" = names(prop_data),
+  "description" = 
+    c(
+      "Unique taxon id",
+      "Taxon scientific name according to the Sea Around Us",
+      "Taxon common name (eng.)",
+      "Climate change scenario. rcp85 = ssp5-8.5; rcp26 = ssp1-2.6",
+      "Time period of analysis. Ear = early (2030); mid = middle (2050)",
+      "Name of high seas region",
+      "Name of realm",
+      "Estimation approach. If highly migratory tuna, RFMO, else ocean basin",
+      "historic proportion of stock share ration in the high seas",
+      "lower threshold of historical stock share ratio proportion given by the mean - 2*sd",
+      "future mean threshold of stock share ratio proportion",
+      "upper threshold of historical stock share ratio proportion given by the mean + 2*sd",
+      "Identification of shift in terms of hs_name. The mean needs to overshoot the thresholds for a stock to shift.",
+      "Type of straddling stock according to the definition. straddling and straddling highly migratory."
+    )
+) %>% 
+  write_csv(.,
+            my_path("R", "borealis", name = "proportion_change_metadata.csv")
+  )
+```
+
+### Highly migratory between RFMOs
 
 ```{r}
 
@@ -1139,262 +1153,11 @@ data.frame(
 ```
 
 
-### Create SAU data for fishing groups
-
-```{r}
-
-# rfmo_list <- c(my_path("D","SAU/catch/ccsbt","SAU RFMO 3 v50-1.csv", read = F),
-#   my_path("D","SAU/catch/iattc", "SAU RFMO 5 v50-1.csv", read = F),
-#   # my_path("D","SAU/catch/iccat",),
-#   my_path("D","SAU/catch/iotc","SAU RFMO 7 v50-1.csv", read = F),
-#   my_path("D","SAU/catch/wcpfc","SAU RFMO 18 v50-1.csv")
-# )
-
-# suppressMessages(
-# rfmo_catch <- bind_rows(
-#   lapply(rfmo_list, read_csv)) %>%
-#   filter(scientific_name %in% unique(prop_data$taxon_name)) %>%
-#   group_by(area_name,year,scientific_name,common_name,commercial_group,fishing_entity) %>%
-#   #adds up gear type, fishing sectors, catch type and reporting
-#   summarise_at(.vars = c("tonnes","landed_value"),
-#                .funs = sum) %>%
-#   # Average last 10 years of data
-#   filter(year >= 2007) %>%
-#   group_by(area_name,scientific_name, common_name,commercial_group,fishing_entity) %>%
-#   summarise_at(.vars = c("tonnes","landed_value"),
-#                .funs = mean,
-#                na.rm = T) %>%
-#   filter(!(common_name == "Indian mackerel" & fishing_entity == "Thailand"),
-#          !(common_name == "Japanese anchovy" & fishing_entity %in% c("China","Japan")),
-#          !(common_name == "Short mackerel" & fishing_entity == "Indonesia")
-#          ) #remove wrong data as per personal communication with Deng P.
-# ) %>%
-#   mutate(commercial_group = ifelse(is.na(commercial_group),"Other fishes & inverts",commercial_group),
-#          commercial_group = ifelse(scientific_name %in% c("Clupea harengus","Regalecus glesne"),"Herring-likes",
-#                                    ifelse(scientific_name %in% c("Glyptocephalus cynoglossus","Hippoglossoides platessoides","Hippoglossus hippoglossus"),"Flat-fish",
-#                                           commercial_group)
-#          )
-#   )
-
-
-sau_groups <- read.csv("./results/supplements/straddling_species.csv")
-
-```
-
 ## Straddling identification
-
-### Straddling identification method
-
-Supplemental material to show the different ammount of Straddling stocks depending on the threshold 
-
-```{r}
-## RFMO species ##
-straddling_rfmo <- list.files(my_path("R","Straddling_realm_rfmo/"))
-straddling_spp_rfmo <- str_replace(spp_complete,"\\_.*","")
-
-# Get straddling stocks
-shared_data_rfmo <- bind_rows(
-  lapply(straddling_spp_rfmo,GetResults, type = "strad")
-) %>%
-  left_join(exploited_spp) %>%
-  mutate(
-    category = "rfmo"
-  ) %>% 
-  rename(hs_name =rfmo_name,
-         area_hs = area_rfmo)
-
-
-## Ocean Basin species ##
-straddling_ob <- list.files(my_path("R","straddling_realm_ob/"))
-straddling_spp_ob <- str_replace(straddling_ob,"\\_.*","")
-
-# Get straddling stocks
-shared_data_ob <- bind_rows(
-  lapply(straddling_spp_ob,GetResults, type = "ob")
-) %>%
-  left_join(exploited_spp) %>%
-  mutate(
-    category = "ocean_basin"
-  )
-# mutate(category = ifelse(taxon_name %in% un_species$scientific_name,"strad","high_mig"))
-
-
-bind_rows(shared_data_rfmo,
-          shared_data_ob
-) %>% 
-  group_by(realm,category) %>% 
-  tally() %>% 
-  spread(category,n) %>% 
-  mutate(
-    difference = abs(ocean_basin-rfmo)
-  ) 
-
-bind_rows(shared_data_rfmo,
-          shared_data_ob
-) %>% 
-  group_by(hs_name,category) %>% 
-  tally() %>% 
-  spread(category,n) %>% 
-  mutate(
-    difference = abs(ocean_basin-rfmo)
-  ) 
-
-
-#### Non Higly migratory ### 
-
-bind_rows(shared_data_rfmo,
-          shared_data_ob
-) %>% 
-  filter(taxon_key %in% non_high_mig) %>% 
-  group_by(realm,category) %>% 
-  tally() %>% 
-  spread(category,n) %>% 
-  mutate(
-    difference = abs(ocean_basin-rfmo)
-  ) 
-
-```
-
-### Straddling treshold supplements
-
-```{r threshold_sensitivity, eval = F}
-
-bind_rows(
-  bind_rows(
-    lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
-  ) %>% 
-    filter(taxon_key %in% straddling_nhm$taxon_key) %>% 
-    mutate(
-      category = "straddling"
-    ),
-  bind_rows(
-    lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
-  ) %>% 
-    mutate(
-      category = "highly migratory"
-    )
-) %>% 
-  filter(
-    rcp == "rcp26",
-    period == "ear",
-    esm == "gfdl"
-  ) %>% 
-  # View()
-  mutate(
-    hs_name = ifelse(hs_name == "actic","Arctic_HS",hs_name),
-    tresh_30 = ifelse(area_hs > 30, "30%",NA),
-    tresh_20 = ifelse(area_hs > 20, "20%",NA),
-    tresh_0 = ifelse(area_hs > 0, "0%",NA),
-    tresh_10 = ifelse(area_hs > 10, "10%",NA),
-    combo = paste(realm_name,hs_name, sep = "-")
-  ) %>%
-  # View()
-  group_by(category,combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
-  tally() %>%
-  # View()
-  gather("value","thresh_level",tresh_30:tresh_0) %>%
-  filter(!is.na(thresh_level)) %>%
-  # View()
-  group_by(category,combo,thresh_level) %>%
-  summarise(n_thresh = sum(n,na.rm = T)) %>%
-  # filter(thresh_level !="0%") %>% 
-  # filter(combo == "Arctic-ICCAT") %>%
-  # View()
-  ggplot() +
-  geom_bar(
-    aes(
-      # x = reorder(combo,desc(combo)),
-      x = reorder(combo,desc(n_thresh)),
-      y = n_thresh,
-      fill = thresh_level
-    ),
-    stat = "identity",
-    position = "dodge"
-  ) +
-  labs(
-    x = "Region and high seas combination",
-    y = "Number of stocks"
-  ) +
-  coord_flip() +
-  # facet_wrap(~ realm_name) +
-  scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
-  scale_y_continuous(expand = c(0, 0),
-                     breaks = seq(0,25,5),
-                     limits = c(0,25)
-  ) +
-  my_ggtheme_p(
-    leg_pos = "right",
-    ax_tl_s = 14,
-    ax_tx_s = 11,
-    y_hjust = 1,
-    y_vjust = 0.5
-    # axx_tx_ang = 45
-  ) +
-  facet_wrap(~category,
-             scales = "free",
-             ncol = 2)
-
-# Save plot 
-ggsave("./results/supplements/fig_S6.png",
-       last_plot(),
-       height = 6,
-       width = 12
-)
-
-
-```
-
-### Speices list for supplements
-
-```{r}
-
-# Number of straddling species
-length(unique(prop_data$taxon_key)) #67
-round(67/633 *100) #11
-
-# Number of straddling stocks
-prop_data %>% 
-  group_by(hs_name,realm_name) %>% 
-  summarise(x = length(unique(taxon_key)),
-            .groups = "keep") %>% 
-  pull(x) %>% sum() # 347
-
-straddling_species <- prop_data %>% 
-  left_join(exploited_spp) %>% 
-  left_join(sau_groups #%>% rename(taxon_name = scientific_name)
-            ) %>% 
-  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
-  group_by(taxon_name,common_name,commercial_group) %>% 
-  tally() %>% 
-  select(-n)
-
-straddling_species %>% 
-  pull(commercial_group) %>% 
-  unique()
-
-
-write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
-
-
-straddling_species %>% 
-  mutate(
-    large_pel = commercial_group %in% c("Tuna & billfishes", "Sharks & rays")
-  ) %>% 
-  group_by(large_pel) %>%
-  tally()
-  
-# Total large pellagics
-# tunas, billfishes sharks rays + mola, king of fish, wahoo, Common dolphinfish,
-(34 + 4) /67
-
-```
 
 ### FIG. 1A- Straddling species map
 
 ```{r straddling_map, eval = T, echo = F}
-
-# Scaling function for plot
-scaling <- function(x,...){(x-min(x,...))/(max(x,...)-min(x,...))}
 
 # Relationship table for RFMO to ocean basin
 rfmo_to_ob <- data_frame(
@@ -1413,8 +1176,7 @@ prop_data_map <- prop_data %>%
 # Number of straddling stocks by MEOW
 strad_meow <- prop_data_map %>% 
   group_by(realm_name) %>% 
-  summarise(n = length(unique(taxon_key))) %>% 
-  mutate(scale_n = scaling(n))
+  summarise(n = length(unique(taxon_key)))
 
 # Map it
 sf_meow_map <- sf_meow %>% 
@@ -1430,14 +1192,12 @@ strad_meow_map <- sf_meow_map %>%
 # Number of straddling stocks by High seas
 stradd_hs <- prop_data_map %>% 
   group_by(basin) %>%
-  summarise(n = length(unique(taxon_key))) %>% 
-  mutate(scale_n = scaling(n))
+  summarise(n = length(unique(taxon_key)))
 
 # Number of straddling stocks by high seas and Realm
 rfmo_realm <- prop_data_map %>% 
   group_by(basin,realm_name) %>% 
-  summarise(n = length(unique(taxon_key))) %>% 
-  mutate(scale_n = scaling(n))
+  summarise(n = length(unique(taxon_key)))
 
 # Transform projection of all
 basin_sf <- basin_data %>% 
@@ -1447,75 +1207,24 @@ basin_sf <- basin_data %>%
   st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = TRUE) %>% 
   st_transform(crs = "+proj=eck4")
 
-
-# The RFMO shapefile needs to be re-manipulated
-
-# sf_rfmo <- my_sf("RFMO") 
-# st_crs(sf_rfmo) = 4326
-# 
-# sf_rfmob <- sf_rfmo %>% 
-#   filter(rfmo_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
-#   # st_transform(crs = 4326) %>% 
-#   # mutate(geometry = (geometry + c(180,90)) %% c(360) - c(180,90)) %>%
-#   # st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = T) %>%
-#   group_by(rfmo_nm_s) %>% 
-#   summarise(geometry = st_union(geometry)) 
-#   st_transform(crs = "+proj=eck4") %>%
-#   st_shift_longitude()
-#   
-#   sf_rfmoc <- sf_rfmob %>% 
-#     rename(rfmo_name = rfmo_nm_s) %>% 
-#     st_wrap_dateline(options = c("WRAPDATELINE=YES",  "DATELINEOFFSET=180"), quiet = T) %>% 
-#     st_transform(crs = "+proj=eck4")
-# 
-# x <- ggplot(sf_rfmoc) +
-#   geom_sf(aes()) +
-#   facet_wrap(~rfmo_name)
-#   
-# 
-# ggsave("test.png",
-#        x)
-
-
-
 map_high_seas_stradd <-
   ggplot() + 
   geom_sf(data = basin_sf,
           aes(color = n)) +
   geom_sf(data = strad_meow_map,
           aes(fill = n)) +
-  # geom_sf(data = sf_rfmoc, aes(), fill = "transparent", color = "black") +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
-  # Add RFMO labels
-  # geom_label_repel(data = sf_rfmoc,
-  #                  aes(label = rfmo_name,
-  #                      geometry = geometry),
-  #                  stat = "sf_coordinates",
-  #                  direction = "y",
-  #                  seed = 5,
-  #                  max.overlaps = 10,
-  #                  point.padding = 50,
-  #                  hjust = "right",
-  #                  nudge_x = ifelse(sf_rfmoc$rfmo_name == "ICCAT",-13,
-  #                                   ifelse(sf_rfmoc$rfmo_name == "WCPFC",10,-5)),
-  #                  nudge_y = ifelse(sf_rfmoc$rfmo_name == "CCSBT",-20,
-  #                                   ifelse(sf_rfmoc$rfmo_name == "ICCAT",10,
-  #                                          ifelse(sf_rfmoc$rfmo_name == "WCPFC",10,1))),
-  #                  alpha = 0.6,
-  #                  size = 4
-  # ) +
   scale_fill_viridis_c("Number of Straddling Stocks", na.value = "white",
                        limits = c(0,50)) +
-  # scale_color_manual(values = wes_palette("Darjeeling1", n = 5)) +
-    scale_color_viridis_c("Number of Straddling Stocks", na.value = "white",
-                       limits = c(0,50)) +
+  scale_color_viridis_c("Number of Straddling Stocks", na.value = "white",
+                        limits = c(0,50)) +
   my_ggtheme_m(leg_pos = "bottom",
                leg_width = 2) +
   theme(legend.text = element_text(size = 14),
         legend.title = element_text(size = 16))
 
 # Save plot 
-ggsave("./results/figures/fig_1an.png",
+ggsave("./results/figures/fig_1a.png",
        map_high_seas_stradd,
        height = 7,
        width = 12
@@ -1546,6 +1255,7 @@ stradd_commercial_df <- prop_data %>%
     realm_name = str_replace(realm_name,"Eastern", "E.")
   )
 
+# Color scale
 commercial_scale <- c(
   "Cod-likes" =  wes_palette("Royal2",n = 5)[3],
   "Flatfishes" = wes_palette("IsleofDogs1",n = 5)[1],
@@ -1559,7 +1269,6 @@ commercial_scale <- c(
   "Squids" = wes_palette("Darjeeling2",n =5)[4],
   "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
 )
-
 
 
 plot <-
@@ -1598,7 +1307,7 @@ plot <-
     axis.ticks.x = element_blank()
   )
 
-plot_name <- paste0("./results/figures/fig1_pannel_hs.png")
+plot_name <- paste0("./results/figures/fig1_b.png")
 
 ggsave(plot_name,
        plot,
@@ -1619,7 +1328,7 @@ prop_data %>%
   summarise(value = length(unique(combo))) %>%
   left_join(highly_migratory_spp) %>% 
   # View()
-top_n(5,value) %>% 
+  top_n(5,value) %>% 
   arrange(desc(value)) %>% 
   View()
 
@@ -1630,18 +1339,6 @@ top_n(5,value) %>%
 ### Proportion change table
 
 ```{r}
-
-# Re- estimate change with average of all ESMs
-group_by(taxon_key,taxon_name,common_name,rcp,period,hs_name,realm_name,approach,category) %>% 
-  summarise_at(
-    .vars = c("low_tresh","mean","top_tresh"),
-    .funs = mean,
-    na.rm = T) %>% 
-  mutate(change = ifelse(mean > top_tresh,"gain",
-                         ifelse(mean < low_tresh,"lost","same")
-  )
-  )
-
 # Total changes
 
 reg_total <- prop_data_esm %>% 
@@ -1674,8 +1371,8 @@ prop_data_esm %>%
   ) %>% 
   mutate_if(is.numeric,round) %>% 
   select(1:3,n_min,n_m,n_max,n_sd,per_min,per_m,per_max,n_sd) %>%
-  # View()
-  write_csv("./results/tables/gains_losses.csv")
+  View()
+  # write_csv("./results/tables/gains_losses.csv")
 
 ```
 
@@ -1777,11 +1474,6 @@ circle_df <- prop_data %>%
 # Color pallet
 mycolor_scale <- 
   c(
-    # "CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
-    # "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2],
-    # "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
-    # "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
-    # "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
     "High Seas" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1],
     "C. Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
     "T. Australasia" = wes_palette("Moonrise3",n = 5)[2],
@@ -1876,7 +1568,7 @@ circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
 dev.off()
 ```
 
-### FIG 4. Intensitys
+### FIG 4. Intensity of change
 
 ```{r}
 
@@ -1888,7 +1580,7 @@ intense_data <- prop_data %>%
     # taxon_key == 600006,
     # change != "same"
     change != "same"
-    ) %>% 
+  ) %>% 
   # Estimte intensity
   mutate(
     eez_hist_prop = 100-hs_hist_prop,
@@ -1904,17 +1596,17 @@ intense_data <- prop_data %>%
   summarise(
     mean_intensity = mean(per_change_eez,na.rm = T)
   ) %>% 
-    filter(mean_intensity != 0) %>%
+  filter(mean_intensity != 0) %>%
   # View()
   group_by(commercial_group,period,rcp,realm_name) %>%
   summarise(
     sd_intensity = sd(mean_intensity,na.rm = T),
     mean_intensity = mean(mean_intensity,na.rm = T)
   ) %>% 
-    filter(mean_intensity != 0)
+  filter(mean_intensity != 0)
 
 
-  ### OPTION 3
+# Plot figure
 intense_data %>% 
   filter(period == "ear") %>%
   mutate(
@@ -1949,9 +1641,7 @@ intense_data %>%
   ) +
   geom_errorbar(
     aes(
-      # x = commercial_group,
       x = reorder_y,
-      # x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"),
       ymin = mean_intensity - sd_intensity,
       ymax = mean_intensity + sd_intensity
     ),
@@ -1970,26 +1660,25 @@ intense_data %>%
                facet_tx_s = 12
   ) +
   ylab("Change in SSR within EEZs relative to historic period (%)") +
-    theme(text = element_text(family = "Times New Roman"),
-          strip.text.y = element_text(angle = 1)
-          )
+  theme(text = element_text(family = "Times New Roman"),
+        strip.text.y = element_text(angle = 1)
+  )
 
 ggsave(
   "./results/figures/per_chng/per_chng_ear.png",
-       last_plot(),
-       width = 7,
-       height = 8)
+  last_plot(),
+  width = 7,
+  height = 8)
 
 ```
 
 
-# RFMO to RFMO
+## RFMO to RFMO
 
 ```{r}
 
-
 sankey_rfmo <- rfmo_prop_data %>% 
- mutate(change = ifelse(mean_t > top_tresh_t,"gain",
+  mutate(change = ifelse(mean_t > top_tresh_t,"gain",
                          ifelse(mean_t < low_tresh_t,"lost","same")
   )
   ) %>% 
@@ -2030,7 +1719,7 @@ circular_plot(data = sankey_rfmo, period_val = "mid", change_val = "net", level 
 
 ```
 
-##### RFMO map for figure
+### RFMO map for figure
 
 ```{r}
 sf_rfmo_map <-
@@ -2072,7 +1761,7 @@ ggsave(
 ```
 
 
-##### Figure Key for RFMOs
+### Figure Key for RFMOs
 
 ```{r}
 # Example data (connections between categories)
@@ -2107,7 +1796,6 @@ dev.off()
 
 
 ```
-
 
 ### Numbers for RFMO - RFMO
 
@@ -2159,8 +1847,142 @@ rfmo_prop_data_esm %>%
 
 ```
 
-
 # Supplement material
+
+## Straddling treshold 
+Supplemental material to show the different ammount of Straddling stocks depending on the threshold 
+
+```{r threshold_sensitivity, eval = F}
+
+bind_rows(
+  bind_rows(
+    lapply(unique(straddling_nhm$taxon_key),GetResults, type = "prop_ob")
+  ) %>% 
+    filter(taxon_key %in% straddling_nhm$taxon_key) %>% 
+    mutate(
+      category = "straddling"
+    ),
+  bind_rows(
+    lapply(unique(straddling_hm$taxon_key),GetResults, type = "prop")
+  ) %>% 
+    mutate(
+      category = "highly migratory"
+    )
+) %>% 
+  filter(
+    rcp == "rcp26",
+    period == "ear",
+    esm == "gfdl"
+  ) %>% 
+  # View()
+  mutate(
+    hs_name = ifelse(hs_name == "actic","Arctic_HS",hs_name),
+    tresh_30 = ifelse(area_hs > 30, "30%",NA),
+    tresh_20 = ifelse(area_hs > 20, "20%",NA),
+    tresh_0 = ifelse(area_hs > 0, "0%",NA),
+    tresh_10 = ifelse(area_hs > 10, "10%",NA),
+    combo = paste(realm_name,hs_name, sep = "-")
+  ) %>%
+  # View()
+  group_by(category,combo,tresh_30,tresh_20,tresh_10,tresh_0) %>%
+  tally() %>%
+  # View()
+  gather("value","thresh_level",tresh_30:tresh_0) %>%
+  filter(!is.na(thresh_level)) %>%
+  # View()
+  group_by(category,combo,thresh_level) %>%
+  summarise(n_thresh = sum(n,na.rm = T)) %>%
+  # filter(thresh_level !="0%") %>% 
+  # filter(combo == "Arctic-ICCAT") %>%
+  # View()
+  ggplot() +
+  geom_bar(
+    aes(
+      # x = reorder(combo,desc(combo)),
+      x = reorder(combo,desc(n_thresh)),
+      y = n_thresh,
+      fill = thresh_level
+    ),
+    stat = "identity",
+    position = "dodge"
+  ) +
+  labs(
+    x = "Region and high seas combination",
+    y = "Number of stocks"
+  ) +
+  coord_flip() +
+  # facet_wrap(~ realm_name) +
+  scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
+  scale_y_continuous(expand = c(0, 0),
+                     breaks = seq(0,25,5),
+                     limits = c(0,25)
+  ) +
+  my_ggtheme_p(
+    leg_pos = "right",
+    ax_tl_s = 14,
+    ax_tx_s = 11,
+    y_hjust = 1,
+    y_vjust = 0.5
+    # axx_tx_ang = 45
+  ) +
+  facet_wrap(~category,
+             scales = "free",
+             ncol = 2)
+
+# Save plot 
+ggsave("./results/supplements/fig_S6.png",
+       last_plot(),
+       height = 6,
+       width = 12
+)
+
+
+```
+
+## Speices list
+
+```{r}
+
+# Number of straddling species
+length(unique(prop_data$taxon_key)) #67
+round(67/633 *100) #11
+
+# Number of straddling stocks
+prop_data %>% 
+  group_by(hs_name,realm_name) %>% 
+  summarise(x = length(unique(taxon_key)),
+            .groups = "keep") %>% 
+  pull(x) %>% sum() # 347
+
+straddling_species <- prop_data %>% 
+  left_join(exploited_spp) %>% 
+  left_join(sau_groups #%>% rename(taxon_name = scientific_name)
+  ) %>% 
+  mutate(commercial_group = ifelse(is.na(commercial_group),"Other fish & inverts",commercial_group)) %>% 
+  group_by(taxon_name,common_name,commercial_group) %>% 
+  tally() %>% 
+  select(-n)
+
+straddling_species %>% 
+  pull(commercial_group) %>% 
+  unique()
+
+
+write_csv(straddling_species, "./results/supplements/straddling_species.csv") # this dataset has been further updated online using thesearoundus.org
+
+
+straddling_species %>% 
+  mutate(
+    large_pel = commercial_group %in% c("Tuna & billfishes", "Sharks & rays")
+  ) %>% 
+  group_by(large_pel) %>%
+  tally()
+
+# Total large pellagics
+# tunas, billfishes sharks rays + mola, king of fish, wahoo, Common dolphinfish,
+(34 + 4) /67
+
+```
 
 ## RFMO / EEZ map
 
@@ -2201,7 +2023,6 @@ ggsave("./results/supplements/regional_map.png",
 
 
 ## Diversity map
-
 
 ```{r}
 
@@ -2298,1504 +2119,6 @@ ggsave("./results/supplements/fig_S1.png",
        height = 4,
        width = 9
 )
-
-
-```
-
-# Discussion
-
-## Exploring missing taxa
-
-
-From the three tuna species not identified by straddling in this paper, little tuna (Euthynnus alleteratus) was not present in the initial dataset (Palacios-Abrantes 2020) while blackfin tuna (Thunnus atlanticus) and bullet tuna (Auxis rochei) ... 
-
-Method: I re ran the `taxon_proportion` for these two species to explore why were they not selected in the final result.
-
-No catch data on RFMO in model but also on SAU. These are more coastal species
-
-600144 <- blackfin tuna (Thunnus atlanticus)
-600093 <- bullet tuna (Auxis rochei)
-
-Missing Marlins: 
-6 of 8 species <- 
-Tetrapturus belone, no high seas data
-Tetrapturus pfluegeri, double check, present in trans, no data from the model
-Tetrapturus albidus, wrong name. White marlin, we have it.
-Tetrapturus audax,  also wrong name. Kajika striped marlin
-Tetrapturus georgei, No catch data on SAU
-Makaira indica, wrong name, Istiompax indica, we have it.
-
-Sailfishes:
-1 of 2 speices <-
-Istiophorus albicans, double check, present in trans.
-
-Swordfish, all good! 
-
-## The tunas
-
-```{r}
-
-prop_data %>% 
-  filter(realm_name == "Eastern Indo-Pacific",
-         taxon_key %in% c(600107,600143,600146)) %>% 
-  View()
-
-rfmo_prop_data %>% 
-  filter(taxon_key %in% c(600107,600143,600146),
-         rfmo_t %in% c("WCPFC"),
-         rfmo_n %in% c("IATTC")) %>% 
-  View()
-
-```
-
-
-# Old code 
-
-## Higly migratory species
-
-```{r un_highly_mig_spp, eval = F}
-
-# CANCELLED CHUNK
-
-# List of SAU species
-exploited_spp <- my_path("G","SAU", "exploited_species_list.csv", read = T)
-
-
-# Families
-un_families <- c("Bramidae","Alopiidae","Carcharhinidae","Sphyrnidae","Isurida")
-
-for(i in 1:length(un_families)){
-  fam <- un_families[i]
-  
-  fishbase_df <- fb_tbl("species") %>% 
-    mutate(Family = fam) %>% 
-    select(Genus, Species, FBname, reffered_as = Family) %>% 
-    mutate(scientific_name = paste(Genus,Species)) %>% 
-    select(scientific_name,reffered_as)
-  
-  if(i == 1){
-    output <-  fishbase_df
-  }else{
-    output <- bind_rows(output,fishbase_df)
-  }
-}
-
-
-un_species <- tibble(scientific_name = c("Thunnus alalunga","Thunnus thynnus","Thunnus obesus", "Katsuwonus pelamis", "Thunnus albacares", "Thunnus atlanticus","Euthynnus alletteratus","Euthynnus affinis", "Thunnus maccoyii",
-                                         "Auxis thazard", "Auxis rochei", 
-                                         "Tetrapturus angustirostris", "Tetrapturus belone", "Tetrapturus pfluegeri", "Tetrapturus albidus", "Tetrapturus audax", "Tetrapturus georgei", "Makaira mazara", "Makaira indica","Makaira nigricans",
-                                         
-                                         "Istiophorus platypterus","Istiophorus albicans",
-                                         "Xiphias gladius",
-                                         "Scomberesox saurus","Cololabis saira","Cololabis adocetus","Scomberesox saurus scombroides",
-                                         "Hexanchus griseus", "Cetorhinus maximus", "Rhincodon typus"),
-                     reffered_as = c(
-                       rep("Tuna",9),
-                       "Frigate mackerel","Frigate mackerel",
-                       rep("Marlin",9),
-                       "Sail-fish","Sail-fish",
-                       "Sword-fish",
-                       rep("Saury",4),
-                       rep("Shark",3)
-                     )) %>% 
-  mutate(source = "species")
-
-
-
-uh_migratory_taxa <- bind_rows(output,
-                               un_species) %>% 
-  group_by(taxon_name = scientific_name,source) %>% 
-  tally() %>% 
-  mutate(cat = "high_mig") %>% 
-  left_join(exploited_spp) %>% 
-  filter(is.na(taxon_key))
-
-```
-
-```{r}
-
-
-
-ggplot() +
-  geom_sf(data = sf_fao, aes(), fill ="#3B9AB2" ) +
-  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(fill = realm)) +
-  geom_sf(data = sf_land, aes(), fill ="grey" ) +
-  ggrepel::geom_label_repel(data = sf_fao_lab,
-                            aes(label = f_code,
-                                geometry = the_geom),
-                            stat = "sf_coordinates",
-                            direction = "y",
-                            seed = 10,
-                            point.padding	 = 1,
-                            alpha = 0.8,
-                            size = 4)
-
-
-sf_fao_lab <-
-  sf_fao %>% 
-  group_by(fao_name,f_code) %>% 
-  tally() %>% 
-  mutate(fao_name_lab = gsub(",","\n",fao_name))
-
-```
-
-
-
-
-
-### Proportion change map
-
-
-```{r}
-# A function that makes a dataframe per connection (we will use these connections to plot each lines)
-data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group){
-  inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=10, addStartEnd=TRUE, breakAtDateLine=F)             
-  inter=data.frame(inter)
-  inter$group=NA
-  diff_of_lon=abs(dep_lon) + abs(arr_lon)
-  if(diff_of_lon > 180){
-    inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
-    inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
-  }else{
-    inter$group=group
-  }
-  return(inter)
-}
-
-
-
-plot_data <- prop_data %>% 
-  group_by(rfmo_name,realm_name,esm,rcp,change) %>% 
-  tally() %>% 
-  group_by(realm_name,rfmo_name,rcp,change) %>% 
-  summarise(mean_n_shifts = mean(n,na.rm = T)) %>% 
-  filter(!is.na(change))
-
-
-# Get FAO and MEOW centroids
-
-rfmo_centroids <-
-  as.data.frame(st_centroid(sf_rfmo)) %>% 
-  ungroup() %>% 
-  select(rfmo_name, geometry) %>% 
-  separate(col = geometry, into = c("lon", "lat"), sep = "\\,")
-
-# Remove "c()"
-rfmo_centroids$lon <- gsub("\\(","",rfmo_centroids$lon)
-rfmo_centroids$lon <- gsub("c","",rfmo_centroids$lon)
-rfmo_centroids$lat <- gsub(")","",rfmo_centroids$lat)
-
-
-# ggplot() +
-#   geom_sf(data = sf_rfmo %>% sf_simplify, aes(), fill ="white" ) +
-#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-#   geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
-#   geom_point(data = rfmo_centroids,
-#              aes(
-#                x = as.numeric(lon),
-#                y = as.numeric(lat),
-#                color = rfmo_name
-#              )
-#   )
-
-# Get MEOW and MEOW centroids
-
-meow_centroids <- as.data.frame(st_centroid(sf_meow)) %>% 
-  ungroup() %>% 
-  select(realm_name = realm, geometry) %>% 
-  separate(col = geometry, into = c("lon", "lat"), sep = "\\,")
-
-# Remove "c()"
-meow_centroids$lon <- gsub("\\(","", meow_centroids$lon)
-meow_centroids$lon <- gsub("c","", meow_centroids$lon)
-meow_centroids$lat <- gsub(")","", meow_centroids$lat)
-
-
-meow_centroids <- meow_centroids %>% 
-  group_by(realm_name) %>% 
-  summarise(lon = mean(as.numeric(lon)),
-            lat = mean(as.numeric(lat)))
-
-# Modify annolying points (most of them!)
-meow_centroids <- meow_centroids %>% 
-  mutate(
-    lat = ifelse(realm_name == "Temperate Northern Atlantic",72,
-                 ifelse(realm_name == "Western Indo-Pacific",-9,
-                        ifelse(realm_name == "Eastern Indo-Pacific",-4,
-                               ifelse(realm_name == "Southern Ocean",-65,
-                                      ifelse(realm_name == "Temperate South America",-55,lat
-                                      ))))),
-    lon = ifelse(realm_name == "Arctic",-55,
-                 ifelse(realm_name == "Temperate Northern Pacific",-130,
-                        ifelse(realm_name == "Tropical Eastern Pacific",-90,
-                               ifelse(realm_name == "Eastern Indo-Pacific",95,
-                                      ifelse(realm_name == "Temperate South America",-60,
-                                             ifelse(realm_name == "Tropical Atlantic",-55,
-                                                    ifelse(realm_name == "Temperate North",42,
-                                                           ifelse(realm_name == "Temperate Northern Atlantic",42,
-                                                                  ifelse(realm_name == "Western Indo-Pacific",47,lon
-                                                                  )))))))))
-  )
-
-
-# ggplot() +
-#   geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes(), fill ="white" ) +
-#   geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-#   geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = name)) +
-#   geom_point(data = meow_centroids,
-#              aes(
-#                x = as.numeric(lon),
-#                y = as.numeric(lat),
-#                color = name
-#              )
-#   ) +
-#   geom_point(data = fao_centroids,
-#              aes(
-#                x = as.numeric(lon),
-#                y = as.numeric(lat)
-#              )
-#   )
-
-
-# Prepare data from results
-Data <-
-  plot_data %>% 
-  # get coords for sources
-  left_join(meow_centroids,
-            by = "realm_name") %>%
-  rename(start_lon = lon,
-         start_lat = lat) %>% 
-  # get coords for targets
-  left_join(rfmo_centroids,
-            by = "rfmo_name") %>%
-  rename(
-    source = rfmo_name,
-    target = realm_name,
-    end_lon = lon,
-    end_lat = lat) %>% 
-  ungroup() %>% 
-  drop_na() %>% 
-  mutate_at(vars(end_lon,end_lat),as.numeric)
-
-# Get paths data
-path_data <- Data 
-
-data_ready_plot=data.frame()
-
-for(i in c(1:nrow(path_data))){
-  # for(i in 1:4){
-  tmp=data_for_connection(path_data$start_lon[i], path_data$start_lat[i], path_data$end_lon[i], path_data$end_lat[i] , i)
-  tmp$rcp=path_data$rcp[i]
-  tmp$change=path_data$change[i]
-  tmp$mean_n_shifts=path_data$mean_n_shifts[i]
-  tmp$source=path_data$source[i]
-  tmp$objective=path_data$target[i]
-  data_ready_plot=rbind(data_ready_plot,tmp)
-}
-
-
-sf_ready_plot <- data_ready_plot %>% 
-  st_as_sf(coords = c("lon", "lat")) %>% 
-  st_set_crs(4326) #%>% # to match shapefiles
-# st_transform(crs = "+proj=eck4") 
-
-
-# Get arrow data
-arrows_data <- as.data.frame(st_coordinates(st_cast(sf_ready_plot,"POINT")$geometry)) %>% 
-  bind_cols(data_ready_plot)
-
-ggplot() +
-  # geom_sf(data = sf_rfmo, aes(), fill ="white" ) +
-  geom_sf(data = sf_meow %>% group_by(realm) %>% tally(), aes()) +
-  geom_sf(data = sf_land, aes(), fill = "gray30", col = "gray30") +
-  geom_point(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
-  geom_text(data = rfmo_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = rfmo_name)) +
-  geom_point(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat))) +
-  geom_text(data = meow_centroids, aes(x = as.numeric(lon), y = as.numeric(lat), label = realm_name)) +
-  geom_path(data = arrows_data %>% filter(rcp == "rcp85"),
-            aes(X, 
-                Y,
-                group = group,
-                color = change,
-                size = mean_n_shifts
-            ),
-            # size = 1,
-            arrow = arrow(length = unit(0.01, "npc"),ends = "first"),
-            show.legend = NA) +
-  facet_wrap(~change,
-             ncol =1)
-
-
-
-```
-
-
-## Sankey flow diagram
-
-```{r}
-
-
-# Prepare data
-sankey_df <- prop_data %>% 
-  group_by(period,rcp,rfmo_name,change,realm_name) %>% 
-  tally() %>% 
-  filter(rcp == "rcp85") %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-# Get nodes (name of zones)
-nodes <- data.frame(name = c(sankey_df %>% ungroup() %>% select(node = realm_name) %>% pull(node) %>% unique(), sankey_df %>% ungroup() %>% select(node = rfmo_name)%>% pull(node) %>% unique()))
-
-
-# get ids (identify each region by number)
-ids <- nodes %>% 
-  rowid_to_column("id") %>% 
-  rename(realm_name = name) %>% 
-  bind_cols(nodes) %>% 
-  mutate(
-    region = ifelse(name %in% sankey_df$realm_name,"realm_name","rfmo_name")
-  ) %>% 
-  select(id,realm_name,region)
-
-
-
-# Create links (source and target data)
-links <- sankey_df %>% 
-  left_join(ids,
-            by = "realm_name") %>% 
-  # View()
-  rename(nameb = realm_name) %>%
-  rename(realm_name = rfmo_name) %>%
-  left_join(ids,
-            by = "realm_name") %>% 
-  ungroup() %>% 
-  filter(period == "mid") %>%
-  select(source = id.x,
-         target = id.y,
-         value = n,
-         change,
-         everything()
-  ) %>%
-  mutate(source = source-1,
-         target = target - 1)
-
-# Give a color for each group:
-# scales::show_col(viridis::viridis_pal(option = "plasma")(10)) # from scales package
-# loss 
-# same 
-# gain 
-# Check this for color transparency https://stackoverflow.com/questions/46616321/modify-networkd3-sankey-plot-with-user-defined-colors
-
-
-
-my_color <- 'd3.scaleOrdinal() .domain(["Arctic","Central Indo-Pacific","Eastern Indo-Pacific","Southern Ocean","Temperate Australasia", "Temperate Northern Atlantic", "Temperate Northern Pacific" , "Temperate South America","Temperate Southern Africa","Tropical Atlantic","Tropical Eastern Pacific","Western Indo-Pacific","Atlantic, Northeast","Atlantic, Northwest","Pacific, Northwest", "Pacific Northeast","Indian Ocean, Eastern","Pacific, Eastern Central","Pacific, Southwest","Pacific, Western Central", "Pacific, Southeast","Indian Ocean, Antarctic","Indian Ocean, Western","Atlantic, Eastern Central","Atlantic, Western Central" ,"Atlantic, Southeast","Atlantic, Southwest"]) .range(["#F98400","#78B7C5","#0B775E"])'
-
-# my_color <- 'd3.scaleOrdinal() .domain(["a", "b"]) .range(["#F98400","#78B7C5","#0B775E"])'
-
-
-# Plot it!
-sankeyNetwork(Links = links,
-              Nodes = nodes,
-              Source = "source",
-              Target = "target",
-              Value = "value", 
-              NodeID = "name",
-              LinkGroup = "change",
-              NodeGroup = "name",
-              colourScale = my_color,
-              fontSize = 15, 
-              nodeWidth = 20,
-              sinksRight = T
-)
-
-
-# Paper numbers
-links %>% 
-  group_by(nameb,change) %>% 
-  tally() %>% 
-  View()
-
-
-links %>% 
-  group_by(nameb,change) %>% 
-  summarise(sum(value)) %>% 
-  View()
-
-
-
-
-# Numbers for manuscript
-
-# Number of regions 
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  summarise(x = length(unique(realm_name))) %>% 
-  View()
-
-# Number of stocks
-sankey_df %>% 
-  group_by(period,rcp,change) %>% 
-  tally() %>% 
-  View()
-
-
-```
-
-### Economic map
-
-```{r}
-# Economics
-
-rfmo_catch_country <- rfmo_catch %>% 
-  group_by(fishing_entity,commercial_group) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/10000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  left_join(sau_matching_names) %>% 
-  distinct() %>% 
-  group_by(iso_a3) %>% 
-  summarise_at(.vars = c("tonnes_million","value_billion"),
-               .funs = mean,
-               na.rm = T
-  )
-
-
-# Make sure everyone is included
-# rfmo_catch_country %>% 
-#   anti_join(sf_eez,
-#             by = "name") %>% 
-#   View()
-
-econ_map <- ggplot() +
-  geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
-  geom_sf(data = sf_land %>% left_join(rfmo_catch_country, by = "iso_a3"), aes(fill = value_billion))+ scale_fill_viridis_c("Value \n (USD)", na.value = "white") +
-  my_ggtheme_m(leg_pos = "right")
-
-
-# save legend
-# legend <- cowplot::get_legend(econ_map)
-# ggsave("../results/figures/legend.png", legend, width = 2, height = 2, dpi = 150)
-# econ_map <- econ_map + my_ggtheme_m(leg_pos = "")
-
-
-# Save plot 
-ggsave("../results/figures/econ_map.png",
-       econ_map,
-       height = 5,
-       width = 11
-)
-
-
-```
-
-### OHI circle map
-
-```{r}
-
-
-c_data <- rfmo_catch %>% 
-  group_by(area_name,common_name) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  select(
-    individual = common_name,
-    value = value_billion,
-    group = area_name
-  ) %>% 
-  filter(value >0) %>% 
-  arrange(group,value)
-
-
-
-# Set a number of 'empty bar' to add at the end of each group
-empty_bar <- 5
-to_add <- data.frame( matrix(NA, empty_bar*length(unique(c_data$group)), ncol(c_data)) )
-colnames(to_add) <- colnames(c_data)
-to_add$group <- rep(unique(c_data$group), each=empty_bar)
-c_data <- rbind(c_data, to_add)
-c_data <- c_data %>% arrange(group)
-c_data$id <- seq(1, nrow(c_data))
-
-# Get the name and the y position of each label
-label_data <- c_data
-number_of_bar <- nrow(label_data)
-angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-label_data$hjust <- ifelse( angle < -90, 1, 0)
-label_data$angle <- ifelse(angle < -90, angle+180, angle)
-
-# prepare a data frame for base lines
-base_data <- c_data %>% 
-  group_by(group) %>% 
-  summarize(start=min(id), end=max(id) - empty_bar) %>% 
-  rowwise() %>% 
-  mutate(title=mean(c(start, end)))
-
-# prepare a data frame for grid (scales)
-grid_data <- base_data
-grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
-grid_data$start <- grid_data$start - 1
-grid_data <- grid_data[-1,]
-
-
-# The plot
-ggplot(c_data %>% filter(!is.na(individual)), 
-       aes(x = as.factor(id), 
-           y = value, 
-           fill = group)
-) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
-  geom_bar(stat="identity", alpha=0.5) +
-  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
-  geom_segment(data=grid_data, aes(x = end, y = 600, xend = start, yend = 600), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  geom_segment(data=grid_data, aes(x = end, y = 400, xend = start, yend = 400), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
-  annotate("text", x = rep(max(c_data$id),4), 
-           y = c(0, 200, 400, 600), 
-           label = c("0", "200", "400", "600") ,
-           color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
-  geom_text(data=label_data, aes(x=id, 
-                                 y=value+10, 
-                                 label=individual,
-                                 hjust=hjust), 
-            color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
-  ylim(-100,600) +
-  # theme_minimal() +
-  theme(
-    legend.position = "none",
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1,4), "cm")
-  ) +
-  coord_polar()
-
-ggsave("../results/figures/circular_test.png",
-       last_plot(),
-       width = 7,
-       height = 7)
-
-
-```
-
-
-## Catch and value
-
-Catch and value data from the Sea Around Us as an average from 2007 to 2016
-
-### By RFMO
-
-```{r}
-
-# total catch
-sum(rfmo_catch$tonnes)/1000000 #million tones
-sum(rfmo_catch$landed_value)/1000000000 #million tones
-
-
-# Catch and value by RFMO
-rfmo_catch %>% 
-  group_by(area_name) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  arrange(desc(value_billion))
-
-```
-
-
-### By commercial group
-
-```{r}
-
-# Catch and value by RFMO
-rfmo_catch %>%
-  group_by(commercial_group) %>%
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>%
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>%
-  arrange(desc(value_billion))
-
-```
-
-### By country
-
-```{r}
-
-# Catch and value by RFMO
-rfmo_catch %>% 
-  group_by(fishing_entity) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  mutate(
-    value_billion = round(landed_value/1000000000),
-    tonnes_million = round(tonnes/1000000,1)
-  ) %>% 
-  arrange(desc(value_billion))
-
-```
-
-
-### Circular SAU catch and Revenue
-
-#### All species
-
-```{r}
-Species_Data <- rfmo_catch %>% 
-  group_by(common_name = fishing_entity,
-           rfmo_name = area_name) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>% 
-  select(common_name,rfmo_name,value = tonnes) %>% 
-  filter(!is.na(value)) %>% 
-  arrange(desc(value)) %>% 
-  group_by(rfmo_name) %>% 
-  top_n(25,value) %>% 
-  mutate(
-    # value = round(value/10000000000,4),
-    value = round(value/100000,4)
-  )
-
-# Species_Data <- shared_data %>%
-#   mutate(combo = paste0(realm,"_",rfmo_name)) %>%
-#   group_by(group = common_name,rfmo_name) %>%
-#   summarise(value = length(unique(combo))) %>%
-#   top_frac(.5)
-
-
-label_data <- Species_Data
-
-# Set a number of 'empty bar' to add at the end of each group
-Char <- as.factor(Species_Data$rfmo_name)
-empty_bar <- 5
-to_add <- data.frame( matrix(NA, empty_bar*nlevels(Char), ncol(Species_Data)) )
-colnames(to_add) <- colnames(Species_Data)
-to_add$rfmo_name <- rep(levels(Char), each=empty_bar)
-Species_Data <- rbind(Species_Data, to_add)
-Species_Data <- Species_Data %>% arrange(rfmo_name,value)
-Species_Data$id <- seq(1, nrow(Species_Data))
-
-
-# Get the name and the y position of each label
-# Create labels for all but top 5
-label_data <- Species_Data
-number_of_bar <- nrow(label_data)
-angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-label_data$hjust <- ifelse( angle < -90, 1, 0)
-label_data$angle <- ifelse(angle < -90, angle+180, angle)
-
-# prepare a data frame for base lines
-base_data <- Species_Data %>% 
-  group_by(rfmo_name) %>% 
-  summarize(start=min(id), 
-            end=max(id) - empty_bar, 
-            median = median(value, na.rm = T)
-  ) %>% 
-  rowwise() %>% 
-  mutate(title=mean(c(start, end)),
-         label = str_extract(rfmo_name, '\\b[^,]+$'))
-
-
-# prepare a data frame for grid (scales)
-grid_data <- base_data
-grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
-grid_data$start <- grid_data$start - 1
-# grid_data <- grid_data[-1,]
-grid_data[1,2] <- 5 # Manually include bathydemerssal
-grid_data[1,3] <- 1 
-
-# Median data
-median_data <- grid_data %>% 
-  mutate_at(vars(start,end),
-            .funs = as.numeric)
-
-# Seq_axis_spp <- seq(0,30,10)
-Seq_axis_spp <- seq(0,15,5)
-Plot_Limit <- max(Species_Data$value,na.rm=T)
-Ticks_Color <- "black"
-
-
-
-Spp_circular <-
-  ggplot(Species_Data, 
-         aes(x=as.factor(id), 
-             y=value,
-             fill=rfmo_name)
-  ) +       
-  # Note that id is a factor. If x is numeric, there is some space between the first bar
-  geom_bar(aes(x=as.factor(id),
-               y=value,
-               fill=rfmo_name),
-           stat="identity",
-           alpha=0.5) +
-  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
-  # geom_segment(data=grid_data,
-  #              aes(x = end, y = 30, xend = start, yend = 30),
-  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  # geom_segment(data=grid_data,
-  #              aes(x = end, y = 20, xend = start, yend = 20),
-  #              colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  geom_segment(data=grid_data,
-               aes(x = end, y = 15, xend = start, yend = 15),
-               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  geom_segment(data=grid_data, 
-               aes(x = end, y = 10, xend = start, yend = 10),  
-               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  geom_segment(data=grid_data,
-               aes(x = end, y = 05, xend = start, yend = 05),
-               colour = Ticks_Color, alpha=1, size=0.3, inherit.aes = FALSE) +
-  # Add median lines for each gropup
-  geom_segment(data=median_data,
-               aes(x = end, y = median, xend = start+5, yend = median, colour = rfmo_name),
-               alpha=1, size=0.5 , inherit.aes = FALSE) +
-  # Add text showing the value of each line
-  annotate("text", 
-           x = rep(max(Species_Data$id),4),
-           y = Seq_axis_spp,
-           label = Seq_axis_spp,
-           color=Ticks_Color, 
-           size=3, 
-           angle=0, 
-           fontface="bold",
-           hjust=1) +
-  geom_bar(aes(x=as.factor(id),
-               y=value,
-               fill=rfmo_name),
-           stat="identity",
-           alpha=0.5) +
-  # Species names
-  geom_text(data=label_data,
-            aes(x=id, 
-                # y= 30,
-                y= 16,
-                label = common_name,
-                hjust = hjust), 
-            color="black",
-            fontface="italic",
-            alpha=1,
-            size=3,
-            angle= label_data$angle,
-            inherit.aes = FALSE) +
-  # ylim(-10,40) +
-  ylim(-10,40) +
-  theme_bw() +
-  theme(
-    # legend.position = c(0.75,0.25),
-    # legend.position = c(0.50,0.50),
-    legend.position = "",
-    legend.text = element_text(size = 7),
-    legend.title.align = 0.5,
-    legend.title = element_text(size = 12, face = "bold"),
-    legend.key = element_rect(colour = NA, fill = NA),
-    axis.ticks = element_blank(),
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    panel.border   = element_blank(),
-    
-  ) +
-  coord_polar() +
-  scale_fill_viridis("RFMO",option= "D", discrete = T) +
-  scale_color_viridis("RFMO",option= "D", discrete = T) +
-  guides(fill=guide_legend(ncol=1))
-
-# save legend
-# legend <- cowplot::get_legend(Spp_circular)
-# ggsave("../results/figures/legend.png", legend, width = 2, height = 2, dpi = 150)
-# Spp_circular <- Spp_circular + theme(legend.position = "legend.position")
-
-
-# Save plot
-ggsave(filename = name_save,
-       plot = last_plot(),
-       width = 8,
-       height = 8,
-       units = "in")
-```
-
-
-#### Tunas 
-
-
-```{r}
-
-top_10_coiuntries <- rfmo_catch %>% 
-  filter(commercial_group == "Tuna & billfishes") %>% 
-  group_by(fishing_entity) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>%
-  # group_by(fishing_entity) %>%
-  arrange(landed_value) %>%
-  top_n(10,landed_value)
-
-totals <- rfmo_catch %>% 
-  filter(commercial_group == "Tuna & billfishes") %>% 
-  gather("category","value",tonnes,landed_value) %>% 
-  group_by(category) %>% 
-  summarise_if(is.numeric,c("tot"=sum))
-
-
-top_10_coiuntries %>% 
-  # filter(fishing_entity %in% c("Indonesia","Japan","Philippines")) %>% 
-  gather("category","value",tonnes,landed_value) %>% 
-  left_join(totals) %>% 
-  mutate(per = (value/tot)*100) %>% 
-  View()
-group_by(category) %>% 
-  summarise_if(is.numeric,sum)
-
-round(563715940668/1000000000)
-3521510/1000000
-
-tunas <- c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")
-
-
-Species_Data <- rfmo_catch %>% 
-  filter(commercial_group == "Tuna & billfishes",
-         fishing_entity %in% top_10_coiuntries$fishing_entity) %>% 
-  mutate(common_name = ifelse(common_name %in% tunas, common_name,"Other billfishes")) %>% 
-  group_by(common_name,
-           fishing_entity#,
-           # rfmo_name = area_name
-  ) %>% 
-  summarise_at(
-    .vars = c("tonnes","landed_value"),
-    .funs = sum,
-    na.rm = T
-  ) %>%
-  # mutate(price_per_kilo = landed_value/tonnes) %>% 
-  gather("category","value",tonnes:landed_value) %>%
-  filter(!is.na(value)) %>%
-  mutate(
-    value = ifelse(category == "landed_value", round(value/1000000000,4),round(value/1000,4)),
-    category = ifelse(category == "tonnes","Catch (thousand tonnes)","Value (billion USD)")
-  )
-
-
-ggplot(Species_Data) +
-  geom_bar(
-    aes(
-      x = reorder(fishing_entity,-value),
-      y = value,
-      fill = reorder(common_name,value)
-    ),
-    stat = "identity"
-  ) +
-  coord_flip() +
-  facet_wrap(~category,
-             scales = "free_x") +
-  scale_fill_manual("Species ",values = c(wes_palette("Darjeeling1"),wes_palette("Darjeeling2"))) +
-  labs(x = "Country",
-       y = "Value") +
-  my_ggtheme_p(
-    leg_pos = "right",
-    leg_tl_s = 12,
-    leg_tx_s = 10,
-    facet_tx_s = 11,
-    ax_tx_s = 11,
-    ax_tl_s = 12
-  )
-
-
-# Save plot
-ggsave(filename = "./results/figures/top10_tuna.png",
-       plot = last_plot(),
-       width = 10,
-       height = 5,
-       units = "in")
-
-
-# Categories dominating 
-Species_Data %>% 
-  group_by(common_name,category) %>% 
-  summarise(sum(value)) %>% 
-  View()
-
-```
-
-# Old code for cicrlce plots
-
-```{r}
-
-
-# Gain Data
-circle_data <-
-  sankey_df %>% 
-  filter(
-    period == period_val,
-    rcp == rcp_val,
-    change == change_val
-  ) %>% 
-  mutate(name = str_replace(realm_name," ", "\n")) %>% 
-  ungroup() %>% 
-  select(rowname = name,
-         key = rfmo_name,
-         value = n)
-
-# Color pallet
-mycolor_scale <- 
-  c("CCSBT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[1], 
-    "IATTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[2], 
-    "ICCAT" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[3],
-    "IOTC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[4],
-    "WCPFC" = viridis(8, alpha = 1, begin = 0, end = 1, option = "D")[5],
-    "Central\nIndo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
-    "Temperate\nAustralasia" = wes_palette("Moonrise3",n = 5)[2],
-    "Temperate\nSouth America" = wes_palette("Moonrise3",n = 5)[3],
-    "S. Ocean" = wes_palette("Darjeeling2",n = 5)[3],
-    "W.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
-    "E.\nIndo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-    "Tropical\nE. Pacific" = wes_palette("FantasticFox1",n = 5)[1],
-    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
-    "Temperate\nN. Atlantic" = wes_palette("FantasticFox1",n =5)[3],
-    "Temperate\nS. Africa" = wes_palette("FantasticFox1",n =5)[4],
-    "Tropical\nAtlantic" =   wes_palette("FantasticFox1",n =5)[5],
-    "Temperate\nN. Pacific" = wes_palette("Darjeeling2", n = 5)[5]
-  )
-
-
-name <- paste0("./results/figures/circular_",change_val,"_",period_val,"_",rcp_val,".png")
-png(name,
-    width = 1300, height = 1300, res = 150, units = "px")
-
-chordDiagram(
-  x = circle_data %>% arrange(rowname), 
-  grid.col = mycolor_scale,
-  directional = ifelse(change_val == "gain",1, -1),
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = T,
-  link.auto = T,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = T,
-  symmetric = T,
-  big.gap = 5
-)
-dev.off()
-
-
-# Net Change Data
-net_change <-
-  sankey_df %>% 
-  pivot_wider(
-    names_from = change,
-    values_from = n) %>% 
-  mutate_at(.var = c("gain","lost"),
-            .funs = replace_na,0
-  ) %>% 
-  mutate(name = str_replace(realm_name," ", "\n"),
-         value = gain - lost,
-         rowname_b = ifelse(value > 0,name,rfmo_name),
-         key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-  # View()
-  ungroup() %>%
-  mutate(
-    n_shifting = gain+lost,
-    per = value/(n_shifting),
-    per_non = same/(gain+lost+same)*100
-  ) %>% 
-  # View()
-  filter(period == period_val,
-         rcp == rcp_val) %>% 
-  select(rowname = rowname_b,
-         key = key_b,
-         value) %>% 
-  filter(value != 0)
-
-
-
-name_net <- paste0("./results/figures/circular_net_",period_val,"_",rcp_val,".png")
-png(name_net,
-    width = 1300, height = 1300, res = 150, units = "px")
-
-chordDiagram(
-  x = net_change, 
-  grid.col = mycolor_scale,
-  directional = 1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-)
-dev.off() 
-
-
-```
-
-
-
-### Circle For Tunas
-
-```{r}
-
-# Prepare data
-sankey_df <- prop_data %>% 
-  filter(common_name %in% c("Albacore","Bigeye tuna","Pacific bluefin tuna","Skipjack tuna","Southern bluefin tuna","Yellowfin tuna")) %>% 
-  group_by(period,rcp,rfmo_name,change,realm_name) %>% 
-  tally() %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-
-# Net Change Data
-net_change <-
-  sankey_df %>% 
-  pivot_wider(
-    names_from = change,
-    values_from = n) %>% 
-  mutate(gain = ifelse(is.na(gain),0,gain),
-         lost = ifelse(is.na(lost),0,lost)) %>% 
-  mutate(name = str_replace(realm_name," ", "\n"),
-         value = gain - lost,
-         rowname_b = ifelse(value > 0,name,rfmo_name),
-         key_b = ifelse(value < 0,name,rfmo_name)) %>% 
-  # Uncomment for overall numbers
-  # group_by(period,rcp) %>%
-  # summarise_at(c("gain","lost","same"),
-  #              .funs = sum,
-  #              na.rm = T) %>%
-  # mutate(per_change = 100-same/(gain+lost+same)*100)
-  ungroup() %>% 
-  select(rowname = rowname_b,
-         key = key_b,
-         value) %>% 
-  filter(value != 0,
-         period == "ear",
-         rcp == "rcp85") 
-
-length(unique(net_change$key))
-length(unique(net_change$rowname))
-
-mycolor_g <- c(viridis(10, alpha = 1, begin = 0, end = 1, option = "D"),
-               viridis(5, alpha = 1, begin = 0, end = 1, option = "F")
-)
-
-
-png("./results/figures/circular_net_tuna.png", width = 1200, height = 1200, res = 150, units = "px")
-chordDiagram(
-  x = net_change, 
-  grid.col = mycolor_g,
-  directional = 1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-)
-dev.off() 
-
-
-```
-
-
-
-### Intensity
-
-```{r}
-
-sankey_df <- prop_data %>% 
-  mutate(range = ifelse(change == "gain",mean-low_tresh,
-                        ifelse(change == "same",NA,mean-top_tresh)
-  ) 
-  ) %>% 
-  filter(!is.na(range)) %>%
-  # View()
-  group_by(common_name,period,rcp,rfmo_name,realm_name) %>% 
-  summarise(range_m = mean(range, na.rm =T)) %>% 
-  group_by(period,rcp,rfmo_name,realm_name) %>% 
-  summarise(range_m = mean(range_m, na.rm =T)) %>% 
-  filter(rcp == "rcp85") %>% 
-  mutate(
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-# Gain Data
-circle_data <-
-  sankey_df %>% 
-  filter(
-    period == "ear"
-    # change == "lost"
-  ) %>% 
-  mutate(name = str_replace(realm_name," ", "\n")) %>% 
-  ungroup() %>% 
-  select(rowname = name,
-         key = rfmo_name,
-         value = range_m)
-
-
-png("./results/figures/circular_range.png", width = 1200, height = 1200, res = 150, units = "px")
-chordDiagram(
-  x = circle_data, 
-  grid.col = mycolor_g,
-  directional = -1, 
-  direction.type = c("diffHeight","arrows"),
-  link.arr.type = "big.arrow",
-  link.arr.length = 0.1,
-  link.sort = F,
-  link.largest.ontop = TRUE,
-  transparency = 0.30,
-  scale = F,
-  symmetric = F
-)
-dev.off() 
-
-```
-
-
-###
-
-```{r}
-
-mycolor_scale <- 
-  c(
-    "Central Indo-Pacific" =  wes_palette("Darjeeling2",n = 5)[2],
-    "Temperate Australasia" = wes_palette("Moonrise3",n = 5)[2],
-    "Temperate South America" = wes_palette("Moonrise3",n = 5)[3],
-    "Southern Ocean" = wes_palette("Darjeeling2",n = 5)[3],
-    "Western Indo-Pacific" = wes_palette("Moonrise3",n = 5)[4],
-    "Eastern Indo-Pacific" = wes_palette("Moonrise3",n = 5)[5],
-    "Tropical Eastern Pacific" = wes_palette("Cavalcanti1",n = 5)[2],
-    "Arctic" = wes_palette("FantasticFox1",n = 5)[2],
-    "Temperate Northern Atlantic" = wes_palette("FantasticFox1",n =5)[3],
-    "Temperate Southern Africa" = wes_palette("FantasticFox1",n =5)[4],
-    "Tropical Atlantic" =   wes_palette("FantasticFox1",n =5)[5],
-    "Temperate Northern Pacific" = wes_palette("Darjeeling2", n = 5)[5]
-  )
-
-# View()
-intense_data %>% 
-  mutate(
-    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)"),
-    Direction = ifelse(mean_intensity < 0,"High seas","EEZs")
-  ) %>% 
-  # View()
-  ggplot() +
-  geom_bar(
-    aes(
-      # x = commercial_group,
-      x = tidytext::reorder_within(commercial_group,realm_name,realm_name,sep = "-"),
-      y = mean_intensity,
-      color = Direction,
-      fill = Direction
-    ),
-    stat = "identity",
-    position = position_dodge2()
-  ) +
-  geom_errorbar(
-    aes(
-      x = reorder_within(commercial_group, realm_name, realm_name,sep = "-"), 
-      ymin = mean_intensity - sd_intensity, 
-      ymax = mean_intensity + sd_intensity
-    ),
-    position = position_dodge2(width = 0.75),
-    width = 0.25
-  ) +
-  coord_flip() +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
-  # scale_color_manual("Direction", values = mycolor_scale) +
-  # scale_fill_manual("Direction", values = mycolor_scale) +
-  facet_wrap(~ssp,scales = "free_x") +
-  scale_x_reordered("Commercial group")  +
-  my_ggtheme_p(leg_pos = "right",
-               ax_tl_s = 16,
-               ax_tx_s = 12,
-               leg_tl_s = 16,
-               leg_tx_s = 12,
-               facet_tx_s = 16
-  ) +
-  ylab("Change in SSR within EEZs relative to historic period (%)") +
-    theme(text = element_text(family = "Times New Roman"))
-
-
-ggsave("./results/figures/intensity_realm_option_ear.png",
-       last_plot(),
-       width = 14,
-       height = 10)
-
-
-### OPTION 2
-
-commercial_scale <- c(
-  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
-  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
-  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
-  "Other fishes & inverts" = "grey",
-  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
-  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
-  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
-  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
-  "Small pelagics" = wes_palette("Darjeeling2",n =5)[3],
-  "Squids" = wes_palette("Darjeeling2",n =5)[4],
-  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
-)
-
-intense_data %>% 
-  mutate(
-    ssp = ifelse(rcp == "rcp26","SSP1-2.6\n(Low emission scenario)","SSP5-8.5\n(High emission scenario)")
-  ) %>% 
-  ggplot() +
-  geom_bar(
-    aes(
-      # x = commercial_group,
-      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
-      y = mean_intensity,
-      color = commercial_group,
-      fill = commercial_group
-    ),
-    stat = "identity",
-    position = position_dodge2()
-  ) +
-  geom_errorbar(
-    aes(
-      x = tidytext::reorder_within(realm_name,mean_intensity,commercial_group),
-      ymin = mean_intensity - sd_intensity, 
-      ymax = mean_intensity + sd_intensity
-    ),
-    position = position_dodge2(width = 0.75),
-    width = 0.25
-  ) +
-  coord_flip() +
-  scale_color_manual("Commercial group", values = commercial_scale) +
-  scale_fill_manual("Commercial group", values = commercial_scale) +
-  # scale_y_continuous(limits = c(-200,50)) +
-  facet_wrap(~ssp,scales = "free") +
-  scale_x_reordered("Region")  +
-  my_ggtheme_p(leg_pos = "right",
-               ax_tl_s = 16,
-               ax_tx_s = 12,
-               leg_tl_s = 16,
-               leg_tx_s = 12,
-               facet_tx_s = 16
-               
-               
-               ) +
-  ylab("Change in SSR within EEZs relative to historic period (%)")
-
-
-ggsave(
-  "./results/figures/intensity_comm_spp_option_ear.png",
-       last_plot(),
-       width = 14,
-       height = 10)
-
-
-```
-
-
-
-## Figure 1 b
-
-```{r fig_1b}
-
-
-# Straddling stocks by RFMO
-stradd_commercial <- prop_data %>% 
-  left_join(exploited_spp) %>% 
-  left_join(sau_groups) %>% 
-  group_by(rfmo_name,realm_name,commercial_group) %>% 
-  summarise(n = length(unique(taxon_key)),
-            species = paste(unique(common_name), collapse = ";"))
-
-
-stradd_bar_plot <- stradd_commercial %>% 
-  filter(n >0,
-         !is.na(commercial_group)) %>% 
-  mutate(
-    realm_name = str_replace(realm_name," ", "\n"),
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"South","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E.")
-  ) %>% 
-  ggplot() +
-  geom_bar(
-    aes(
-      x = commercial_group,
-      y = n,
-      fill = commercial_group
-    ),
-    stat = "identity"
-  ) +
-  facet_grid(rfmo_name~realm_name,
-             scales = "free") +
-  labs(x = "", y = "Number of straddling stocks") +
-  scale_fill_manual("Commercial group",values = c(wes_palette("Darjeeling1")[1:3],
-                                                  "grey",
-                                                  wes_palette("Darjeeling1")[4:5],
-                                                  wes_palette("Darjeeling2"))
-  ) +
-  scale_y_continuous(breaks = seq(0,30,5))+
-  theme_bw() +
-  theme(
-    panel.grid.minor = element_blank(), 
-    panel.grid.major = element_blank(),
-    strip.background = element_blank(),
-    legend.position = "bottom",
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 16),
-    strip.text = element_text(size = 12),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  );stradd_bar_plot
-
-# Save plot 
-ggsave("./results/figures/fig_1b.png",
-       stradd_bar_plot,
-       height = 6,
-       width = 12
-)
-
-
-```
-
-# fig_1b_colette per HS region
-
-```{r fig_1b_colette}
-
-stradd_commercial_df <- prop_data %>% 
-  left_join(exploited_spp) %>% 
-  left_join(sau_groups) %>% 
-  group_by(hs_name,realm_name,commercial_group) %>% 
-  summarise(n = length(unique(taxon_key)),
-            species = paste(unique(common_name), collapse = ";")) %>% 
-  mutate(realm_or = realm_name) %>% 
-  filter(n >0,
-         !is.na(commercial_group)) %>% 
-  mutate(
-    realm_name = str_replace(realm_name," ", "\n"),
-    realm_name = str_replace(realm_name,"Southern","S."),
-    realm_name = str_replace(realm_name,"South","S."),
-    realm_name = str_replace(realm_name,"Northern","N."),
-    realm_name = str_replace(realm_name, "Western", "W."),
-    realm_name = str_replace(realm_name,"Eastern", "E.")
-  )
-
-commercial_scale <- c(
-  "Cod-likes" =  wes_palette("Darjeeling1",n = 5)[1],
-  "Flatfishes" = wes_palette("Darjeeling1",n = 5)[2],
-  "Herring-likes" = wes_palette("Darjeeling1",n = 5)[3],
-  "Other fishes & inverts" = "grey",
-  "Perch-likes" = wes_palette("Darjeeling1",n = 5)[4],
-  "Salmon, smelts, etc" = wes_palette("Darjeeling1",n = 5)[5],
-  "Scorpionfishes" = wes_palette("Darjeeling2",n = 5)[1],
-  "Sharks & rays" = wes_palette("Darjeeling2",n = 5)[2],
-  "Small pelagic" = wes_palette("Darjeeling2",n =5)[3],
-  "Squids" = wes_palette("Darjeeling2",n =5)[4],
-  "Tuna & billfishes" = wes_palette("Darjeeling2",n =5)[5]
-)
-
-
-for(i in 1:length(unique(stradd_commercial_df$realm_name))){
-  
-  realm <- unique(stradd_commercial_df$realm_name)[i]
-  realm_or_name <- unique(stradd_commercial_df$realm_or)[i]
-  
-  plot <- stradd_commercial_df %>% 
-    filter(realm_name %in% realm) %>% 
-    mutate(new_region = case_when(
-      hs_name == "e_pacific" ~ "Pacific",
-      hs_name == "w_pacific" ~ "Pacific",
-      hs_name == "e_atlantic" ~ "Atlantic",
-      hs_name == "w_atlantic" ~ "Atlantic",
-      hs_name == "e_indian" ~ "Indian",
-      hs_name == "w_indian" ~ "Indian",
-      hs_name == "actic" ~ "Arctic",
-      hs_name == "antarctic" ~ "Antarctic"
-    )) %>% 
-    mutate(new_region = ifelse(is.na(new_region),hs_name,new_region)) %>% 
-    group_by(new_region,realm_name,realm_or,commercial_group) %>% 
-    summarise(n = sum(n,na.rm = T)) %>% 
-    ggplot() +
-    geom_bar(
-      aes(
-        x = commercial_group,
-        y = round(n),
-        fill = commercial_group
-      ),
-      stat = "identity"
-    ) +
-    facet_grid(realm_or~new_region, switch = "x",
-               scales = "free") +
-    labs(x = "", y = "") +
-    scale_fill_manual(values = commercial_scale) +  # Map colors based on commercial_scale
-    # scale_y_continuous(breaks = seq(0,30,5))+
-    theme_bw() +
-    theme(
-      panel.grid.minor = element_blank(), 
-      panel.grid.major = element_blank(),
-      panel.spacing = unit(1.5, "lines"),
-      strip.background = element_blank(),
-      legend.position = "",
-      strip.text.x = element_text(size = 15, angle = 90),
-      strip.text.y = element_text(size = 20, angle = 90),
-      axis.text.y = element_text(size = 15, angle = 90),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank()
-    )
-  
-  plot_name <- paste0("./results/figures/fig_1b_singles/",realm_or_name,".png")
-  
-  ggsave(plot_name,
-         plot,
-         height = 5,
-         width = 5
-  )
-  
-}
 
 
 ```
