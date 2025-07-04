@@ -1,7 +1,10 @@
 
 #StraddIndexFun
+# This function determines which transboundary stocks from Palacios-Abrantes et al 2020 are straddling
 
-# This function determines which transboundary stocks are straddling
+# NOTES:
+# paths embeded in function
+# Requires: meow_dbem_grid 
 
 stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_index,folder_name){
   
@@ -59,10 +62,10 @@ stradd_index <- function(spp, model = "All", neighbours, coord, index_code,hs_in
     #       y = lat),
     #     fill = "red"
     #   )
-  
-  # joint eez names
-  left_join(meow_dbem_grid, # No EEZs but MEOWs
-            by = "index") %>% 
+    
+    # joint eez names
+    left_join(meow_dbem_grid, # No EEZs but MEOWs
+              by = "index") %>% 
     # joint hs_names
     left_join(hs_index,
               by = "index") %>% 

@@ -2,6 +2,9 @@
 # taxon_proportion
 # This function is the main analysis estimating the proportion change above historic levels
 
+# NOTES:
+# paths embeded in code
+
 taxon_proportion <- function(taxon_key, dbem_grid, hs_index, folder_name,high_mig = F){
   
   print(taxon_key)

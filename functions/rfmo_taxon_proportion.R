@@ -1,7 +1,9 @@
 
-# rfmo_taxon_proportion
+# This function estimate proportion change between RFMOs similar to `taxon_proportion.R`
 
-# This function estimate proportion change between RFMOs
+# NOTES:
+# requires: rfmo_neighbour data 
+# paths embeded in code
 
 rfmo_taxon_proportion <- function(taxon_key){
   

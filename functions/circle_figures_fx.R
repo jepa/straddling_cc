@@ -1,4 +1,6 @@
-
+# Function to create circluar figures 3 and 5
+# Note that characteristics change depending on the figure type 
+# Paths embeeded in code
 
 circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
   
@@ -54,7 +56,7 @@ circular_plot <- function(data,period_val,rcp_val,change_val,level = "realm"){
                   facing = "clockwise", 
                   niceFacing = TRUE, #Orientation of label 
                   adj = c(1.3, 0.5) # adjust position of label (0.5 middle)
-                  )
+      )
       circos.axis(h = "top", 
                   # labels.font	= "Times",
                   labels.cex = 1, 
