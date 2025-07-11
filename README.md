@@ -20,13 +20,9 @@ This repository supports the publication *Climate change drives shifts in stradd
 
 *Corresponding author: Juliano Palacios-Abrantes, j.palacios[at]oceans.ubc.ca
 
-Paper publication **TDB**
+Paper publication **TDB** 
 
-Code [![DOI](https://zenodo.org/badge/483446639.svg)](https://doi.org/10.5281/zenodo.11496334)
-
-Data [![DOI](https://img.shields.io/badge/DOI-10.5683/SP3%2FJMBHER-blue)]([https://doi.org/10.5683/SP3/JMBHER](https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP3/JMBHER))
-
-
+Paper-DOI **TDB**  [![Code -- DOI](https://img.shields.io/badge/Code--DOI-10.5281%2Fzenodo.11496334-blue)](https://doi.org/10.5281/zenodo.11496334) [![Data -- DOI](https://img.shields.io/badge/Data--DOI-10.5683%2FSP3%2FJMBHER-orange)](https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP3/JMBHER) 
 
 
 # Project Goal:
