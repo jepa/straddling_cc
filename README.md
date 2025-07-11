@@ -24,7 +24,7 @@ Paper publication **TDB**
 
 Code [![DOI](https://zenodo.org/badge/483446639.svg)](https://doi.org/10.5281/zenodo.11496334)
 
-Data [![DOI](https://img.shields.io/badge/DOI-10.5683/SP3%2FJMBHER-blue)](https://doi.org/10.5683/SP3/JMBHER)
+Data [![DOI](https://img.shields.io/badge/DOI-10.5683/SP3%2FJMBHER-blue)]([https://doi.org/10.5683/SP3/JMBHER](https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP3/JMBHER))
 
 
 
