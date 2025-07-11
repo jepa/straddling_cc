@@ -22,6 +22,13 @@ This repository supports the publication *Climate change drives shifts in stradd
 
 Paper publication **TDB**
 
+Code [![DOI](https://zenodo.org/badge/483446639.svg)](https://doi.org/10.5281/zenodo.11496334)
+
+Data [![DOI](https://img.shields.io/badge/DOI-10.5683/SP3%2FJMBHER-blue)](https://doi.org/10.5683/SP3/JMBHER)
+
+
+
+
 # Project Goal:
 
 Identify straddles between the high seas and EEZs and investigate the effects of climate-induced distribution shifts on the sharing of straddling stocks.
