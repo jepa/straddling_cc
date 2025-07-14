@@ -1166,14 +1166,14 @@ rfmo_to_ob <- data_frame(
 )
 
 
-# Get MEOW and EEZs (REMOVE)
+# Get MEOW and EEZs 
 prop_data_map <- prop_data %>% 
   left_join(rfmo_to_ob) %>%
   mutate(
     basin = ifelse(is.na(basin),hs_name,basin)
   )
 
-# Number of straddling stocks by MEOW
+# Number of straddling species by MEOW
 strad_meow <- prop_data_map %>% 
   group_by(realm_name) %>% 
   summarise(n = length(unique(taxon_key)))
@@ -1192,11 +1192,6 @@ strad_meow_map <- sf_meow_map %>%
 # Number of straddling stocks by High seas
 stradd_hs <- prop_data_map %>% 
   group_by(basin) %>%
-  summarise(n = length(unique(taxon_key)))
-
-# Number of straddling stocks by high seas and Realm
-rfmo_realm <- prop_data_map %>% 
-  group_by(basin,realm_name) %>% 
   summarise(n = length(unique(taxon_key)))
 
 # Transform projection of all
