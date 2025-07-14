@@ -1909,8 +1909,8 @@ bind_rows(
   # facet_wrap(~ realm_name) +
   scale_fill_manual("Threshold level", values = wes_palette("Royal1")) +
   scale_y_continuous(expand = c(0, 0),
-                     breaks = seq(0,25,5),
-                     limits = c(0,25)
+                     # breaks = seq(0,25,5),
+                     # limits = c(0,25)
   ) +
   my_ggtheme_p(
     leg_pos = "right",
@@ -1925,7 +1925,7 @@ bind_rows(
              ncol = 2)
 
 # Save plot 
-ggsave("./results/supplements/fig_S6.png",
+ggsave("./results/supplements/fig_S7.png",
        last_plot(),
        height = 6,
        width = 12
@@ -1983,8 +1983,19 @@ straddling_species %>%
 
 ```{r regional_map, eval = T, echo = F}
 
+# RFMO data
+sf_rfmo <- my_sf("RFMO") %>% 
+  filter(rfmo_nm_s %in% c("ICCAT","WCPFC","IOTC","IATTC","CCSBT")) %>% 
+  dplyr::rename(rfmo_name = rfmo_nm_s) %>% 
+  group_by(rfmo_name) %>% 
+  summarise(geometry = st_union(geometry))
+
+# sf_rfmo <- my_sf("RFMO_tuna",simple = 1) %>%
+# st_transform(crs = "+proj=eck4")
+
+
 regional_map <- ggplot() + 
-  geom_sf(data = sf_rfmo %>% left_join(stradd_hs), aes(),fill = "transparent") +
+  geom_sf(data = sf_rfmo, aes(),fill = "transparent") +
   geom_sf(data = sf_meow_map, aes(fill = realm_name)) +
   # geom_sf_label(data = sf_rfmo, aes(label = rfmo_name)) +
   geom_sf(data = sf_land, aes(), fill = "antiquewhite", color = "grey50") +
@@ -2008,7 +2019,7 @@ regional_map <- ggplot() +
   )
 
 # Save plot 
-ggsave("./results/supplements/regional_map.png",
+ggsave("./results/supplements/fig_S6.png",
        regional_map,
        height = 5,
        width = 11
