@@ -1,6 +1,6 @@
 # Climate change drives shifts in straddling fish stocks in the world’s ocean
 
-This repository supports the publication *Climate change drives shifts in straddling fish stocks in the world’s ocean* Currently *in press*
+This repository supports the publication *Climate change drives shifts in straddling fish stocks in the world’s ocean* published in 2025
 
 **Authors**: Juliano Palacios-Abrantes*<sup>1</sup>, Bianca S. Santos<sup>2</sup>, Thomas L. Frölicher<sup>3,4</sup>, Gabriel Reygondeau<sup>5</sup>, U. Rashid Sumaila<sup>1,6</sup>, Colette C. C. Wabnitz<sup>1,7</sup> & William W. L. Cheung<sup>1</sup>
 
@@ -20,10 +20,9 @@ This repository supports the publication *Climate change drives shifts in stradd
 
 *Corresponding author: Juliano Palacios-Abrantes, j.palacios[at]oceans.ubc.ca
 
-Paper publication **TDB** 
+Palacios-Abrantes, J., Santos B.S., Frölicher, T.L., Reygondeau, G., Sumaila, U.R., Wabnitz, C.C.C., and Cheung, W.W.L. 2025. Climate change drives shifts in straddling fish stocks in the world’s ocean. _Science Advances_. 11,eadq5976(2025)
 
-Paper-DOI **TDB**  [![Code -- DOI](https://img.shields.io/badge/Code--DOI-10.5281%2Fzenodo.11496334-blue)](https://doi.org/10.5281/zenodo.11496334) [![Data -- DOI](https://img.shields.io/badge/Data--DOI-10.5683%2FSP3%2FJMBHER-orange)](https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP3/JMBHER) 
-
+[![Paper -- DOI](https://img.shields.io/badge/Paper--DOI-10.1126%2Fsciadv.adq5976-pink)](https://doi.org/10.1126/sciadv.adq5976) [![Code -- DOI](https://img.shields.io/badge/Code--DOI-10.5281%2Fzenodo.11496334-blue)](https://doi.org/10.5281/zenodo.11496334) [![Data -- DOI](https://img.shields.io/badge/Data--DOI-10.5683%2FSP3%2FJMBHER-orange)](https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP3/JMBHER) 
 
 # Project Goal:
 
@@ -94,5 +93,5 @@ Support data used in this project is called along the *methods* section of the `
 - *eez_rfmo_region.csv*, data related to what EEZs are neighbouring RFMOs.
 - *RFMO_Neighbours_List.csv*, data related to what RFMO are neighbouring other RFMOs. 
 
-**As of August of 2025 the paper has been published and this repository has been archived**
+_**As of August of 2025 the paper has been published and this repository has been archived**_
 
